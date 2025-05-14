@@ -1,0 +1,415 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Playing: {{ game.quiz.title }} - QuizBattle{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">{{ game.quiz.title }}</h3>
+                    <span class="badge bg-warning text-dark">Game Code: {{ game.code }}</span>
+                </div>
+                <div class="card-body">
+                    <!-- Waiting Screen -->
+                    <div class="waiting-screen text-center py-5">
+                        <h2 class="mb-4">Waiting for the host to start the game...</h2>
+                        <div class="mb-4">
+                            <p class="lead">You've joined as <strong>{{ player.username }}</strong></p>
+                            <p>The host will start the game soon. Get ready!</p>
+                        </div>
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Question Screen -->
+                    <div class="question-screen d-none">
+                        <div class="question-header text-center mb-4">
+                            <h2 id="question-text" class="mb-3"></h2>
+                            <div class="progress">
+                                <div id="timer-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                                     role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <p class="my-2 text-muted">
+                                Time remaining: <span id="time-remaining">0</span> seconds
+                            </p>
+                        </div>
+                        
+                        <div class="answer-container row g-3 mb-5" id="answers">
+                            <!-- Answer buttons will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Question Result Screen -->
+                    <div class="result-screen d-none text-center py-5">
+                        <div id="correct-answer" class="mb-4 d-none">
+                            <h3 class="text-success"><i class="fas fa-check-circle me-2"></i> Correct!</h3>
+                            <p class="display-4 text-success">+<span id="points-earned">0</span> points</p>
+                        </div>
+                        
+                        <div id="wrong-answer" class="mb-4 d-none">
+                            <h3 class="text-danger"><i class="fas fa-times-circle me-2"></i> Incorrect!</h3>
+                            <p class="text-muted">The correct answer was: <span id="correct-answer-text"></span></p>
+                        </div>
+                        
+                        <div id="timed-out" class="mb-4 d-none">
+                            <h3 class="text-warning"><i class="fas fa-clock me-2"></i> Time's Up!</h3>
+                            <p class="text-muted">You didn't answer in time.</p>
+                        </div>
+                        
+                        <div class="waiting-for-next mt-4">
+                            <p class="lead">Waiting for the next question...</p>
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Game End Screen -->
+                    <div class="end-screen d-none text-center py-5">
+                        <h2 class="mb-4">Game Over!</h2>
+                        <p class="lead">The host has ended the game.</p>
+                        <p>You'll be redirected to the results page shortly...</p>
+                        <div class="spinner-grow text-primary mt-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary">Player: {{ player.username }}</span>
+                            <span class="badge bg-success ms-2">Score: <span id="current-score">{{ player.score }}</span></span>
+                        </div>
+                        <button id="leave-game" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-sign-out-alt me-1"></i> Leave Game
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Game client object
+    const gameClient = {
+        code: "{{ game.code }}",
+        playerId: "{{ player.id }}",
+        socket: null,
+        currentQuestion: null,
+        timer: null,
+        timerDuration: 0,
+        answered: false,
+        
+        // Initialize the game client
+        init: function() {
+            // Set up WebSocket connection
+            this.setupWebSocket();
+            
+            // Set up button events
+            this.setupEventListeners();
+        },
+        
+        // Set up WebSocket connection to server
+        setupWebSocket: function() {
+            const gameSocket = new WebSocket(
+                'ws://' + window.location.host + '/ws/game/' + this.code + '/'
+            );
+            
+            gameSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                console.log('WebSocket message:', data);
+                
+                if (data.type === 'start_game') {
+                    gameClient.handleGameStart();
+                } else if (data.type === 'show_question') {
+                    gameClient.handleShowQuestion(data);
+                } else if (data.type === 'question_end') {
+                    gameClient.handleQuestionEnd(data);
+                } else if (data.type === 'end_game') {
+                    gameClient.handleGameEnd();
+                } else if (data.type === 'score_update') {
+                    gameClient.updateScore(data.score);
+                }
+            };
+            
+            gameSocket.onclose = function(e) {
+                console.error('Game socket closed unexpectedly');
+            };
+            
+            this.socket = gameSocket;
+        },
+        
+        // Set up event listeners
+        setupEventListeners: function() {
+            document.getElementById('leave-game').addEventListener('click', () => {
+                if (confirm('Are you sure you want to leave this game?')) {
+                    window.location.href = "{% url 'home' %}";
+                }
+            });
+        },
+        
+        // Handle game start event
+        handleGameStart: function() {
+            document.querySelector('.waiting-screen').classList.add('d-none');
+            // The first question will be shown by handleShowQuestion
+        },
+        
+        // Handle showing a new question
+        handleShowQuestion: function(data) {
+            // Reset state for new question
+            this.answered = false;
+            this.currentQuestion = data.question;
+            this.timerDuration = data.time_limit;
+            
+            // Hide other screens, show question screen
+            document.querySelector('.waiting-screen').classList.add('d-none');
+            document.querySelector('.result-screen').classList.add('d-none');
+            document.querySelector('.end-screen').classList.add('d-none');
+            document.querySelector('.question-screen').classList.remove('d-none');
+            
+            // Set question text
+            document.getElementById('question-text').textContent = data.question_text;
+            
+            // Start the timer
+            this.startTimer();
+            
+            // Create answer buttons with the real answers from the server
+            this.createAnswerButtons(data.answers);
+        },
+        
+        // Create answer buttons for the current question
+        createAnswerButtons: function(answers) {
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = '';
+            
+            // If we have actual answers from the server, use those
+            if (answers && answers.length > 0) {
+                const colors = ['primary', 'success', 'warning', 'danger'];
+                const options = ['A', 'B', 'C', 'D'];
+                
+                answers.forEach((answer, i) => {
+                    const answerCol = document.createElement('div');
+                    answerCol.className = 'col-md-6';
+                    
+                    const answerBtn = document.createElement('button');
+                    const colorIndex = i % colors.length;
+                    answerBtn.className = `btn btn-${colors[colorIndex]} btn-lg w-100 py-4`;
+                    answerBtn.dataset.answer = answer.id;
+                    answerBtn.innerHTML = `
+                        <span class="answer-letter">${options[i]}</span>
+                        <span class="answer-text">${answer.text}</span>
+                    `;
+                    
+                    answerBtn.addEventListener('click', () => {
+                        if (!this.answered) {
+                            this.submitAnswer(answer.id);
+                        }
+                    });
+                    
+                    answerCol.appendChild(answerBtn);
+                    answersContainer.appendChild(answerCol);
+                });
+            } else {
+                // Fallback to placeholder answers if none provided
+                const colors = ['primary', 'success', 'warning', 'danger'];
+                const options = ['A', 'B', 'C', 'D'];
+                
+                for (let i = 0; i < 4; i++) {
+                    const answerCol = document.createElement('div');
+                    answerCol.className = 'col-md-6';
+                    
+                    const answerBtn = document.createElement('button');
+                    answerBtn.className = `btn btn-${colors[i]} btn-lg w-100 py-4`;
+                    answerBtn.dataset.answer = i;
+                    answerBtn.innerHTML = `
+                        <span class="answer-letter">${options[i]}</span>
+                        <span class="answer-text">Answer Option ${i + 1}</span>
+                    `;
+                    
+                    answerBtn.addEventListener('click', () => {
+                        if (!this.answered) {
+                            this.submitAnswer(i);
+                        }
+                    });
+                    
+                    answerCol.appendChild(answerBtn);
+                    answersContainer.appendChild(answerCol);
+                }
+                console.warn('No answers received from server, using placeholders');
+            }
+        },
+        
+        // Start the timer for the current question
+        startTimer: function() {
+            const timerBar = document.getElementById('timer-bar');
+            const timeRemainingEl = document.getElementById('time-remaining');
+            const totalTime = this.timerDuration;
+            let timeLeft = totalTime;
+            
+            // Clear any existing timer
+            if (this.timer) {
+                clearInterval(this.timer);
+            }
+            
+            // Reset timer bar
+            timerBar.style.width = '100%';
+            timerBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-info';
+            timeRemainingEl.textContent = timeLeft;
+            
+            // Start the timer
+            this.timer = setInterval(() => {
+                timeLeft -= 1;
+                const percentLeft = (timeLeft / totalTime) * 100;
+                timerBar.style.width = `${percentLeft}%`;
+                timeRemainingEl.textContent = timeLeft;
+                
+                // Change color based on time left
+                if (percentLeft < 25) {
+                    timerBar.classList.remove('bg-warning');
+                    timerBar.classList.add('bg-danger');
+                } else if (percentLeft < 50) {
+                    timerBar.classList.remove('bg-info');
+                    timerBar.classList.add('bg-warning');
+                }
+                
+                // When time runs out
+                if (timeLeft <= 0) {
+                    clearInterval(this.timer);
+                    
+                    // If we haven't answered yet, handle timeout
+                    if (!this.answered) {
+                        this.handleTimeout();
+                    }
+                }
+            }, 1000);
+        },
+        
+        // Submit an answer to the server
+        submitAnswer: function(answerIndex) {
+            this.answered = true;
+            
+            // Disable all answer buttons
+            const answerButtons = document.querySelectorAll('#answers button');
+            answerButtons.forEach(btn => {
+                btn.disabled = true;
+            });
+            
+            // Highlight selected answer
+            answerButtons[answerIndex].classList.add('selected');
+            
+            // Send answer to server
+            this.socket.send(JSON.stringify({
+                'type': 'submit_answer',
+                'player_id': this.playerId,
+                'question': this.currentQuestion,
+                'answer': answerIndex
+            }));
+            
+            // In a real implementation, the server would tell us if our answer is correct
+            // For this demo, we'll just randomly decide if the answer is correct
+            const correct = Math.random() > 0.5;
+            
+            // Show the result after a brief delay
+            setTimeout(() => {
+                this.showAnswerResult(correct, answerIndex, Math.floor(Math.random() * 500));
+            }, 500);
+        },
+        
+        // Handle when a player doesn't answer in time
+        handleTimeout: function() {
+            // Show the timeout screen
+            document.querySelector('.question-screen').classList.add('d-none');
+            document.querySelector('.result-screen').classList.remove('d-none');
+            
+            document.getElementById('correct-answer').classList.add('d-none');
+            document.getElementById('wrong-answer').classList.add('d-none');
+            document.getElementById('timed-out').classList.remove('d-none');
+            
+            // Notify the server
+            this.socket.send(JSON.stringify({
+                'type': 'timeout',
+                'player_id': this.playerId,
+                'question': this.currentQuestion
+            }));
+        },
+        
+        // Show the result of an answer
+        showAnswerResult: function(correct, answerIndex, pointsEarned) {
+            // Hide question screen, show result screen
+            document.querySelector('.question-screen').classList.add('d-none');
+            document.querySelector('.result-screen').classList.remove('d-none');
+            
+            if (correct) {
+                document.getElementById('correct-answer').classList.remove('d-none');
+                document.getElementById('wrong-answer').classList.add('d-none');
+                document.getElementById('timed-out').classList.add('d-none');
+                document.getElementById('points-earned').textContent = pointsEarned;
+                
+                // Update score
+                this.updateScore(parseInt(document.getElementById('current-score').textContent) + pointsEarned);
+            } else {
+                document.getElementById('correct-answer').classList.add('d-none');
+                document.getElementById('wrong-answer').classList.remove('d-none');
+                document.getElementById('timed-out').classList.add('d-none');
+                
+                // In a real implementation, we'd show the actual correct answer
+                const correctAnswerIdx = Math.floor(Math.random() * 4);
+                document.getElementById('correct-answer-text').textContent = `Answer Option ${correctAnswerIdx + 1}`;
+            }
+        },
+        
+        // Handle when a question ends (timer expires or all players answered)
+        handleQuestionEnd: function(data) {
+            // If we haven't shown the result screen yet, do so now
+            if (!document.querySelector('.result-screen').classList.contains('d-none')) {
+                return;
+            }
+            
+            // If we haven't answered, handle it as a timeout
+            if (!this.answered) {
+                this.handleTimeout();
+            }
+            
+            // Clear any existing timer
+            if (this.timer) {
+                clearInterval(this.timer);
+            }
+        },
+        
+        // Handle when the game ends
+        handleGameEnd: function() {
+            // Hide all other screens, show end screen
+            document.querySelector('.waiting-screen').classList.add('d-none');
+            document.querySelector('.question-screen').classList.add('d-none');
+            document.querySelector('.result-screen').classList.add('d-none');
+            document.querySelector('.end-screen').classList.remove('d-none');
+            
+            // Clear any existing timer
+            if (this.timer) {
+                clearInterval(this.timer);
+            }
+            
+            // Redirect to results page after a delay
+            setTimeout(() => {
+                window.location.href = `/game/results/${this.code}/`;
+            }, 3000);
+        },
+        
+        // Update the player's score
+        updateScore: function(newScore) {
+            document.getElementById('current-score').textContent = newScore;
+        }
+    };
+    
+    // Initialize the game client when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        gameClient.init();
+    });
+</script>
+{% endblock %}

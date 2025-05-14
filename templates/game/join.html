@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Join Game - QuizBattle{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6 text-center">
+            <h1 class="mb-4">Join a Game</h1>
+            
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="card shadow mb-4">
+                <div class="card-body p-5">
+                    <h3 class="card-title mb-4">Enter Game Code</h3>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <input type="text" class="form-control form-control-lg text-center" 
+                                  name="game_code" id="game_code" placeholder="XXXXXX" 
+                                  maxlength="6" style="font-size: 2rem; letter-spacing: 0.5rem;" autofocus>
+                            <div class="form-text">Enter the 6-letter code provided by the host</div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i> Join Game
+                            </button>
+                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-home me-2"></i> Back to Home
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Want to Host a Game?</h4>
+                </div>
+                <div class="card-body">
+                    <p>Create your own quiz and host a game for your friends!</p>
+                    <div class="d-grid">
+                        <a href="{% url 'quiz:browse' %}" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i> Host a Game
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-format the game code input to uppercase
+    document.addEventListener('DOMContentLoaded', function() {
+        const codeInput = document.getElementById('game_code');
+        if (codeInput) {
+            codeInput.addEventListener('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        }
+    });
+</script>
+{% endblock %}

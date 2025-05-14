@@ -1,0 +1,178 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Home - QuizBattle{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="jumbotron text-center mb-5">
+        <h1 class="display-4">Welcome to QuizBattle!</h1>
+        <p class="lead">Create, share, and play fun educational quizzes with friends and students.</p>
+        
+        {% if not user.is_authenticated %}
+        <div class="mt-4">
+            <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-lg me-2">
+                <i class="fas fa-sign-in-alt me-2"></i> Log In
+            </a>
+            <a href="{% url 'accounts:register' %}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i> Register
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if user.is_authenticated %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-5">
+        <div class="col">
+            <div class="card h-100 shadow">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <span class="fa-stack fa-2x">
+                            <i class="fas fa-circle fa-stack-2x text-primary"></i>
+                            <i class="fas fa-search fa-stack-1x fa-inverse"></i>
+                        </span>
+                    </div>
+                    <h5 class="card-title">Browse Quizzes</h5>
+                    <p class="card-text">Find quizzes to play or host for your friends and students.</p>
+                    <a href="{% url 'quiz:browse' %}" class="btn btn-primary">Browse</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <span class="fa-stack fa-2x">
+                            <i class="fas fa-circle fa-stack-2x text-success"></i>
+                            <i class="fas fa-plus fa-stack-1x fa-inverse"></i>
+                        </span>
+                    </div>
+                    <h5 class="card-title">Create a Quiz</h5>
+                    <p class="card-text">Make your own custom quiz with multiple choice questions.</p>
+                    <a href="{% url 'quiz:create' %}" class="btn btn-success">Create</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <span class="fa-stack fa-2x">
+                            <i class="fas fa-circle fa-stack-2x text-info"></i>
+                            <i class="fas fa-gamepad fa-stack-1x fa-inverse"></i>
+                        </span>
+                    </div>
+                    <h5 class="card-title">Join a Game</h5>
+                    <p class="card-text">Join a game using a 6-digit code from the host.</p>
+                    <a href="{% url 'game:join' %}" class="btn btn-info">Join</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <span class="fa-stack fa-2x">
+                            <i class="fas fa-circle fa-stack-2x text-secondary"></i>
+                            <i class="fas fa-user fa-stack-1x fa-inverse"></i>
+                        </span>
+                    </div>
+                    <h5 class="card-title">My Profile</h5>
+                    <p class="card-text">View your quizzes, game history, and statistics.</p>
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">Profile</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row mb-5">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">How to Play</h4>
+                </div>
+                <div class="card-body">
+                    <ol class="list-group list-group-numbered mb-0">
+                        <li class="list-group-item d-flex">
+                            <div>
+                                <h5 class="mb-1">Create an Account</h5>
+                                <p class="mb-0">Sign up with an email address and password to get started.</p>
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex">
+                            <div>
+                                <h5 class="mb-1">Host or Join a Game</h5>
+                                <p class="mb-0">Create your own quiz to host, or join someone else's game with a code.</p>
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex">
+                            <div>
+                                <h5 class="mb-1">Answer Questions</h5>
+                                <p class="mb-0">Answer as quickly as possible to earn more points!</p>
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex">
+                            <div>
+                                <h5 class="mb-1">See the Results</h5>
+                                <p class="mb-0">View the leaderboard to see how you and others scored.</p>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Featured Quizzes</h4>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for quiz in featured_quizzes %}
+                        <a href="{% url 'quiz:detail' quiz.id %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ quiz.title }}</h5>
+                                <small>{{ quiz.questions.count }} questions</small>
+                            </div>
+                            <p class="mb-1">{{ quiz.description|truncatechars:100 }}</p>
+                            <small>Created by {{ quiz.creator.username }}</small>
+                        </a>
+                        {% empty %}
+                        <div class="text-center p-4">
+                            <p class="text-muted mb-0">No featured quizzes yet.</p>
+                            <a href="{% url 'quiz:browse' %}" class="btn btn-outline-primary mt-3">
+                                Browse All Quizzes
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">About QuizBattle</h4>
+                </div>
+                <div class="card-body">
+                    <p>QuizBattle is an interactive quiz platform designed for educational purposes. With QuizBattle, teachers, students, and quiz enthusiasts can create engaging quizzes, host game sessions, and join games in real-time.</p>
+                    
+                    <p>Features:</p>
+                    <ul>
+                        <li>Create custom quizzes with multiple-choice questions</li>
+                        <li>Host real-time quiz games with unique game codes</li>
+                        <li>Join games using 6-digit codes</li>
+                        <li>Track your progress and scores</li>
+                        <li>Compete with friends and classmates</li>
+                        <li>View detailed results after each game</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
