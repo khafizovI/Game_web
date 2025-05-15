@@ -1,0 +1,150 @@
+# Uzbek translations for QuizBattle
+# This file is distributed under the same license as the QuizBattle package.
+msgid ""
+msgstr ""
+"Project-Id-Version: QuizBattle\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-14 15:00+0500\n"
+"PO-Revision-Date: 2025-05-14 15:00+0500\n"
+"Last-Translator: \n"
+"Language-Team: Uzbek\n"
+"Language: uz\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Home"
+msgstr "Bosh sahifa"
+
+msgid "Browse Quizzes"
+msgstr "Viktorinalarni ko'rish"
+
+msgid "Create Quiz"
+msgstr "Viktorina yaratish"
+
+msgid "My Profile"
+msgstr "Mening profilim"
+
+msgid "Login"
+msgstr "Kirish"
+
+msgid "Logout"
+msgstr "Chiqish"
+
+msgid "Register"
+msgstr "Ro'yxatdan o'tish"
+
+msgid "Featured Quizzes"
+msgstr "Tavsiya etilgan viktorinalar"
+
+msgid "Play Now"
+msgstr "Hozir o'ynash"
+
+msgid "View Details"
+msgstr "Batafsil ma'lumot"
+
+msgid "Welcome to QuizBattle!"
+msgstr "QuizBattle-ga xush kelibsiz!"
+
+msgid "Create, share, and play fun educational quizzes with friends and students."
+msgstr "Do'stlar va o'quvchilar bilan qiziqarli ta'limiy viktorinalarni yarating, ulashing va o'ynang."
+
+msgid "Log In"
+msgstr "Kirish"
+
+msgid "Browse"
+msgstr "Ko'rish"
+
+msgid "Find quizzes to play or host for your friends and students."
+msgstr "Do'stlaringiz va o'quvchilaringiz uchun o'ynash yoki o'tkazish mumkin bo'lgan viktorinalarni toping."
+
+msgid "Create a Quiz"
+msgstr "Viktorina yaratish"
+
+msgid "Make your own custom quiz with multiple choice questions."
+msgstr "Ko'p variantli savollar bilan o'zingizning viktorinangizni yarating."
+
+msgid "Create"
+msgstr "Yaratish"
+
+msgid "Join a Game"
+msgstr "O'yinga qo'shilish"
+
+msgid "Join a game using a 6-digit code from the host."
+msgstr "O'yin tashkilotchisidan olingan 6 xonali kod yordamida o'yinga qo'shiling."
+
+msgid "Join"
+msgstr "Qo'shilish"
+
+msgid "Profile"
+msgstr "Profil"
+
+msgid "View your quizzes, game history, and statistics."
+msgstr "Viktorinalaringiz, o'yin tarixi va statistikani ko'ring."
+
+msgid "How to Play"
+msgstr "Qanday o'ynash"
+
+msgid "Create an Account"
+msgstr "Hisob yaratish"
+
+msgid "Sign up with an email address and password to get started."
+msgstr "Boshlash uchun elektron pochta va parol bilan ro'yxatdan o'ting."
+
+msgid "Host or Join a Game"
+msgstr "O'yin o'tkazish yoki qo'shilish"
+
+msgid "Create your own quiz to host, or join someone else's game with a code."
+msgstr "O'z viktorinangizni yarating yoki kod bilan boshqa odamlarning o'yiniga qo'shiling."
+
+msgid "Answer Questions"
+msgstr "Savollarga javob bering"
+
+msgid "Answer as quickly as possible to earn more points!"
+msgstr "Ko'proq ball to'plash uchun iloji boricha tezroq javob bering!"
+
+msgid "See the Results"
+msgstr "Natijalarni ko'ring"
+
+msgid "View the leaderboard to see how you and others scored."
+msgstr "Siz va boshqalar qanday ball to'plaganini ko'rish uchun peshqadamlar jadvalini ko'ring."
+
+msgid "questions"
+msgstr "savollar"
+
+msgid "Created by"
+msgstr "Muallif:"
+
+msgid "No featured quizzes yet."
+msgstr "Hali tavsiya etilgan viktorinalar yo'q."
+
+msgid "Browse All Quizzes"
+msgstr "Barcha viktorinalarni ko'rish"
+
+msgid "About QuizBattle"
+msgstr "QuizBattle haqida"
+
+msgid "QuizBattle is an interactive quiz platform designed for educational purposes. With QuizBattle, teachers, students, and quiz enthusiasts can create engaging quizzes, host game sessions, and join games in real-time."
+msgstr "QuizBattle - ta'lim maqsadlari uchun mo'ljallangan interfaol viktorina platformasi. QuizBattle yordamida o'qituvchilar, o'quvchilar va viktorina ishqibozlari qiziqarli viktorinalarni yaratishlari, o'yin sessiyalarini tashkil qilishlari va real vaqtda o'yinlarga qo'shilishlari mumkin."
+
+msgid "Features:"
+msgstr "Xususiyatlar:"
+
+msgid "Create custom quizzes with multiple-choice questions"
+msgstr "Ko'p variantli savollar bilan o'z viktorinalaringizni yarating"
+
+msgid "Host real-time quiz games with unique game codes"
+msgstr "Noyob o'yin kodlari bilan real vaqt rejimida viktorina o'yinlarini o'tkazing"
+
+msgid "Join games using 6-digit codes"
+msgstr "6 xonali kodlardan foydalanib o'yinlarga qo'shiling"
+
+msgid "Track your progress and scores"
+msgstr "Yutuqlaringiz va ballaringizni kuzatib boring"
+
+msgid "Compete with friends and classmates"
+msgstr "Do'stlaringiz va sinfdoshlaringiz bilan raqobatlashing"
+
+msgid "View detailed results after each game"
+msgstr "Har bir o'yindan so'ng batafsil natijalarni ko'ring"

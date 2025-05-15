@@ -1,0 +1,150 @@
+# Russian translations for QuizBattle
+# This file is distributed under the same license as the QuizBattle package.
+msgid ""
+msgstr ""
+"Project-Id-Version: QuizBattle\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-14 15:00+0500\n"
+"PO-Revision-Date: 2025-05-14 15:00+0500\n"
+"Last-Translator: \n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+msgid "Home"
+msgstr "Главная"
+
+msgid "Browse Quizzes"
+msgstr "Просмотр викторин"
+
+msgid "Create Quiz"
+msgstr "Создать викторину"
+
+msgid "My Profile"
+msgstr "Мой профиль"
+
+msgid "Login"
+msgstr "Вход"
+
+msgid "Logout"
+msgstr "Выход"
+
+msgid "Register"
+msgstr "Регистрация"
+
+msgid "Featured Quizzes"
+msgstr "Избранные викторины"
+
+msgid "Play Now"
+msgstr "Играть сейчас"
+
+msgid "View Details"
+msgstr "Подробнее"
+
+msgid "Welcome to QuizBattle!"
+msgstr "Добро пожаловать в QuizBattle!"
+
+msgid "Create, share, and play fun educational quizzes with friends and students."
+msgstr "Создавайте, делитесь и играйте в увлекательные образовательные викторины с друзьями и учениками."
+
+msgid "Log In"
+msgstr "Войти"
+
+msgid "Browse"
+msgstr "Обзор"
+
+msgid "Find quizzes to play or host for your friends and students."
+msgstr "Найдите викторины для игры или проведения их для ваших друзей и учеников."
+
+msgid "Create a Quiz"
+msgstr "Создать викторину"
+
+msgid "Make your own custom quiz with multiple choice questions."
+msgstr "Создайте свою собственную викторину с вопросами с множественным выбором."
+
+msgid "Create"
+msgstr "Создать"
+
+msgid "Join a Game"
+msgstr "Присоединиться к игре"
+
+msgid "Join a game using a 6-digit code from the host."
+msgstr "Присоединяйтесь к игре, используя 6-значный код от организатора."
+
+msgid "Join"
+msgstr "Присоединиться"
+
+msgid "Profile"
+msgstr "Профиль"
+
+msgid "View your quizzes, game history, and statistics."
+msgstr "Просматривайте свои викторины, историю игр и статистику."
+
+msgid "How to Play"
+msgstr "Как играть"
+
+msgid "Create an Account"
+msgstr "Создать аккаунт"
+
+msgid "Sign up with an email address and password to get started."
+msgstr "Зарегистрируйтесь с помощью электронной почты и пароля, чтобы начать."
+
+msgid "Host or Join a Game"
+msgstr "Проводите или присоединяйтесь к игре"
+
+msgid "Create your own quiz to host, or join someone else's game with a code."
+msgstr "Создайте свою собственную викторину для проведения или присоединитесь к чужой игре с помощью кода."
+
+msgid "Answer Questions"
+msgstr "Отвечайте на вопросы"
+
+msgid "Answer as quickly as possible to earn more points!"
+msgstr "Отвечайте как можно быстрее, чтобы заработать больше очков!"
+
+msgid "See the Results"
+msgstr "Смотрите результаты"
+
+msgid "View the leaderboard to see how you and others scored."
+msgstr "Просмотрите таблицу лидеров, чтобы увидеть, как вы и другие набрали очки."
+
+msgid "questions"
+msgstr "вопросов"
+
+msgid "Created by"
+msgstr "Создано:"
+
+msgid "No featured quizzes yet."
+msgstr "Пока нет избранных викторин."
+
+msgid "Browse All Quizzes"
+msgstr "Просмотреть все викторины"
+
+msgid "About QuizBattle"
+msgstr "О QuizBattle"
+
+msgid "QuizBattle is an interactive quiz platform designed for educational purposes. With QuizBattle, teachers, students, and quiz enthusiasts can create engaging quizzes, host game sessions, and join games in real-time."
+msgstr "QuizBattle — это интерактивная платформа для викторин, разработанная для образовательных целей. С помощью QuizBattle учителя, студенты и любители викторин могут создавать увлекательные викторины, проводить игровые сессии и присоединяться к играм в режиме реального времени."
+
+msgid "Features:"
+msgstr "Возможности:"
+
+msgid "Create custom quizzes with multiple-choice questions"
+msgstr "Создавайте собственные викторины с вопросами с множественным выбором"
+
+msgid "Host real-time quiz games with unique game codes"
+msgstr "Проводите викторины в реальном времени с уникальными игровыми кодами"
+
+msgid "Join games using 6-digit codes"
+msgstr "Присоединяйтесь к играм с помощью 6-значных кодов"
+
+msgid "Track your progress and scores"
+msgstr "Отслеживайте свой прогресс и баллы"
+
+msgid "Compete with friends and classmates"
+msgstr "Соревнуйтесь с друзьями и одноклассниками"
+
+msgid "View detailed results after each game"
+msgstr "Просматривайте подробные результаты после каждой игры"

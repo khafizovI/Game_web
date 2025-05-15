@@ -19,15 +19,24 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from django.conf.urls.i18n import i18n_patterns
 from . import views
 
+# Non-translated URLs
 urlpatterns = [
+    # Use our custom language switcher instead of Django's built-in one
+    path('i18n/setlang/', views.set_language, name='set_language'),
+]
+
+# Translated URLs (these will have language prefix like /en/, /ru/, /uz/)
+urlpatterns += i18n_patterns(
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('quiz/', include('quiz.urls', namespace='quiz')),
     path('game/', include('game.urls', namespace='game')),
-]
+    prefix_default_language=True,  # Show prefix for default language too
+)
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

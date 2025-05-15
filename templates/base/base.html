@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+{% load static %}
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -157,6 +158,9 @@
                             <a class="nav-link" href="{% url 'accounts:register' %}">Register</a>
                         </li>
                     {% endif %}
+                    
+                    <!-- Language Switcher -->
+                    {% include 'base/language_switcher.html' %}
                 </ul>
             </div>
         </div>
@@ -190,6 +194,9 @@
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Language Switcher JS -->
+    <script src="{% static 'js/language-switcher.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
 </body>

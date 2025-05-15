@@ -1,0 +1,30 @@
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        {% if LANGUAGE_CODE == 'en' %}
+            <i class="fas fa-globe"></i> English
+        {% elif LANGUAGE_CODE == 'ru' %}
+            <i class="fas fa-globe"></i> Русский
+        {% elif LANGUAGE_CODE == 'uz' %}
+            <i class="fas fa-globe"></i> O'zbekcha
+        {% else %}
+            <i class="fas fa-globe"></i> {{ LANGUAGE_CODE|upper }}
+        {% endif %}
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
+        <li>
+            <a href="/en/" class="dropdown-item {% if LANGUAGE_CODE == 'en' %}active{% endif %}" onclick="changeLanguage('en'); return false;">
+                <i class="fas fa-language"></i> English
+            </a>
+        </li>
+        <li>
+            <a href="/ru/" class="dropdown-item {% if LANGUAGE_CODE == 'ru' %}active{% endif %}" onclick="changeLanguage('ru'); return false;">
+                <i class="fas fa-language"></i> Русский
+            </a>
+        </li>
+        <li>
+            <a href="/uz/" class="dropdown-item {% if LANGUAGE_CODE == 'uz' %}active{% endif %}" onclick="changeLanguage('uz'); return false;">
+                <i class="fas fa-language"></i> O'zbekcha
+            </a>
+        </li>
+    </ul>
+</li>
