@@ -1,0 +1,293 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">{% trans "Dashboard" %}</h2>
+    
+    {% if user.profile.is_teacher %}
+    <!-- Teacher Dashboard -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{% trans "Teacher Dashboard" %}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center mb-4">
+                        {% if user.profile.avatar %}
+                            <img src="{{ user.profile.avatar.url }}" class="rounded-circle avatar-lg" alt="Profile Avatar">
+                        {% else %}
+                            <div class="avatar-placeholder teacher">
+                                <i class="fas fa-chalkboard-teacher fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        <h4 class="mt-2">{{ user.username }}</h4>
+                        <p class="badge bg-info">{% trans "Teacher" %}</p>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <h5>{% trans "Your Stats" %}</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stat-box">
+                                <h3>{{ created_quizzes.count }}</h3>
+                                <p>{% trans "Quizzes Created" %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-box">
+                                <h3>{{ hosted_games.count }}</h3>
+                                <p>{% trans "Games Hosted" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="teacher-actions mt-4">
+                <h5>{% trans "Quick Actions" %}</h5>
+                <div class="d-flex flex-wrap">
+                    <a href="{% url 'quiz:create' %}" class="btn btn-primary m-1">
+                        <i class="fas fa-plus-circle"></i> {% trans "Create New Quiz" %}
+                    </a>
+                    <a href="{% url 'quiz:browse' %}" class="btn btn-success m-1">
+                        <i class="fas fa-play"></i> {% trans "Host a Game" %}
+                    </a>
+                    <a href="{% url 'quiz:manage' %}" class="btn btn-secondary m-1">
+                        <i class="fas fa-list"></i> {% trans "Manage Quizzes" %}
+                    </a>
+                    <a href="{% url 'accounts:edit_profile' %}" class="btn btn-info m-1">
+                        <i class="fas fa-user-edit"></i> {% trans "Edit Profile" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Recent Quizzes" %}</h5>
+                </div>
+                <div class="card-body">
+                    {% if created_quizzes %}
+                        <ul class="list-group">
+                            {% for quiz in created_quizzes|slice:":5" %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ quiz.title }}</strong>
+                                        <small class="text-muted d-block">{{ quiz.questions.count }} {% trans "questions" %}</small>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'game:host' quiz.id %}" class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-play"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% if created_quizzes.count > 5 %}
+                            <a href="{% url 'quiz:manage' %}" class="btn btn-link mt-2">{% trans "View all" %}</a>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted">{% trans "You haven't created any quizzes yet." %}</p>
+                        <a href="{% url 'quiz:create' %}" class="btn btn-primary">{% trans "Create your first quiz" %}</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans "Recent Games" %}</h5>
+                </div>
+                <div class="card-body">
+                    {% if hosted_games %}
+                        <ul class="list-group">
+                            {% for game in hosted_games|slice:":5" %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ game.quiz.title }}</strong>
+                                        <small class="text-muted d-block">{{ game.code }} - {{ game.created_at|date:"d/m/Y H:i" }}</small>
+                                    </div>
+                                    <div>
+                                        {% if game.is_completed %}
+                                            <a href="{% url 'game:results' game_code=game.code %}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-chart-bar"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{% url 'game:play' game_code=game.code %}" class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-play"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% if hosted_games.count > 5 %}
+                            <a href="{% url 'accounts:profile' %}" class="btn btn-link mt-2">{% trans "View all" %}</a>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted">{% trans "You haven't hosted any games yet." %}</p>
+                        <a href="{% url 'quiz:browse' %}" class="btn btn-primary">{% trans "Host your first game" %}</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Student Dashboard -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{% trans "Student Dashboard" %}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center mb-4">
+                        {% if user.profile.avatar %}
+                            <img src="{{ user.profile.avatar.url }}" class="rounded-circle avatar-lg" alt="Profile Avatar">
+                        {% else %}
+                            <div class="avatar-placeholder student">
+                                <i class="fas fa-user-graduate fa-3x"></i>
+                            </div>
+                        {% endif %}
+                        <h4 class="mt-2">{{ user.username }}</h4>
+                        <p class="badge bg-primary">{% trans "Student" %}</p>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <h5>{% trans "Your Stats" %}</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <h3>{{ played_games.count }}</h3>
+                                <p>{% trans "Games Played" %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <h3>{{ user.profile.total_points }}</h3>
+                                <p>{% trans "Total Points" %}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <h3>{{ top_position }}</h3>
+                                <p>{% trans "Best Position" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="student-actions mt-4">
+                <h5>{% trans "Quick Actions" %}</h5>
+                <div class="d-flex flex-wrap">
+                    <a href="{% url 'game:join' %}" class="btn btn-success m-1">
+                        <i class="fas fa-gamepad"></i> {% trans "Join a Game" %}
+                    </a>
+                    <a href="{% url 'accounts:edit_profile' %}" class="btn btn-secondary m-1">
+                        <i class="fas fa-user-edit"></i> {% trans "Edit Profile" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{% trans "Your Recent Games" %}</h5>
+        </div>
+        <div class="card-body">
+            {% if played_games %}
+                <ul class="list-group">
+                    {% for player in played_games|slice:":5" %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ player.game.quiz.title }}</strong>
+                                <small class="text-muted d-block">{{ player.game.code }} - {{ player.joined_at|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-primary me-2">{{ player.score }} {% trans "pts" %}</span>
+                                {% if player.game.is_completed %}
+                                    <a href="{% url 'game:results' game_code=player.game.code %}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'game:play' game_code=player.game.code %}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-play"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if played_games.count > 5 %}
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-link mt-2">{% trans "View all" %}</a>
+                {% endif %}
+            {% else %}
+                <p class="text-muted">{% trans "You haven't participated in any games yet." %}</p>
+                <a href="{% url 'game:join' %}" class="btn btn-success">{% trans "Join a game" %}</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-lg {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+    }
+    
+    .avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+    
+    .avatar-placeholder.teacher {
+        background-color: #e3f2fd;
+        color: #0d6efd;
+    }
+    
+    .avatar-placeholder.student {
+        background-color: #d1e7dd;
+        color: #198754;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        margin-bottom: 15px;
+    }
+    
+    .stat-box h3 {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #495057;
+    }
+    
+    .stat-box p {
+        margin-bottom: 0;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
