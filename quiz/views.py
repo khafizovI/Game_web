@@ -3,16 +3,22 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from .models import Quiz, Question, Answer
+from game.models import Game, GamePlayer
+from django.db.models import Sum, Avg
 import json
 
 # Quiz Management Views
 def browse_quizzes(request):
     """View for browsing public quizzes"""
-    public_quizzes = Quiz.objects.filter(is_public=True).order_by('-created_at')
+    public_quizzes = Quiz.objects.filter(is_public=True).annotate(
+        total_points=Sum('questions__points')
+    ).order_by('-created_at')
     
     # Include user's private quizzes if logged in
     if request.user.is_authenticated:
-        private_quizzes = Quiz.objects.filter(created_by=request.user, is_public=False)
+        private_quizzes = Quiz.objects.filter(created_by=request.user, is_public=False).annotate(
+            total_points=Sum('questions__points')
+        )
         user_quizzes = private_quizzes
     else:
         user_quizzes = None
@@ -26,6 +32,11 @@ def browse_quizzes(request):
 @login_required
 def create_quiz(request):
     """View for creating a new quiz"""
+    # Check if user is a teacher
+    if not request.user.profile.is_teacher():
+        messages.error(request, "Only teachers can create quizzes.")
+        return redirect('accounts:dashboard')
+        
     if request.method == 'POST':
         title = request.POST.get('title')
         description = request.POST.get('description')
@@ -93,12 +104,43 @@ def quiz_detail(request, quiz_id):
     
     questions = Question.objects.filter(quiz=quiz).order_by('order')
     
+    # Calculate quiz stats
+    stats = questions.aggregate(
+        total_points=Sum('points'),
+        avg_time=Avg('time_limit')
+    )
+    
+    # Get leaderboard data (top 5 players)
+    leaderboard_entries = GamePlayer.objects.filter(
+        game__quiz=quiz, 
+        game__is_completed=True
+    ).order_by('-score')[:5]
+    
     context = {
         'quiz': quiz,
         'questions': questions,
-        'can_edit': quiz.created_by == request.user
+        'can_edit': quiz.created_by == request.user,
+        'total_points': stats.get('total_points'),
+        'avg_time': round(stats.get('avg_time', 0)),
+        'leaderboard_entries': leaderboard_entries
     }
     return render(request, 'quiz/detail.html', context)
+
+@login_required
+def manage_quizzes(request):
+    """View for managing all quizzes created by a user"""
+    # Check if user is a teacher
+    if not request.user.profile.is_teacher():
+        messages.error(request, "Only teachers can manage quizzes.")
+        return redirect('accounts:dashboard')
+    
+    # Get all quizzes created by the user
+    quizzes = Quiz.objects.filter(created_by=request.user).order_by('-created_at')
+    
+    context = {
+        'quizzes': quizzes
+    }
+    return render(request, 'quiz/manage.html', context)
 
 # Question Management Views
 @login_required

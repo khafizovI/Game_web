@@ -1,76 +1,92 @@
 {% extends 'base/base.html' %}
+{% load i18n %}
 
-{% block title %}Register - QuizBattle{% endblock %}
+{% block title %}{% trans "Register - QuizBattle" %}{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white text-center">
-                    <h3 class="my-2">Create an Account</h3>
+<div class="container-fluid">
+    <div class="row vh-100">
+        <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center auth-bg-image">
+            <div class="text-center text-white p-5">
+                <h1 class="display-3 fw-bold">{% trans "Join the Battle of Wits!" %}</h1>
+                <p class="lead">{% trans "Create your account to start your QuizBattle adventure." %}</p>
+            </div>
+        </div>
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+            <div class="auth-form-container">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">{% trans "Create an Account" %}</h2>
+                    <p class="text-muted">{% trans "Let's get you set up." %}</p>
                 </div>
-                <div class="card-body p-4">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
-                            {{ form.username }}
-                            {% if form.username.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.username.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
-                            {{ form.password1 }}
-                            {% if form.password1.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.password1.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <div class="form-text">
-                                Your password must be at least 8 characters. It cannot be entirely numeric.
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control {% if form.username.errors %}is-invalid{% endif %}" id="username" name="username" placeholder="Username" required>
+                        <label for="username">{% trans "Username" %}</label>
+                        {% for error in form.username.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" id="email" name="email" placeholder="Email" required>
+                        <label for="email">{% trans "Email" %}</label>
+                        {% for error in form.email.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control {% if form.password1.errors %}is-invalid{% endif %}" id="password1" name="password1" placeholder="Password" required>
+                        <label for="password1">{% trans "Password" %}</label>
+                        {% for error in form.password1.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" id="password2" name="password2" placeholder="Confirm Password" required>
+                        <label for="password2">{% trans "Confirm Password" %}</label>
+                        {% for error in form.password2.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label d-block text-center mb-3">{% trans "Register as:" %}</label>
+                        <div class="role-selection">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="role" id="student-role" value="student" checked>
+                                <label class="form-check-label" for="student-role">
+                                    <div class="role-icon student">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                    {% trans "Student" %}
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="role" id="teacher-role" value="teacher">
+                                <label class="form-check-label" for="teacher-role">
+                                    <div class="role-icon teacher">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    {% trans "Teacher" %}
+                                </label>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password</label>
-                            {{ form.password2 }}
-                            {% if form.password2.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.password2.errors %}
-                                        {{ error }}
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Register</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <p class="mb-0">Already have an account? <a href="{% url 'accounts:login' %}">Log in here</a></p>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">{% trans "Create Account" %}</button>
+                    </div>
+                </form>
+                <div class="text-center mt-4">
+                    <p class="mb-0">{% trans "Already have an account?" %} <a href="{% url 'accounts:login' %}">{% trans "Log in" %}</a></p>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Add Bootstrap form styling
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.classList.add('form-control');
-        });
-    });
-</script>
 {% endblock %}

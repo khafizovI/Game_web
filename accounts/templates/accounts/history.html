@@ -1,0 +1,42 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">{% trans "Hosted Game History" %}</h2>
+
+    {% if hosted_games_history %}
+        <div class="accordion" id="hostedHistoryAccordion">
+            {% for game in hosted_games_history %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-history-{{ forloop.counter }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-history-{{ forloop.counter }}" aria-expanded="false" aria-controls="collapse-history-{{ forloop.counter }}">
+                            {{ game.quiz_title }}
+                        </button>
+                    </h2>
+                    <div id="collapse-history-{{ forloop.counter }}" class="accordion-collapse collapse" aria-labelledby="heading-history-{{ forloop.counter }}" data-bs-parent="#hostedHistoryAccordion">
+                        <div class="accordion-body">
+                            <ul class="list-group">
+                                {% for stats in game.players_stats %}
+                                    <li class="list-group-item">
+                                        <p class="mb-1">{{ stats.username }}</p>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ stats.correct_percentage }}%;" aria-valuenow="{{ stats.correct_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ stats.correct_percentage }}% Correct
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% empty %}
+                                    <li class="list-group-item">{% trans "No player data available for this game." %}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">{% trans "You have no completed games in your history." %}</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% load i18n %}
+<div class="col quiz-card-container" data-search-text="{{ quiz.title|lower }} {{ quiz.description|lower }} {{ quiz.created_by.username|lower }}">
+    <div class="card quiz-card h-100 shadow-sm border-0">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="card-title fw-bold">{{ quiz.title }}</h5>
+                {% if is_private %}
+                    <span class="badge bg-secondary rounded-pill"><i class="fas fa-lock me-1"></i>{% trans "Private" %}</span>
+                {% else %}
+                    <span class="badge bg-success rounded-pill"><i class="fas fa-globe-americas me-1"></i>{% trans "Public" %}</span>
+                {% endif %}
+            </div>
+            <h6 class="card-subtitle mb-2 text-muted small">
+                {% trans "By" %} {{ quiz.created_by.username }} | {{ quiz.questions.count }} {% trans "Questions" %}
+            </h6>
+            <p class="card-text text-muted mt-3">{{ quiz.description|truncatechars:100 }}</p>
+        </div>
+        <div class="card-footer bg-transparent border-top-0 pb-3">
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'quiz:detail' quiz.id %}" class="btn btn-sm btn-outline-primary me-2">
+                    <i class="fas fa-eye me-1"></i> {% trans "View" %}
+                </a>
+                {% if user.is_authenticated and quiz.created_by == user %}
+                <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-sm btn-outline-secondary me-2">
+                    <i class="fas fa-edit me-1"></i> {% trans "Edit" %}
+                </a>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <a href="{% url 'game:host' quiz.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-play me-1"></i> {% trans "Host" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

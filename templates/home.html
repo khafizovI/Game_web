@@ -1,179 +1,93 @@
 {% extends 'base/base.html' %}
-{% load i18n %}
+{% load static i18n %}
 
-{% block title %}Home - QuizBattle{% endblock %}
+{% block title %}{% trans "Welcome to QuizBattle - The Ultimate Quiz Platform" %}{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="jumbotron text-center mb-5">
-        <h1 class="display-4">Welcome to QuizBattle!</h1>
-        <p class="lead">Create, share, and play fun educational quizzes with friends and students.</p>
-        
-        {% if not user.is_authenticated %}
-        <div class="mt-4">
-            <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-lg me-2">
-                <i class="fas fa-sign-in-alt me-2"></i> Log In
-            </a>
-            <a href="{% url 'accounts:register' %}" class="btn btn-outline-primary btn-lg">
-                <i class="fas fa-user-plus me-2"></i> Register
-            </a>
+<!-- Hero Section -->
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="display-4 fw-bold text-white">{% trans "Unleash the Power of Knowledge" %}</h1>
+        <p class="lead text-white-50 mx-auto">{% trans "Create, host, and play engaging quizzes in real-time. Perfect for classrooms, training sessions, and fun with friends!" %}</p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            {% if user.is_authenticated and user.profile.is_teacher %}
+                <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg px-4 gap-3">{% trans "Create a Quiz" %}</a>
+                <a href="{% url 'quiz:browse' %}" class="btn btn-outline-light btn-lg px-4">{% trans "Host a Game" %}</a>
+            {% else %}
+                <a href="{% url 'game:join' %}" class="btn btn-primary btn-lg px-4 gap-3">{% trans "Join a Game" %}</a>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
-    
-    {% if user.is_authenticated %}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-5">
-        <div class="col">
-            <div class="card h-100 shadow">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <span class="fa-stack fa-2x">
-                            <i class="fas fa-circle fa-stack-2x text-primary"></i>
-                            <i class="fas fa-search fa-stack-1x fa-inverse"></i>
-                        </span>
-                    </div>
-                    <h5 class="card-title">Browse Quizzes</h5>
-                    <p class="card-text">Find quizzes to play or host for your friends and students.</p>
-                    <a href="{% url 'quiz:browse' %}" class="btn btn-primary">Browse</a>
-                </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="container section">
+    <h2 class="section-title">{% trans "How It Works" %}</h2>
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-pencil-alt"></i></div>
+                <h3>{% trans "1. Create" %}</h3>
+                <p>{% trans "Teachers can easily build custom quizzes with various question types to suit their needs." %}</p>
             </div>
         </div>
-        <div class="col">
-            <div class="card h-100 shadow">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <span class="fa-stack fa-2x">
-                            <i class="fas fa-circle fa-stack-2x text-success"></i>
-                            <i class="fas fa-plus fa-stack-1x fa-inverse"></i>
-                        </span>
-                    </div>
-                    <h5 class="card-title">Create a Quiz</h5>
-                    <p class="card-text">Make your own custom quiz with multiple choice questions.</p>
-                    <a href="{% url 'quiz:create' %}" class="btn btn-success">Create</a>
-                </div>
+        <div class="col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-rocket"></i></div>
+                <h3>{% trans "2. Host" %}</h3>
+                <p>{% trans "Launch a live game session and share the unique game PIN with your players." %}</p>
             </div>
         </div>
-        <div class="col">
-            <div class="card h-100 shadow">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <span class="fa-stack fa-2x">
-                            <i class="fas fa-circle fa-stack-2x text-info"></i>
-                            <i class="fas fa-gamepad fa-stack-1x fa-inverse"></i>
-                        </span>
-                    </div>
-                    <h5 class="card-title">Join a Game</h5>
-                    <p class="card-text">Join a game using a 6-digit code from the host.</p>
-                    <a href="{% url 'game:join' %}" class="btn btn-info">Join</a>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card h-100 shadow">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <span class="fa-stack fa-2x">
-                            <i class="fas fa-circle fa-stack-2x text-secondary"></i>
-                            <i class="fas fa-user fa-stack-1x fa-inverse"></i>
-                        </span>
-                    </div>
-                    <h5 class="card-title">My Profile</h5>
-                    <p class="card-text">View your quizzes, game history, and statistics.</p>
-                    <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">Profile</a>
-                </div>
+        <div class="col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-gamepad"></i></div>
+                <h3>{% trans "3. Play" %}</h3>
+                <p>{% trans "Players join using the PIN and compete to get the highest score on the leaderboard." %}</p>
             </div>
         </div>
     </div>
-    {% endif %}
-    
-    <div class="row mb-5">
-        <div class="col-lg-6 mb-4 mb-lg-0">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">How to Play</h4>
-                </div>
-                <div class="card-body">
-                    <ol class="list-group list-group-numbered mb-0">
-                        <li class="list-group-item d-flex">
-                            <div>
-                                <h5 class="mb-1">Create an Account</h5>
-                                <p class="mb-0">Sign up with an email address and password to get started.</p>
-                            </div>
-                        </li>
-                        <li class="list-group-item d-flex">
-                            <div>
-                                <h5 class="mb-1">Host or Join a Game</h5>
-                                <p class="mb-0">Create your own quiz to host, or join someone else's game with a code.</p>
-                            </div>
-                        </li>
-                        <li class="list-group-item d-flex">
-                            <div>
-                                <h5 class="mb-1">Answer Questions</h5>
-                                <p class="mb-0">Answer as quickly as possible to earn more points!</p>
-                            </div>
-                        </li>
-                        <li class="list-group-item d-flex">
-                            <div>
-                                <h5 class="mb-1">See the Results</h5>
-                                <p class="mb-0">View the leaderboard to see how you and others scored.</p>
-                            </div>
-                        </li>
-                    </ol>
+</div>
+
+<!-- Features Section -->
+<div class="bg-light section">
+    <div class="container">
+        <h2 class="section-title">{% trans "Awesome Features" %}</h2>
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="feature-card bg-white h-100">
+                    <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-bolt"></i></div>
+                    <h3>{% trans "Real-Time Gameplay" %}</h3>
+                    <p>{% trans "Experience the thrill of a live quiz with instant results and a dynamic leaderboard." %}</p>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-lg-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Featured Quizzes</h4>
-                </div>
-                <div class="card-body">
-                    <div class="list-group">
-                        {% for quiz in featured_quizzes %}
-                        <a href="{% url 'quiz:detail' quiz.id %}" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">{{ quiz.title }}</h5>
-                                <small>{{ quiz.questions.count }} questions</small>
-                            </div>
-                            <p class="mb-1">{{ quiz.description|truncatechars:100 }}</p>
-                            <small>Created by {{ quiz.creator.username }}</small>
-                        </a>
-                        {% empty %}
-                        <div class="text-center p-4">
-                            <p class="text-muted mb-0">No featured quizzes yet.</p>
-                            <a href="{% url 'quiz:browse' %}" class="btn btn-outline-primary mt-3">
-                                Browse All Quizzes
-                            </a>
-                        </div>
-                        {% endfor %}
-                    </div>
+            <div class="col-lg-4">
+                <div class="feature-card bg-white h-100">
+                    <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-cogs"></i></div>
+                    <h3>{% trans "Customizable Quizzes" %}</h3>
+                    <p>{% trans "Tailor your quizzes with different question types, time limits, and scoring options." %}</p>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">About QuizBattle</h4>
-                </div>
-                <div class="card-body">
-                    <p>QuizBattle is an interactive quiz platform designed for educational purposes. With QuizBattle, teachers, students, and quiz enthusiasts can create engaging quizzes, host game sessions, and join games in real-time.</p>
-                    
-                    <p>Features:</p>
-                    <ul>
-                        <li>Create custom quizzes with multiple-choice questions</li>
-                        <li>Host real-time quiz games with unique game codes</li>
-                        <li>Join games using 6-digit codes</li>
-                        <li>Track your progress and scores</li>
-                        <li>Compete with friends and classmates</li>
-                        <li>View detailed results after each game</li>
-                    </ul>
+            <div class="col-lg-4">
+                <div class="feature-card bg-white h-100">
+                    <div class="feature-icon bg-primary bg-gradient text-white"><i class="fas fa-chart-line"></i></div>
+                    <h3>{% trans "Detailed Analytics" %}</h3>
+                    <p>{% trans "Track player performance and get insights into their knowledge gaps." %}</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Final CTA Section -->
+<div class="cta-section text-center">
+    <div class="container">
+        <h2 class="display-5 fw-bold">{% trans "Ready to Get Started?" %}</h2>
+        <p class="lead text-muted mb-4">{% trans "Join thousands of teachers and students on QuizBattle today!" %}</p>
+        <a href="{% url 'game:join' %}" class="btn btn-primary btn-lg">{% trans "Join a Game Now" %}</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+    {{ block.super }}
 {% endblock %}

@@ -16,12 +16,12 @@ class GameAdmin(admin.ModelAdmin):
 
 @admin.register(GamePlayer)
 class GamePlayerAdmin(admin.ModelAdmin):
-    list_display = ('username', 'game', 'score', 'joined_at')
-    list_filter = ('game__quiz', 'joined_at')
-    search_fields = ('username', 'game__code')
+    list_display = ('user', 'game', 'score', 'joined_at')
+    list_filter = ('game',)
+    search_fields = ('user__username', 'game__code')
 
 @admin.register(PlayerAnswer)
 class PlayerAnswerAdmin(admin.ModelAdmin):
-    list_display = ('player', 'question', 'is_correct', 'points_earned', 'response_time')
-    list_filter = ('is_correct', 'submitted_at')
-    search_fields = ('player__username', 'question__text')
+    list_display = ('player', 'question', 'answer', 'points_awarded', 'answered_at')
+    list_filter = ('player__game', 'question')
+    search_fields = ('player__user__username', 'question__text')

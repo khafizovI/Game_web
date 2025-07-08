@@ -1,0 +1,91 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0 text-center">{% trans "Log In" %}</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'accounts:login' %}">
+                        {% csrf_token %}
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">{% trans "Username" %}</label>
+                            {{ form.username }}
+                            {% for error in form.username.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password.id_for_label }}" class="form-label">{% trans "Password" %}</label>
+                            {{ form.password }}
+                            {% for error in form.password.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label d-block">{% trans "Login as" %}:</label>
+                            {% for error in form.role.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="role-selection">
+                                {% for radio in form.role %}
+                                <div class="form-check form-check-inline">
+                                    {{ radio.tag }}
+                                    <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                        <div class="role-icon {{ radio.choice_label|lower }}">
+                                            <i class="fas fa-{% if radio.choice_label == 'Student' %}user-graduate{% else %}chalkboard-teacher{% endif %}"></i>
+                                        </div>
+                                        {{ radio.choice_label }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">{% trans "Log In" %}</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center">
+                    <p class="mb-0">{% trans "Don't have an account?" %} <a href="{% url 'accounts:register' %}">{% trans "Register" %}</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .role-selection { display: flex; justify-content: center; gap: 30px; margin-top: 10px; }
+    .form-check-inline { display: flex; flex-direction: column; align-items: center; margin-right: 0; }
+    .role-icon { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; transition: all 0.3s; }
+    .role-icon.student { background-color: #d1e7dd; color: #198754; }
+    .role-icon.teacher { background-color: #e3f2fd; color: #0d6efd; }
+    .role-icon i { font-size: 24px; }
+    input[type="radio"]:checked + label .role-icon { transform: scale(1.1); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25); }
+    input[type="radio"]:checked + label .role-icon.student { box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.25); }
+    .form-check-input { margin-top: 8px; }
+    .form-check-label { cursor: pointer; font-weight: 500; }
+</style>
+{% endblock %}

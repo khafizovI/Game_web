@@ -110,8 +110,6 @@ LANGUAGE_CODE = 'en'
 # Available languages
 LANGUAGES = [
     ('en', 'English'),
-    ('ru', 'Russian'),
-    ('uz', 'Uzbek'),
 ]
 
 # Locale paths where translation files will be stored
@@ -157,7 +155,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication settings
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'accounts:profile'
 LOGOUT_REDIRECT_URL = 'home'
 
 # Crispy Forms

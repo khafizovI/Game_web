@@ -1,0 +1,271 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Playing Quiz" %} - {{ quiz.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(-45deg, #00d2ff, #3a7bd5, #2575fc, #6a11cb);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        color: white;
+        overflow: hidden;
+    }
+
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .play-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100vh;
+        padding: 2rem;
+    }
+
+    .game-header, .game-footer {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1rem;
+        border-radius: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .question-area {
+        text-align: center;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    #question-text {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 2rem;
+        border-radius: 15px;
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 2rem;
+    }
+
+    .timer {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .answer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .answer-btn {
+        background-color: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border: none;
+        border-radius: 10px;
+        padding: 1.5rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .answer-btn:hover:not(:disabled) {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+    
+    .answer-btn.correct {
+        background-color: #28a745 !important;
+        color: white !important;
+    }
+
+    .answer-btn.incorrect {
+        background-color: #dc3545 !important;
+        color: white !important;
+        opacity: 0.7;
+    }
+
+    #game-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 3rem;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="play-container">
+    <div class="game-header">
+        <div id="question-progress" class="fs-5 fw-bold">{% trans "Question" %} 1/{{ quiz.questions.count }}</div>
+        <div id="player-score" class="fs-5 fw-bold">{% trans "Score" %}: 0</div>
+    </div>
+
+    <div class="question-area">
+        <div id="timer" class="timer">30</div>
+        <div id="question-text">{% trans "Waiting for the game to start..." %}</div>
+        <div id="answer-grid" class="answer-grid">
+            <!-- Answers will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <div class="game-footer">
+        <div class="fw-bold">{{ player.username }}</div>
+        <div>{{ quiz.title }}</div>
+    </div>
+</div>
+
+<div id="game-overlay" style="display: none;"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gameCode = "{{ game.code }}";
+    const username = "{{ player.username }}";
+
+    // UI Elements
+    const questionProgressEl = document.getElementById('question-progress');
+    const playerScoreEl = document.getElementById('player-score');
+    const timerEl = document.getElementById('timer');
+    const questionTextEl = document.getElementById('question-text');
+    const answerGridEl = document.getElementById('answer-grid');
+    const overlayEl = document.getElementById('game-overlay');
+
+    let score = 0;
+    let timerInterval;
+
+    const gameSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/game/' + gameCode + '/'
+    );
+
+    gameSocket.onopen = function(e) {
+        console.log('Game socket connected.');
+        // The host will trigger the first question
+    };
+
+    gameSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log('Received data:', data);
+
+        switch (data.type) {
+            case 'game_started':
+            case 'next_question_sent':
+                displayQuestion(data);
+                break;
+            case 'answer_result':
+                displayAnswerResult(data);
+                break;
+            case 'game_ended':
+                window.location.href = `/game/results/${gameCode}/`;
+                break;
+        }
+    };
+
+    function displayQuestion(data) {
+        hideOverlay();
+        questionProgressEl.textContent = `{% trans "Question" %} ${data.current_question}/${data.total_questions}`;
+        questionTextEl.textContent = data.question_text;
+        answerGridEl.innerHTML = '';
+
+        data.answers.forEach(answer => {
+            const button = document.createElement('button');
+            button.className = 'answer-btn';
+            button.dataset.id = answer.id;
+            button.textContent = answer.text;
+            button.onclick = () => submitAnswer(answer.id);
+            answerGridEl.appendChild(button);
+        });
+
+        startTimer(data.time_limit);
+    }
+
+    function startTimer(duration) {
+        let timeLeft = duration;
+        timerEl.textContent = timeLeft;
+
+        clearInterval(timerInterval); // Clear any existing timer
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerEl.textContent = 'Time\'s up!';
+                disableAnswers(); // Disable answer buttons
+            }
+        }, 1000);
+    }
+
+    function submitAnswer(answerId) {
+        console.log(`Submitting answer: ${answerId}`);
+        clearInterval(timerInterval);
+        disableAnswers();
+        gameSocket.send(JSON.stringify({
+            'type': 'submit_answer',
+            'answer_id': answerId,
+            'username': username
+        }));
+    }
+
+    function disableAnswers() {
+        document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+    }
+
+    function displayAnswerResult(data) {
+        const isCorrect = data.is_correct;
+        score += data.points;
+        playerScoreEl.textContent = `{% trans "Score" %}: ${score}`;
+
+        if (isCorrect) {
+            showOverlay(`{% trans "Correct!" %} +${data.points}`);
+        } else {
+            showOverlay('{% trans "Incorrect!" %}');
+        }
+
+        // Highlight correct/incorrect answers
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            if (btn.dataset.id == data.correct_answer_id) {
+                btn.classList.add('correct');
+            } else {
+                btn.classList.add('incorrect');
+            }
+        });
+    }
+
+    function showOverlay(message) {
+        overlayEl.textContent = message;
+        overlayEl.style.display = 'flex';
+    }
+
+    function hideOverlay() {
+        overlayEl.style.display = 'none';
+    }
+
+    gameSocket.onclose = function(e) {
+        console.error('Game socket closed unexpectedly');
+        alert('Connection to the game has been lost. Please refresh the page.');
+    };
+});
+</script>
+{% endblock %}

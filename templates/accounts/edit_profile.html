@@ -1,47 +1,76 @@
 {% extends 'base/base.html' %}
+{% load static %}
+{% load i18n %}
 
-{% block title %}Edit Profile - QuizBattle{% endblock %}
+{% block title %}{% trans "Edit Profile - QuizBattle" %}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Edit Profile</h4>
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 edit-profile-card">
+                <div class="card-header bg-primary text-white text-center">
+                    <h2 class="my-2"><i class="fas fa-user-edit me-2"></i>{% trans "Edit Your Profile" %}</h2>
                 </div>
-                <div class="card-body">
-                    <form method="POST">
+                <div class="card-body p-4 p-md-5">
+                    <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="first_name" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
+                        <div class="text-center mb-4">
+                            <div class="avatar-upload">
+                                <div class="avatar-preview">
+                                    {% if user.profile.avatar %}
+                                        <div id="imagePreview" style="background-image: url({{ user.profile.avatar.url }});"></div>
+                                    {% else %}
+                                        <div id="imagePreview" style="background-image: url({% static 'images/default-avatar.png' %});"></div>
+                                    {% endif %}
+                                </div>
+                                <div class="avatar-edit">
+                                    <input type='file' id="avatar" name="avatar" accept=".png, .jpg, .jpeg" />
+                                    <label for="avatar"><i class="fas fa-pencil-alt"></i></label>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label for="last_name" class="form-label">Last Name</label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="first_name" name="first_name" placeholder="First Name" value="{{ user.first_name }}">
+                                    <label for="first_name">{% trans "First Name" %}</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Last Name" value="{{ user.last_name }}">
+                                    <label for="last_name">{% trans "Last Name" %}</label>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control" id="email" name="email" placeholder="Email" value="{{ user.email }}">
+                            <label for="email">{% trans "Email" %}</label>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="bio" class="form-label">Bio</label>
-                            <textarea class="form-control" id="bio" name="bio" rows="4">{{ user.profile.bio }}</textarea>
-                            <div class="form-text">Tell us about yourself</div>
+                        <div class="form-floating mb-3">
+                            <textarea class="form-control" id="bio" name="bio" placeholder="Bio" style="height: 120px">{{ user.profile.bio }}</textarea>
+                            <label for="bio">{% trans "Bio" %}</label>
+                        </div>
+
+                        <div class="form-floating mb-4">
+                            <select class="form-select" id="role" name="role">
+                                <option value="student"{% if user.profile.role == 'student' %} selected{% endif %}>{% trans "Student" %}</option>
+                                <option value="teacher"{% if user.profile.role == 'teacher' %} selected{% endif %}>{% trans "Teacher" %}</option>
+                            </select>
+                            <label for="role">{% trans "Role" %}</label>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i> Back to Profile
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Profile" %}
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Save Changes
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>{% trans "Save Changes" %}
                             </button>
                         </div>
                     </form>
@@ -50,4 +79,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    function readURL(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#imagePreview').css('background-image', 'url('+e.target.result +')');
+                $('#imagePreview').hide();
+                $('#imagePreview').fadeIn(650);
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    $("#avatar").change(function() {
+        readURL(this);
+    });
+});
+</script>
 {% endblock %}

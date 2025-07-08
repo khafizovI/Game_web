@@ -1,0 +1,69 @@
+{% extends 'base/base_fullscreen.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Join Game" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(-45deg, #6a11cb, #2575fc, #3a7bd5, #00d2ff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        color: white;
+    }
+
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .join-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .join-box {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 3rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .game-pin-input {
+        font-size: 2rem;
+        text-align: center;
+        letter-spacing: 0.5rem;
+        text-transform: uppercase;
+        font-family: 'monospace';
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="join-container">
+    <div class="join-box">
+        <h1 class="display-4 fw-bold mb-4">{% trans "Join a Game" %}</h1>
+        <p class="lead mb-5">{% trans "Enter the Game PIN to get started." %}</p>
+
+        <form method="POST" action="{% url 'game:join' %}">
+            {% csrf_token %}
+            <div class="mb-4">
+                <input type="text" class="form-control form-control-lg game-pin-input" name="game_code" placeholder="_ _ _ _ _ _" maxlength="6" required>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">{% trans "Enter Game" %}</button>
+            </div>
+        </form>
+        <div class="mt-4">
+            <a href="{% url 'accounts:dashboard' %}" class="text-white-50">{% trans "Back to Dashboard" %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,160 +1,161 @@
 {% extends 'base/base.html' %}
+{% load i18n static %}
 
-{% block title %}{{ quiz.title }} - QuizBattle{% endblock %}
+{% block title %}{{ quiz.title }} - {% trans "Quiz Details" %}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row">
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">{{ quiz.title }}</h4>
-                    <span class="badge bg-light text-dark">{{ questions|length }} Questions</span>
-                </div>
-                <div class="card-body">
-                    <div class="mb-4">
-                        <h5 class="text-muted">Description</h5>
-                        <p>{{ quiz.description|default:"No description provided." }}</p>
-                        <div class="d-flex align-items-center">
-                            <img src="https://ui-avatars.com/api/?name={{ quiz.created_by.username }}&background=random" 
-                                 class="rounded-circle me-2" style="width: 30px; height: 30px;" alt="Creator avatar">
-                            <span>Created by <strong>{{ quiz.created_by.username }}</strong> on {{ quiz.created_at|date:"F j, Y" }}</span>
-                        </div>
-                    </div>
+<div class="quiz-detail-page">
+    <!-- Hero Section -->
+    <div class="quiz-hero-section text-white text-center py-5">
+        <div class="container">
+            <h1 class="display-4 fw-bold">{{ quiz.title }}</h1>
+            <p class="lead mt-3 mb-4">{{ quiz.description|default:"No description provided." }}</p>
+            <div class="d-flex justify-content-center align-items-center">
+                <img src="{% if quiz.created_by.profile.avatar %}{{ quiz.created_by.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;" alt="{{ quiz.created_by.username }}">
+                <span>{% trans "Created by" %} <strong>{{ quiz.created_by.username }}</strong> &bull; {{ quiz.created_at|date:"F j, Y" }}</span>
+            </div>
+        </div>
+    </div>
 
-                    {% if questions %}
-                        <h5 class="mb-3">Questions</h5>
-                        <div class="accordion" id="questionAccordion">
-                            {% for question in questions %}
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="heading{{ question.id }}">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                                data-bs-target="#collapse{{ question.id }}" aria-expanded="false" 
-                                                aria-controls="collapse{{ question.id }}">
-                                            <span class="badge bg-secondary me-2">{{ forloop.counter }}</span>
-                                            {{ question.text }}
-                                        </button>
-                                    </h2>
-                                    <div id="collapse{{ question.id }}" class="accordion-collapse collapse" 
-                                         aria-labelledby="heading{{ question.id }}" data-bs-parent="#questionAccordion">
-                                        <div class="accordion-body">
-                                            <div class="mb-2">
-                                                <span class="badge bg-info">{{ question.time_limit }}s time limit</span>
-                                                <span class="badge bg-success">{{ question.points }} points</span>
-                                            </div>
-                                            
-                                            <div class="list-group">
-                                                {% for answer in question.answers.all %}
-                                                    <div class="list-group-item list-group-item-action {% if can_edit and answer.is_correct %}list-group-item-success{% endif %}">
-                                                        <div class="d-flex w-100 justify-content-between">
-                                                            <span>{{ answer.text }}</span>
-                                                            {% if can_edit and answer.is_correct %}
-                                                                <span class="badge bg-success">✓ Correct</span>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                {% endfor %}
+    <!-- Main Content -->
+    <div class="container py-5">
+        <div class="row">
+            <!-- Main Column -->
+            <div class="col-lg-8 mb-4">
+                <!-- Questions Section -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h4 class="mb-0"><i class="fas fa-list-ul me-2"></i>{% trans "Quiz Questions" %}</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if questions %}
+                            <div class="accordion" id="questionAccordion">
+                                {% for question in questions %}
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="heading{{ question.id }}">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ question.id }}">
+                                                <span class="question-number me-3">{{ forloop.counter }}</span>
+                                                {{ question.text }}
+                                            </button>
+                                        </h2>
+                                        <div id="collapse{{ question.id }}" class="accordion-collapse collapse" data-bs-parent="#questionAccordion">
+                                            <div class="accordion-body">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <span class="badge bg-info-soft text-info"><i class="fas fa-clock me-1"></i>{{ question.time_limit }}s {% trans "limit" %}</span>
+                                                    <span class="badge bg-success-soft text-success"><i class="fas fa-star me-1"></i>{{ question.points }} {% trans "points" %}</span>
+                                                </div>
+                                                {% if can_edit %}
+                                                    <ul class="list-group">
+                                                        {% for answer in question.answers.all %}
+                                                            <li class="list-group-item {% if answer.is_correct %}list-group-item-success fw-bold{% endif %}">
+                                                                {{ answer.text }}
+                                                                {% if answer.is_correct %}
+                                                                    <i class="fas fa-check-circle text-success float-end mt-1"></i>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <p class="text-muted small"><em>{% trans "Answers are revealed after playing." %}</em></p>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info">
-                            <p class="mb-0">This quiz doesn't have any questions yet.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Actions</h4>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        {% if user.is_authenticated %}
-                            <a href="{% url 'game:host' quiz.id %}" class="btn btn-success">
-                                <i class="fas fa-play me-2"></i> Host This Quiz
-                            </a>
-                            
-                            {% if can_edit %}
-                                <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-primary">
-                                    <i class="fas fa-edit me-2"></i> Edit Quiz
-                                </a>
-                            {% endif %}
+                                {% endfor %}
+                            </div>
                         {% else %}
-                            <a href="{% url 'accounts:login' %}" class="btn btn-primary">
-                                <i class="fas fa-sign-in-alt me-2"></i> Log In to Host This Quiz
-                            </a>
+                            <div class="text-center p-4">
+                                <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                                <p class="mb-0">{% trans "This quiz doesn't have any questions yet." %}</p>
+                            </div>
                         {% endif %}
-                        
-                        <a href="{% url 'quiz:browse' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-2"></i> Back to Browse
-                        </a>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Section -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h4 class="mb-0"><i class="fas fa-trophy me-2"></i>{% trans "Leaderboard" %}</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if leaderboard_entries %}
+                            <ul class="list-group list-group-flush">
+                                {% for entry in leaderboard_entries %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <span class="leaderboard-rank me-3">#{{ forloop.counter }}</span>
+                                        <img src="{% if entry.player.profile.avatar %}{{ entry.player.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="rounded-circle me-3" style="width: 35px; height: 35px; object-fit: cover;" alt="{{ entry.player.username }}">
+                                        <span>{{ entry.player.username }}</span>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">{{ entry.score }} {% trans 'pts' %}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="text-center p-4">
+                                <i class="fas fa-user-clock fa-3x text-muted mb-3"></i>
+                                <p class="mb-0">{% trans "No one has played this quiz yet. Be the first!" %}</p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
             
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Quiz Stats</h4>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Questions
-                            <span class="badge bg-primary rounded-pill">{{ questions|length }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Total Points
-                            <span class="badge bg-success rounded-pill">
-                                {% with total=0 %}
-                                    {% for question in questions %}
-                                        {% with new_total=total|add:question.points %}
-                                            {% with total=new_total %}
-                                                {% if forloop.last %}
-                                                    {{ new_total|default:0 }}
-                                                {% endif %}
-                                            {% endwith %}
-                                        {% endwith %}
-                                    {% endfor %}
-                                {% endwith %}
-                            </span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Avg. Time Per Question
-                            <span class="badge bg-info rounded-pill">
-                                {% with question_count=questions|length %}
-                                    {% if question_count > 0 %}
-                                        {% with total_time=0 %}
-                                            {% for question in questions %}
-                                                {% with new_total=total_time|add:question.time_limit %}
-                                                    {% with total_time=new_total %}
-                                                        {% if forloop.last %}
-                                                            {{ new_total|floatformat:0|default:0 }}
-                                                        {% endif %}
-                                                    {% endwith %}
-                                                {% endwith %}
-                                            {% endfor %}
-                                        {% endwith %}
-                                    {% else %}
-                                        0
-                                    {% endif %}
-                                {% endwith %}
-                                seconds
-                            </span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Visibility
-                            <span class="badge {% if quiz.is_public %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
-                                {% if quiz.is_public %}Public{% else %}Private{% endif %}
-                            </span>
-                        </li>
-                    </ul>
+            <!-- Sidebar Column -->
+            <div class="col-lg-4">
+                <div class="sticky-sidebar">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-grid gap-2 mb-4">
+                                {% if user.is_authenticated %}
+                                    <a href="{% url 'game:host' quiz.id %}" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-play-circle me-2"></i>{% trans "Host This Quiz" %}
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-sign-in-alt me-2"></i>{% trans "Log In to Host" %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            
+                            <h5 class="mb-3">{% trans "Quiz Details" %}</h5>
+                            <ul class="list-group list-group-flush quiz-stats">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-question-circle me-2 text-muted"></i>{% trans "Questions" %}</span>
+                                    <span class="fw-bold">{{ questions|length }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-star me-2 text-muted"></i>{% trans "Total Points" %}</span>
+                                    <span class="fw-bold">{{ total_points|default:0 }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-hourglass-half me-2 text-muted"></i>{% trans "Avg. Time" %}</span>
+                                    <span class="fw-bold">{{ avg_time|default:0 }}s</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-eye me-2 text-muted"></i>{% trans "Visibility" %}</span>
+                                    <span class="badge {% if quiz.is_public %}bg-success-soft text-success{% else %}bg-secondary-soft text-secondary{% endif %}">
+                                        {% if quiz.is_public %}{% trans "Public" %}{% else %}{% trans "Private" %}{% endif %}
+                                    </span>
+                                </li>
+                            </ul>
+
+                            {% if can_edit %}
+                            <hr>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit me-2"></i>{% trans "Edit Quiz" %}
+                                </a>
+                            </div>
+                            {% endif %}
+
+                        </div>
+                        <div class="card-footer bg-light text-center">
+                             <a href="{% url 'quiz:browse' %}" class="btn btn-link text-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Browse" %}
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

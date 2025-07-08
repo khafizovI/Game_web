@@ -1,75 +1,118 @@
-{% extends 'base/base.html' %}
-
-{% block title %}Join Game - QuizBattle{% endblock %}
-
-{% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6 text-center">
-            <h1 class="mb-4">Join a Game</h1>
-            
-            {% if messages %}
-            <div class="messages mb-4">
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            <div class="card shadow mb-4">
-                <div class="card-body p-5">
-                    <h3 class="card-title mb-4">Enter Game Code</h3>
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            <input type="text" class="form-control form-control-lg text-center" 
-                                  name="game_code" id="game_code" placeholder="XXXXXX" 
-                                  maxlength="6" style="font-size: 2rem; letter-spacing: 0.5rem;" autofocus>
-                            <div class="form-text">Enter the 6-letter code provided by the host</div>
-                        </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i> Join Game
-                            </button>
-                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-home me-2"></i> Back to Home
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Want to Host a Game?</h4>
-                </div>
-                <div class="card-body">
-                    <p>Create your own quiz and host a game for your friends!</p>
-                    <div class="d-grid">
-                        <a href="{% url 'quiz:browse' %}" class="btn btn-success">
-                            <i class="fas fa-play me-2"></i> Host a Game
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Auto-format the game code input to uppercase
-    document.addEventListener('DOMContentLoaded', function() {
-        const codeInput = document.getElementById('game_code');
-        if (codeInput) {
-            codeInput.addEventListener('input', function() {
-                this.value = this.value.toUpperCase();
-            });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Game - QuizBattle</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #7f53ac, #6577cb);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-    });
-</script>
-{% endblock %}
+        .join-container {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        .join-container h1 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .join-container input {
+            width: 100%;
+            padding: 18px;
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.8rem;
+            letter-spacing: 0.5rem;
+            font-weight: bold;
+            box-sizing: border-box;
+            text-transform: uppercase;
+        }
+        .join-container input::placeholder {
+            font-weight: normal;
+            letter-spacing: normal;
+            text-transform: none;
+        }
+        .join-container button {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            background-color: #8a2be2;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .join-container button:hover {
+            background-color: #7324b8;
+        }
+        .messages {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: .25rem;
+            color: #fff;
+            background-color: #f44336; /* Red for errors */
+            text-align: center;
+        }
+        .alert-success {
+            background-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="join-container">
+        <h1>QuizBattle</h1>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="text" name="game_code" placeholder="GAME PIN" maxlength="6" autofocus required>
+            <button type="submit">Enter</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.querySelector('input[name="game_code"]');
+            if (codeInput) {
+                codeInput.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

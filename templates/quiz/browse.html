@@ -1,112 +1,127 @@
 {% extends 'base/base.html' %}
+{% load i18n %}
 
-{% block title %}Browse Quizzes - QuizBattle{% endblock %}
+{% block title %}{% trans "Browse Quizzes" %}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Browse Quizzes</h1>
-        {% if user.is_authenticated %}
-        <a href="{% url 'quiz:create' %}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Create New Quiz
-        </a>
-        {% endif %}
-    </div>
-
-    {% if messages %}
-    <div class="messages mb-4">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if user.is_authenticated and user_quizzes %}
-    <div class="my-4">
-        <h2>My Private Quizzes</h2>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            {% for quiz in user_quizzes %}
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ quiz.title }}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">
-                            By {{ quiz.created_by.username }} | {{ quiz.questions.count }} Questions
-                        </h6>
-                        <p class="card-text">{{ quiz.description|truncatechars:100 }}</p>
-                        <div class="d-flex justify-content-between">
-                            <span class="badge bg-secondary">Private</span>
-                            <small class="text-muted">Created {{ quiz.created_at|date:"M d, Y" }}</small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent d-flex justify-content-between">
-                        <a href="{% url 'quiz:detail' quiz.id %}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye me-1"></i> View
-                        </a>
-                        <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-edit me-1"></i> Edit
-                        </a>
-                        <a href="{% url 'game:host' quiz.id %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-play me-1"></i> Host
-                        </a>
-                    </div>
-                </div>
+<div class="browse-page-redesigned">
+    <!-- Header Section -->
+    <div class="container py-5">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-5 fw-bold">{% trans "Explore & Discover" %}</h1>
+                <p class="lead text-muted">{% trans "Find, create, and share quizzes on any topic." %}</p>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="my-4">
-        <h2>Public Quizzes</h2>
-        {% if public_quizzes %}
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-            {% for quiz in public_quizzes %}
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ quiz.title }}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">
-                            By {{ quiz.created_by.username }} | {{ quiz.questions.count }} Questions
-                        </h6>
-                        <p class="card-text">{{ quiz.description|truncatechars:100 }}</p>
-                        <div class="d-flex justify-content-between">
-                            <span class="badge bg-success">Public</span>
-                            <small class="text-muted">Created {{ quiz.created_at|date:"M d, Y" }}</small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent d-flex justify-content-between">
-                        <a href="{% url 'quiz:detail' quiz.id %}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye me-1"></i> View
-                        </a>
-                        {% if user.is_authenticated and quiz.created_by == user %}
-                        <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-edit me-1"></i> Edit
-                        </a>
-                        {% endif %}
-                        {% if user.is_authenticated %}
-                        <a href="{% url 'game:host' quiz.id %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-play me-1"></i> Host
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="alert alert-info">
-            <p class="mb-0">No public quizzes available yet. 
-                {% if user.is_authenticated %}
-                <a href="{% url 'quiz:create' %}">Create the first one!</a>
-                {% else %}
-                <a href="{% url 'accounts:login' %}">Log in</a> to create quizzes.
+            <div class="col-lg-6 d-flex justify-content-lg-end mt-4 mt-lg-0">
+                {% if user.is_authenticated and user.profile.is_teacher %}
+                    <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg me-3">
+                        <i class="fas fa-plus-circle me-2"></i>{% trans "Create a New Quiz" %}
+                    </a>
                 {% endif %}
-            </p>
+            </div>
         </div>
-        {% endif %}
+        <div class="mt-4">
+            <div class="input-group input-group-lg shadow-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search"></i></span>
+                <input class="form-control border-start-0" type="search" id="quiz-search-input" placeholder="{% trans 'Search for quizzes...' %}">
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs and Content -->
+    <div class="container pb-5">
+        <ul class="nav nav-tabs nav-fill mb-4" id="quizTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="public-tab" data-bs-toggle="tab" data-bs-target="#public-quizzes" type="button" role="tab" aria-controls="public-quizzes" aria-selected="true">
+                    <i class="fas fa-globe-americas me-2"></i>{% trans "Public Quizzes" %}
+                </button>
+            </li>
+            {% if user.is_authenticated %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="my-quizzes-tab" data-bs-toggle="tab" data-bs-target="#my-quizzes" type="button" role="tab" aria-controls="my-quizzes" aria-selected="false">
+                    <i class="fas fa-user-lock me-2"></i>{% trans "My Quizzes" %}
+                </button>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="tab-content" id="quizTabsContent">
+            <!-- Public Quizzes Tab -->
+            <div class="tab-pane fade show active" id="public-quizzes" role="tabpanel" aria-labelledby="public-tab">
+                {% if public_quizzes %}
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 quiz-list">
+                        {% for quiz in public_quizzes %}
+                            {% include 'quiz/partials/quiz_card_redesigned.html' with quiz=quiz %}
+                        {% endfor %}
+                    </div>
+                    <div class="alert alert-light text-center d-none no-results-message mt-4">
+                        <h5><i class="fas fa-search me-2"></i>{% trans "No quizzes found." %}</h5>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-cloud-moon fa-4x text-muted mb-3"></i>
+                        <h4 class="fw-bold">{% trans "It's quiet out here..." %}</h4>
+                        <p class="text-muted">{% trans "No public quizzes are available yet. Why not be the first to create one?" %}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- My Quizzes Tab -->
+            {% if user.is_authenticated %}
+            <div class="tab-pane fade" id="my-quizzes" role="tabpanel" aria-labelledby="my-quizzes-tab">
+                {% if user_quizzes %}
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 quiz-list">
+                        {% for quiz in user_quizzes %}
+                            {% include 'quiz/partials/quiz_card_redesigned.html' with quiz=quiz %}
+                        {% endfor %}
+                    </div>
+                    <div class="alert alert-light text-center d-none no-results-message mt-4">
+                        <h5><i class="fas fa-search me-2"></i>{% trans "No quizzes found." %}</h5>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                        <h4 class="fw-bold">{% trans "Nothing to see here!" %}</h4>
+                        <p class="text-muted">{% trans "You haven't created any quizzes yet." %}</p>
+                    </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('quiz-search-input');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const activeTabPane = document.querySelector('.tab-pane.active');
+        const quizList = activeTabPane.querySelector('.quiz-list');
+        const noResultsMessage = activeTabPane.querySelector('.no-results-message');
+
+        if (!quizList) return;
+
+        const quizCards = quizList.querySelectorAll('.quiz-card-container');
+        let visibleCount = 0;
+
+        quizCards.forEach(card => {
+            const searchText = card.dataset.searchText || '';
+            const isVisible = searchText.includes(searchTerm);
+            card.style.display = isVisible ? '' : 'none';
+            if (isVisible) {
+                visibleCount++;
+            }
+        });
+
+        if (noResultsMessage) {
+            noResultsMessage.classList.toggle('d-none', visibleCount > 0);
+        }
+    });
+});
+</script>
 {% endblock %}

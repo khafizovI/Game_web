@@ -1,54 +1,52 @@
 {% extends 'base/base.html' %}
+{% load i18n %}
 
-{% block title %}Create New Quiz - QuizBattle{% endblock %}
+{% block title %}{% trans "Create New Quiz - QuizBattle" %}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Create New Quiz</h4>
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white text-center">
+                    <h2 class="my-2"><i class="fas fa-feather-alt me-2"></i>{% trans "Craft Your Quiz" %}</h2>
+                    <p class="mb-0">{% trans "Start by giving your new quiz a title and description." %}</p>
                 </div>
-                <div class="card-body">
-                    {% if messages %}
-                    <div class="messages mb-4">
-                        {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">
-                            {{ message }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
+                <div class="card-body p-4 p-md-5">
                     <form method="POST">
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="title" class="form-label">Quiz Title <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="title" name="title" required>
-                            <div class="form-text">Give your quiz a catchy title</div>
+                        <div class="form-floating mb-4">
+                            <input type="text" class="form-control" id="title" name="title" placeholder="{% trans 'Quiz Title' %}" required>
+                            <label for="title">{% trans "Quiz Title" %}</label>
+                            <div class="form-text mt-1 ms-1">{% trans "e.g., 'World Capitals' or 'Math Trivia'" %}</div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                            <div class="form-text">Describe what your quiz is about</div>
+                        <div class="form-floating mb-4">
+                            <textarea class="form-control" id="description" name="description" placeholder="{% trans 'Description' %}" style="height: 120px"></textarea>
+                            <label for="description">{% trans "Description" %}</label>
+                            <div class="form-text mt-1 ms-1">{% trans "A brief summary of what players can expect." %}</div>
                         </div>
                         
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="is_public" name="is_public">
-                            <label class="form-check-label" for="is_public">Make this quiz public</label>
-                            <div class="form-text">Public quizzes can be played by anyone. Private quizzes are only visible to you.</div>
+                        <div class="mb-4">
+                            <label class="form-label">{% trans "Visibility" %}</label>
+                            <div class="form-check form-switch form-check-lg form-control-lg">
+                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public">
+                                <label class="form-check-label" for="is_public">
+                                    <span class="text-primary fw-bold">{% trans "Public" %}</span>
+                                    <small class="text-muted d-block">{% trans "Anyone can find and play this quiz." %}</small>
+                                </label>
+                            </div>
+                             <div class="form-text mt-2">{% trans "You can change this later. By default, the quiz is Private." %}</div>
                         </div>
                         
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'quiz:browse' %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i> Back to Browse
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Create Quiz
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right me-2"></i>{% trans "Create & Add Questions" %}
                             </button>
+                            <a href="{% url 'quiz:browse' %}" class="btn btn-outline-secondary">
+                                {% trans "Cancel" %}
+                            </a>
                         </div>
                     </form>
                 </div>

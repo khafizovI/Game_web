@@ -1,0 +1,554 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Game" %} - {{ game.quiz.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(-45deg, #6a11cb, #2575fc, #3a7bd5, #00d2ff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+        color: white;
+        overflow: hidden;
+    }
+
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* --- Lobby Styles --- */
+    .lobby-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 2rem;
+    }
+
+    .lobby-main {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+        max-width: 1200px;
+    }
+
+    .pin-display { background: rgba(0, 0, 0, 0.2); padding: 1.5rem; border-radius: 15px; text-align: center; }
+    .pin-display h3 { font-size: 1.5rem; margin-bottom: 1rem; font-weight: 300; }
+    .pin-code { font-size: 4rem; font-weight: 700; letter-spacing: 0.5rem; font-family: 'monospace'; }
+
+    .player-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1.5rem;
+        padding: 2rem;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        min-height: 300px;
+        align-content: start;
+    }
+
+    .player-card { text-align: center; animation: popIn 0.5s ease-out; }
+    .player-avatar { width: 80px; height: 80px; border-radius: 50%; background-color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; border: 3px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .player-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .player-name { font-weight: 600; background: rgba(0, 0, 0, 0.3); padding: 0.25rem 0.75rem; border-radius: 10px; display: inline-block; }
+
+    @keyframes popIn {
+        0% { transform: scale(0.5); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* --- Game Play Styles --- */
+    .play-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100vh;
+        padding: 2rem;
+    }
+
+    .game-header, .game-footer { background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .question-area { text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+    #question-text { background: rgba(255, 255, 255, 0.9); color: #333; padding: 2rem; border-radius: 15px; font-size: 2rem; font-weight: 600; margin-bottom: 2rem; }
+    .timer { font-size: 3rem; font-weight: 700; margin-bottom: 1rem; }
+
+    #answers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .answer-btn.correct {
+        background-color: #28a745 !important;
+        color: white;
+        border-color: #28a745 !important;
+    }
+
+    .answer-btn.incorrect {
+        background-color: #dc3545 !important;
+        color: white;
+        border-color: #dc3545 !important;
+    }
+
+    .answer-btn-red { background-color: #dc3545 !important; color: black !important; border-color: #dc3545 !important; }
+    .answer-btn-blue { background-color: #0d6efd !important; color: black !important; border-color: #0d6efd !important; }
+    .answer-btn-yellow { background-color: #ffc107 !important; color: black !important; border-color: #ffc107 !important; }
+    .answer-btn-green { background-color: #198754 !important; color: black !important; border-color: #198754 !important; }
+
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+        font-size: 2em;
+    }
+
+    #results-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+        font-size: 2em;
+    }
+
+    #game-over-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+        font-size: 2em;
+    }
+
+    #connection-error-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        color: white;
+        font-size: 2em;
+    }
+
+    #countdown-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        font-size: 10rem;
+        color: white;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Lobby View -->
+<div id="lobby-view">
+    <div class="lobby-wrapper">
+        <div class="lobby-main">
+            <div class="text-center mb-4">
+                <h1 class="display-4 fw-bold">{{ game.quiz.title }}</h1>
+                <p class="lead">{% trans "Join the game on your device!" %}</p>
+            </div>
+            <div class="row align-items-center g-5">
+                <div class="col-lg-4">
+                    <div class="pin-display">
+                        <h3>{% trans "Game PIN" %}</h3>
+                        <div class="pin-code">{{ game.code }}</div>
+                    </div>
+                    <div class="host-controls mt-4">
+                        <h4><span id="player-count">{{ players|length }}</span> {% trans "Players" %}</h4>
+                        <!-- DEBUG INFO -->
+                        <!-- request.user.id: {{ user.id }} -->
+                        <!-- game.host.id: {{ game.host.id }} -->
+                        <!-- is_host variable: {{ is_host }} -->
+                        {% if is_host %}
+                            <button type="button" id="start-game-btn" class="btn btn-success btn-lg w-100 mt-3">
+                                <i class="fas fa-play-circle me-2"></i>{% trans "Start Game" %}
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div id="player-grid" class="player-grid">
+                        {% for player in players %}
+                            <div class="player-card" id="player-{{ player.username }}">
+                                <div class="player-avatar">
+                                    <img src="{% if player.user.profile.avatar %}{{ player.user.profile.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" alt="{{ player.username }}">
+                                </div>
+                                <span class="player-name">{{ player.username }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Countdown Overlay -->
+<div id="countdown-overlay">
+    <div id="countdown-number"></div>
+</div>
+
+<!-- Game Play View (Initially Hidden) -->
+<div id="play-view" style="display: none;">
+    <div class="play-container">
+        <div class="game-header">
+            <div id="question-progress" class="fs-5 fw-bold">{% trans "Question" %} 1/{{ game.quiz.questions.count }}</div>
+            <div id="player-score" class="fs-5 fw-bold">{% trans "Score" %}: 0</div>
+        </div>
+        <div class="question-area">
+            <div id="timer" class="timer">30</div>
+            <div id="question-text">{% trans "Waiting for the game to start..." %}</div>
+            <div id="answers-grid"></div>
+        </div>
+        <div class="game-footer">
+            <div class="fw-bold">{{ user.username }}</div>
+            <div>{{ game.quiz.title }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Overlays -->
+<div id="waiting-overlay" class="overlay">
+    <p>Waiting for other players...</p>
+</div>
+
+<div id="results-overlay" class="overlay">
+    <div id="results-content" class="text-center">
+        <h2 id="result-message"></h2>
+        <p id="points-awarded"></p>
+    </div>
+</div>
+
+<div id="game-over-overlay" class="overlay">
+    <div id="game-over-content" class="text-center">
+        <h2>Game Over!</h2>
+        <h3>Final Scores:</h3>
+        <ul id="final-scores-list" class="list-unstyled"></ul>
+    </div>
+</div>
+
+<div id="connection-error-overlay" class="overlay">
+    <div class="text-center">
+        <h2 id="connection-error-title">Connection Lost</h2>
+        <p id="connection-error-message">The connection to the game server was lost. Please try refreshing the page.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Common Elements ---
+    const gameCode = "{{ game.code }}";
+    const username = "{{ user.username }}";
+    const isHost = {{ is_host|yesno:"true,false" }};
+    const defaultAvatarUrl = "{% static 'images/default-avatar.png' %}";
+
+    // --- View Containers ---
+    const lobbyView = document.getElementById('lobby-view');
+    const playView = document.getElementById('play-view');
+    const waitingOverlay = document.getElementById('waiting-overlay');
+    const resultsOverlay = document.getElementById('results-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const connectionErrorOverlay = document.getElementById('connection-error-overlay');
+    const countdownOverlay = document.getElementById('countdown-overlay');
+
+    // --- Lobby Elements ---
+    const playerGrid = document.getElementById('player-grid');
+    const playerCountEl = document.getElementById('player-count');
+    const startGameBtn = document.getElementById('start-game-btn');
+
+    // --- Game Play Elements ---
+    const questionProgressEl = document.getElementById('question-progress');
+    const playerScoreEl = document.getElementById('player-score');
+    const timerEl = document.getElementById('timer');
+    const questionTextEl = document.getElementById('question-text');
+    const answersGridEl = document.getElementById('answers-grid');
+
+    let score = 0;
+    let timerInterval;
+
+    // --- Event Listeners ---
+    if (isHost && startGameBtn) {
+        startGameBtn.addEventListener('click', () => {
+            gameSocket.send(JSON.stringify({ type: 'start_game' }));
+            startCountdown(); // Start countdown immediately for the host
+        });
+    }
+
+    // --- WebSocket Connection ---
+    const gameSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/game/' + gameCode + '/'
+    );
+
+    gameSocket.onopen = function(e) {
+        console.log('Socket connected.');
+    };
+
+    gameSocket.onclose = function(e) {
+        console.error('Socket closed unexpectedly.', e);
+        const title = document.getElementById('connection-error-title');
+        const message = document.getElementById('connection-error-message');
+
+        if (e.code === 4000) {
+            title.innerText = 'Server Error';
+            message.innerHTML = 'An error occurred on the server during connection. <strong>Please check the server logs (console) for details.</strong>';
+        } else {
+            title.innerText = 'Connection Lost';
+            message.innerText = 'The connection to the game server was lost. Please try refreshing the page.';
+        }
+        showOverlay('connection-error-overlay');
+    };
+
+    gameSocket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+
+    // --- Message Handling ---
+    gameSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        switch (data.type) {
+            case 'lobby_state':
+                document.getElementById('player-grid').innerHTML = ''; // Clear the grid
+                data.players.forEach(player => addPlayerToLobby(player));
+                break;
+            case 'player_joined':
+                addPlayerToLobby(data.player);
+                break;
+            case 'game_starting':
+                console.log("Game starting message received, triggering countdown."); // For debugging
+                if (!isHost) { // Students wait for the broadcast
+                    startCountdown();
+                }
+                break;
+            case 'next_question_sent':
+                hideAllOverlays();
+                displayQuestion(data);
+                break;
+            case 'answer_submitted_confirmation':
+                showOverlay('waiting-overlay');
+                break;
+            case 'question_results':
+                hideAllOverlays();
+                displayResults(data);
+                break;
+            case 'game_ended':
+                displayGameOver(data.scores);
+                break;
+            case 'connection_error':
+                displayConnectionError(data.message);
+                break;
+        }
+    };
+
+    // --- Lobby Logic ---
+    function addPlayerToLobby(player) {
+        if (!player || document.querySelector(`.player-card[data-username="${player.username}"]`)) return;
+
+        const playerCard = document.createElement('div');
+        playerCard.className = 'player-card';
+        playerCard.dataset.username = player.username;
+        const avatarUrl = player.avatar_url || defaultAvatarUrl;
+
+        playerCard.innerHTML = `
+            <div class="player-avatar">
+                <img src="${avatarUrl}" alt="${player.username}">
+            </div>
+            <span class="player-name">${player.username}</span>
+        `;
+        playerGrid.appendChild(playerCard);
+        playerCountEl.textContent = document.querySelectorAll('.player-card').length;
+    }
+
+    // --- Game Play Logic ---
+    function displayQuestion(data) {
+        // Hide headers for a focused view
+        document.querySelector('.navbar').style.display = 'none';
+
+        lobbyView.style.display = 'none';
+        playView.style.display = 'block';
+
+        questionProgressEl.textContent = `Question ${data.current_question}/${data.total_questions}`;
+        questionTextEl.textContent = data.question_text;
+        answersGridEl.innerHTML = ''; // Clear previous answers
+
+        const answerColors = ['answer-btn-red', 'answer-btn-blue', 'answer-btn-yellow', 'answer-btn-green'];
+
+        data.answers.forEach((answer, index) => {
+            const button = document.createElement('button');
+            button.classList.add('btn', 'btn-lg', 'answer-btn', 'w-100', 'h-100', 'd-flex', 'align-items-center', 'justify-content-center', 'p-3', 'fs-4');
+            button.classList.add(answerColors[index % 4]); // Assign color
+            button.textContent = answer.text;
+            button.dataset.answerId = answer.id;
+            button.onclick = () => submitAnswer(answer.id);
+            answersGridEl.appendChild(button);
+        });
+
+        startTimer(data.time_limit);
+    }
+
+    function submitAnswer(answerId) {
+        gameSocket.send(JSON.stringify({
+            'type': 'submit_answer',
+            'answer_id': answerId
+        }));
+        // Disable all answer buttons after submission
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+
+    function startTimer(duration) {
+        let timeLeft = duration;
+        timerEl.textContent = timeLeft;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerEl.textContent = "Time's up!";
+                disableAnswers();
+            }
+        }, 1000);
+    }
+
+    function disableAnswers() {
+        document.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+
+    function displayResults(data) {
+        const { correct_answer_id, player_results } = data;
+        const currentUser = '{{ user.username }}';
+        const userResult = player_results[currentUser];
+
+        // Highlight correct and incorrect answers
+        document.querySelectorAll('.answer-btn').forEach(button => {
+            if (parseInt(button.dataset.answerId) === correct_answer_id) {
+                button.classList.add('correct');
+            } else {
+                button.classList.add('incorrect');
+            }
+        });
+
+        const resultMessage = document.getElementById('result-message');
+        const pointsAwarded = document.getElementById('points-awarded');
+
+        if (userResult) {
+            if (userResult.is_correct) {
+                resultMessage.textContent = 'Correct!';
+                pointsAwarded.textContent = `+${userResult.points_awarded} points`;
+            } else {
+                resultMessage.textContent = 'Incorrect!';
+                pointsAwarded.textContent = '';
+            }
+        }
+
+        // Update scores on the side
+        Object.keys(player_results).forEach(username => {
+            const scoreElement = document.querySelector(`li[data-username='${username}'] .badge`);
+            if (scoreElement) {
+                scoreElement.textContent = player_results[username].score;
+            }
+        });
+
+        showOverlay('results-overlay');
+    }
+
+    function displayGameOver(data) {
+        // Show the main header again
+        document.querySelector('.navbar').style.display = 'flex';
+
+        const scoresList = document.getElementById('final-scores-list');
+        scoresList.innerHTML = data.map(s => `<li>${s.username}: ${s.score}</li>`).join('');
+        gameOverOverlay.style.display = 'flex';
+
+        // Redirect after a delay
+        setTimeout(() => {
+            if (isHost) {
+                window.location.href = "{% url 'home' %}";
+            } else {
+                window.location.href = "{% url 'game:join' %}";
+            }
+        }, 5000); // 5-second delay
+    }
+
+    function displayConnectionError(message) {
+        connectionErrorOverlay.style.display = 'flex';
+    }
+
+    function startCountdown() {
+        lobbyView.style.display = 'none'; // Hide the lobby for a clean countdown
+        const countdownNumber = document.getElementById('countdown-number');
+        countdownOverlay.style.display = 'flex';
+
+        let count = 3;
+        countdownNumber.textContent = count;
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownNumber.textContent = count;
+            } else {
+                clearInterval(interval);
+                // The overlay will be hidden by hideAllOverlays() when the first question arrives.
+            }
+        }, 1000);
+    }
+
+    function showOverlay(overlayId) {
+        document.getElementById(overlayId).style.display = 'flex';
+    }
+
+    function hideAllOverlays() {
+        resultsOverlay.style.display = 'none';
+        gameOverOverlay.style.display = 'none';
+        connectionErrorOverlay.style.display = 'none';
+        countdownOverlay.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

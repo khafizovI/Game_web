@@ -12,6 +12,11 @@ import json
 @login_required
 def host_game(request, quiz_id):
     """View for hosting a new game from a quiz"""
+    # Check if user is a teacher
+    if not request.user.profile.is_teacher():
+        messages.error(request, "Only teachers can host games.")
+        return redirect('accounts:dashboard')
+        
     quiz = get_object_or_404(Quiz, id=quiz_id)
     
     # Check if quiz has questions
@@ -31,69 +36,45 @@ def host_game(request, quiz_id):
         code=code
     )
     
-    # Redirect to the host control page
-    return redirect('game:host_control', game_code=code)
+    # Add the host as a player
+    GamePlayer.objects.create(
+        game=game,
+        user=request.user
+    )
+    
+    # Redirect to the game lobby
+    return redirect('game:lobby', game_code=code)
 
 @login_required
-def host_control(request, game_code):
-    """View for controlling a hosted game"""
+def lobby(request, game_code):
+    """View for the game lobby, where players wait for the host to start the game."""
     game = get_object_or_404(Game, code=game_code)
-    
-    # Ensure the user is the host of the game
-    if game.host != request.user:
-        messages.error(request, "You are not the host of this game.")
-        return redirect('home')
-    
-    # Check if the game is already completed
-    if game.is_completed:
-        return redirect('game:results', game_code=game_code)
-    
-    # Get questions for this quiz
-    questions = Question.objects.filter(quiz=game.quiz).order_by('order')
-    # Print for debugging
-    print(f"Found {questions.count()} questions for quiz {game.quiz.title}")
-    
+    players = GamePlayer.objects.filter(game=game)
+    is_host = (request.user.id == game.host.id)
+
     context = {
         'game': game,
-        'quiz': game.quiz,
-        'players': GamePlayer.objects.filter(game=game).order_by('-score'),
-        'questions': questions
+        'players': players,
+        'is_host': is_host,
     }
-    return render(request, 'game/host_control.html', context)
+    return render(request, 'game/lobby.html', context)
 
 @login_required
 def join_game(request):
     """View for joining a game using a game code"""
     if request.method == 'POST':
-        code = request.POST.get('game_code', '').strip().upper()
-        
-        if not code:
-            messages.error(request, "Please enter a game code.")
-            return redirect('game:join')
-        
-        # Try to find the game
+        game_code = request.POST.get('game_code')
         try:
-            game = Game.objects.get(code=code)
-            
-            # Check if game is already completed
-            if game.is_completed:
-                messages.error(request, "This game has already ended.")
-                return redirect('game:join')
-            
-            # Check if player already exists for this user and game
-            player, created = GamePlayer.objects.get_or_create(
+            game = Game.objects.get(code=game_code)
+            # Add the player to the game if they are not already in it
+            GamePlayer.objects.get_or_create(
                 game=game,
-                user=request.user,
-                defaults={'username': request.user.username}
+                user=request.user
             )
-            
-            # Redirect to the game play page
-            return redirect('game:play', game_code=code)
-            
+            return redirect('game:lobby', game_code=game.code)
         except Game.DoesNotExist:
-            messages.error(request, f"No game found with code {code}.")
+            messages.error(request, _('Game with code %(code)s not found.') % {'code': game_code})
             return redirect('game:join')
-    
     return render(request, 'game/join.html')
 
 @login_required
@@ -108,8 +89,7 @@ def play_game(request, game_code):
     # Get or create player
     player, created = GamePlayer.objects.get_or_create(
         game=game,
-        user=request.user,
-        defaults={'username': request.user.username}
+        user=request.user
     )
     
     context = {

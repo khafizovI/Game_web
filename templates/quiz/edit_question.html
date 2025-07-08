@@ -1,120 +1,79 @@
 {% extends 'base/base.html' %}
+{% load i18n %}
 
-{% block title %}Edit Question - {{ quiz.title }}{% endblock %}
+{% block title %}{% trans "Edit Question" %} - {{ quiz.title }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">Edit Question</h4>
-                    <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i> Back to Quiz
-                    </a>
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="my-2"><i class="fas fa-edit me-2"></i>{% trans "Edit Question" %}</h2>
                 </div>
-                <div class="card-body">
-                    <form id="questionForm" method="POST">
+                <div class="card-body p-4 p-md-5">
+                    <form id="questionForm" method="POST" novalidate>
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="text" class="form-label">Question Text <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="text" name="text" rows="2" required>{{ question.text }}</textarea>
+                        <!-- Question Text -->
+                        <div class="form-floating mb-4">
+                            <textarea class="form-control" id="text" name="text" placeholder="{% trans 'Question Text' %}" style="height: 100px" required>{{ question.text }}</textarea>
+                            <label for="text">{% trans "Question Text" %}</label>
                         </div>
                         
-                        <div class="row mb-3">
+                        <!-- Question Settings -->
+                        <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label for="time_limit" class="form-label">Time Limit (seconds)</label>
-                                <input type="number" class="form-control" id="time_limit" name="time_limit" 
-                                       min="5" max="120" value="{{ question.time_limit }}">
-                                <div class="form-text">How long players have to answer this question</div>
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" id="time_limit" name="time_limit" min="5" max="120" value="{{ question.time_limit }}" placeholder="{% trans 'Time Limit (seconds)' %}">
+                                    <label for="time_limit">{% trans "Time Limit (seconds)" %}</label>
+                                </div>
                             </div>
                             <div class="col-md-6">
-                                <label for="points" class="form-label">Points Value</label>
-                                <input type="number" class="form-control" id="points" name="points" 
-                                       min="10" step="10" value="{{ question.points }}">
-                                <div class="form-text">How many points this question is worth</div>
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" id="points" name="points" min="10" step="10" value="{{ question.points }}" placeholder="{% trans 'Points Value' %}">
+                                    <label for="points">{% trans "Points Value" %}</label>
+                                </div>
                             </div>
                         </div>
                         
                         <hr class="my-4">
-                        <h5>Answers</h5>
-                        <p class="text-muted">Edit the answers. Check the correct answer(s).</p>
+                        
+                        <!-- Answers Section -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4 class="mb-0"><i class="fas fa-tasks me-2"></i>{% trans "Answers" %}</h4>
+                            <button type="button" id="add-answer" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>{% trans "Add Answer" %}
+                            </button>
+                        </div>
+                        <p class="text-muted small">{% trans "Edit the answers below. Check the box for each correct answer." %}</p>
                         
                         <div id="answers-container">
                             {% for answer in answers %}
-                            <div class="row mb-3 answer-row">
-                                <div class="col-md-1 d-flex align-items-center justify-content-center">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_correct" 
-                                               value="{{ forloop.counter0 }}" id="correct-{{ forloop.counter0 }}"
-                                               {% if answer.is_correct %}checked{% endif %}>
-                                        <input type="hidden" name="answer_id" value="{{ answer.id }}">
-                                    </div>
+                            <div class="input-group mb-3 answer-row">
+                                <div class="input-group-text">
+                                    <input class="form-check-input mt-0" type="checkbox" name="is_correct" {% if answer.is_correct %}checked{% endif %}>
+                                    <input type="hidden" name="answer_id" value="{{ answer.id }}">
                                 </div>
-                                <div class="col-md-11">
-                                    <div class="input-group">
-                                        <span class="input-group-text 
-                                               {% if forloop.counter == 1 %}bg-primary{% elif forloop.counter == 2 %}bg-success{% elif forloop.counter == 3 %}bg-warning{% else %}bg-danger{% endif %} 
-                                               text-white">
-                                            {{ forloop.counter }}
-                                        </span>
-                                        <input type="text" class="form-control" name="answer_text" 
-                                               placeholder="Answer option" value="{{ answer.text }}" required>
-                                    </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <!-- Default two answers if none exist -->
-                            <div class="row mb-3 answer-row">
-                                <div class="col-md-1 d-flex align-items-center justify-content-center">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_correct" value="0" id="correct-0">
-                                    </div>
-                                </div>
-                                <div class="col-md-11">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-primary text-white">1</span>
-                                        <input type="text" class="form-control" name="answer_text" placeholder="Answer option" required>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mb-3 answer-row">
-                                <div class="col-md-1 d-flex align-items-center justify-content-center">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_correct" value="1" id="correct-1">
-                                    </div>
-                                </div>
-                                <div class="col-md-11">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-success text-white">2</span>
-                                        <input type="text" class="form-control" name="answer_text" placeholder="Answer option" required>
-                                    </div>
-                                </div>
+                                <input type="text" class="form-control" name="answer_text" value="{{ answer.text }}" required>
+                                {% if forloop.counter > 2 %}
+                                <button class="btn btn-outline-danger remove-answer" type="button" title="{% trans 'Remove answer' %}"><i class="fas fa-trash-alt"></i></button>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
                         
-                        <div class="mb-4">
-                            <button type="button" id="add-answer" class="btn btn-outline-primary btn-sm" 
-                                    onclick="addAnswerField()" 
-                                    data-answer-count="{{ answers.count|default:2 }}">
-                                <i class="fas fa-plus me-1"></i> Add Another Answer
-                            </button>
+                        <div id="answer-error" class="alert alert-danger d-none" role="alert">
+                           <i class="fas fa-exclamation-triangle me-2"></i> {% trans "Please select at least one correct answer." %}
                         </div>
                         
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-1"></i>
-                            You need at least one correct answer. Multiple correct answers will create a multi-select question.
-                        </div>
-                        
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-secondary">
-                                Cancel
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between align-items-center mt-5">
+                            <a href="{% url 'quiz:edit' quiz.id %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>{% trans "Cancel" %}
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i> Save Changes
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>{% trans "Save Changes" %}
                             </button>
                         </div>
                     </form>
@@ -127,68 +86,67 @@
 
 {% block extra_js %}
 <script>
-    function addAnswerField() {
-        const container = document.getElementById('answers-container');
-        const addButton = document.getElementById('add-answer');
-        
-        // Get current count of answers
-        let answerCount = parseInt(addButton.getAttribute('data-answer-count'));
-        
-        // Only allow up to 4 answers
-        if (answerCount >= 4) {
-            addButton.disabled = true;
-            return;
-        }
-        
-        // Create new answer row
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('answers-container');
+    const addButton = document.getElementById('add-answer');
+    const form = document.getElementById('questionForm');
+    const errorDiv = document.getElementById('answer-error');
+
+    const updateAnswerValues = () => {
+        const answerRows = container.querySelectorAll('.answer-row');
+        answerRows.forEach((row, index) => {
+            row.querySelector('input[type="checkbox"]').value = index;
+        });
+    };
+
+    const addRemoveListener = (button) => {
+        button.addEventListener('click', function() {
+            if (container.querySelectorAll('.answer-row').length > 2) {
+                this.closest('.answer-row').remove();
+                updateAddButtonState();
+            }
+        });
+    };
+
+    const updateAddButtonState = () => {
+        const count = container.querySelectorAll('.answer-row').length;
+        addButton.disabled = (count >= 4);
+    };
+
+    addButton.addEventListener('click', function() {
+        if (container.querySelectorAll('.answer-row').length >= 4) return;
+
         const newRow = document.createElement('div');
-        newRow.className = 'row mb-3 answer-row';
-        
-        // Colors for the answer buttons
-        const colors = ['primary', 'success', 'warning', 'danger'];
-        const color = colors[answerCount % colors.length];
-        
+        newRow.className = 'input-group mb-3 answer-row';
         newRow.innerHTML = `
-            <div class="col-md-1 d-flex align-items-center justify-content-center">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="is_correct" value="${answerCount}" id="correct-${answerCount}">
-                </div>
+            <div class="input-group-text">
+                <input class="form-check-input mt-0" type="checkbox" name="is_correct">
+                <input type="hidden" name="answer_id" value="">
             </div>
-            <div class="col-md-11">
-                <div class="input-group">
-                    <span class="input-group-text bg-${color} text-white">${answerCount + 1}</span>
-                    <input type="text" class="form-control" name="answer_text" placeholder="Answer option" required>
-                </div>
-            </div>
+            <input type="text" class="form-control" name="answer_text" placeholder="{% trans 'New Answer' %}" required>
+            <button class="btn btn-outline-danger remove-answer" type="button" title="{% trans 'Remove answer' %}"><i class="fas fa-trash-alt"></i></button>
         `;
-        
         container.appendChild(newRow);
-        
-        // Update answer count
-        answerCount++;
-        addButton.setAttribute('data-answer-count', answerCount);
-        
-        // Disable add button if we've reached 4 answers
-        if (answerCount >= 4) {
-            addButton.disabled = true;
-        }
-    }
-    
-    document.getElementById('questionForm').addEventListener('submit', function(e) {
-        const checkboxes = document.querySelectorAll('input[name="is_correct"]:checked');
-        if (checkboxes.length === 0) {
+        addRemoveListener(newRow.querySelector('.remove-answer'));
+        updateAddButtonState();
+        updateAnswerValues();
+    });
+
+    form.addEventListener('submit', function(e) {
+        updateAnswerValues(); // Ensure values are set before submission
+        const checked = container.querySelectorAll('input[name="is_correct"]:checked').length;
+        if (checked === 0) {
             e.preventDefault();
-            alert('Please select at least one correct answer!');
+            errorDiv.classList.remove('d-none');
+        } else {
+            errorDiv.classList.add('d-none');
         }
     });
-    
-    // Disable the add answer button if already at 4 answers
-    document.addEventListener('DOMContentLoaded', function() {
-        const addButton = document.getElementById('add-answer');
-        const answerCount = parseInt(addButton.getAttribute('data-answer-count'));
-        if (answerCount >= 4) {
-            addButton.disabled = true;
-        }
-    });
+
+    // Initial setup
+    container.querySelectorAll('.remove-answer').forEach(addRemoveListener);
+    updateAddButtonState();
+    updateAnswerValues();
+});
 </script>
 {% endblock %}

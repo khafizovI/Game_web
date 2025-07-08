@@ -1,132 +1,85 @@
 {% extends 'base/base.html' %}
+{% load i18n %}
 
-{% block title %}Host Game: {{ quiz.title }} - QuizBattle{% endblock %}
+{% block title %}{% trans "Host Game" %}: {{ quiz.title }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="container-fluid game-host-container py-4">
     <div class="row">
-        <!-- Game Control Panel -->
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">{{ quiz.title }}</h4>
-                    <div>
-                        <span class="badge bg-warning text-dark me-2">Game Code: <span class="fw-bold">{{ game.code }}</span></span>
-                        <span class="badge bg-light text-dark">{{ questions|length }} Questions</span>
+        <!-- Left Column: Game Stage -->
+        <div class="col-lg-8 mb-4">
+            <div class="card game-stage shadow">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+                    <!-- Waiting Screen -->
+                    <div class="game-screen" id="waiting-screen">
+                        <h2 class="text-muted">{% trans "Waiting for players to join..." %}</h2>
+                        <p class="lead">{% trans "Join on any device at" %} <a href="{% url 'game:join' %}" target="_blank">{{ request.get_host }}</a></p>
+                        <div class="my-4">
+                            <h1 class="display-1 fw-bold game-code-display">{{ game.code }}</h1>
+                        </div>
+                        <div id="qr-code-container" class="p-3 bg-white rounded shadow-sm"></div>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="d-grid">
-                                <button id="btn-start-game" class="btn btn-success btn-lg" {% if not players %}disabled{% endif %}>
-                                    <i class="fas fa-play me-2"></i> Start Game
-                                </button>
-                            </div>
+
+                    <!-- Question Screen -->
+                    <div class="game-screen d-none w-100" id="question-screen">
+                        <h2 id="current-question-text" class="mb-4"></h2>
+                        <div class="progress timer-bar-container mb-4">
+                            <div id="timer-bar" class="progress-bar" role="progressbar"></div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="d-grid">
-                                <button id="btn-next-question" class="btn btn-primary btn-lg" disabled>
-                                    <i class="fas fa-step-forward me-2"></i> Next Question
-                                </button>
-                            </div>
-                        </div>
+                        <div id="answers-container" class="row g-3 answers-grid"></div>
                     </div>
-                    
-                    <div class="game-status mb-4 text-center">
-                        <div class="waiting-screen">
-                            <h3>Waiting for players to join...</h3>
-                            <p class="lead">Share the game code <span class="badge bg-warning text-dark fs-4">{{ game.code }}</span> with players</p>
-                            <div class="spinner-border text-primary mt-3" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+
+                    <!-- Results Screen -->
+                    <div class="game-screen d-none w-100" id="results-screen">
+                        <h2 class="mb-4">{% trans "Question Results" %}</h2>
+                        <div class="chart-container">
+                            <canvas id="answerChart"></canvas>
                         </div>
-                        
-                        <div class="question-screen d-none">
-                            <h2 id="current-question-text"></h2>
-                            <div class="progress my-3">
-                                <div id="timer-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" style="width: 100%"></div>
-                            </div>
-                            <div class="row mt-4 answers-container">
-                                <!-- Answers will be dynamically inserted here -->
-                            </div>
-                        </div>
-                        
-                        <div class="question-results d-none">
-                            <h3>Question Results</h3>
-                            <div class="chart-container mt-4">
-                                <canvas id="answerChart" width="400" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="game-controls text-center d-none">
-                        <div class="btn-group">
-                            <button id="btn-show-results" class="btn btn-outline-primary">
-                                <i class="fas fa-chart-bar me-1"></i> Show Results
-                            </button>
-                            <button id="btn-end-game" class="btn btn-outline-danger">
-                                <i class="fas fa-stop me-1"></i> End Game
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card shadow question-navigator">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Questions</h4>
-                </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for question in questions %}
-                        <div class="list-group-item list-group-item-action question-item"
-                             data-question-id="{{ question.id }}"
-                             data-question-text="{{ question.text }}"
-                             data-question-time="{{ question.time_limit }}">
-                            <div class="d-flex w-100 justify-content-between align-items-center">
-                                <div>
-                                    <span class="badge bg-secondary me-2">{{ forloop.counter }}</span>
-                                    {{ question.text|truncatechars:60 }}
-                                </div>
-                                <div>
-                                    <span class="badge bg-info">{{ question.time_limit }}s</span>
-                                    <span class="badge bg-success">{{ question.points }} pts</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Player List and Scoreboard -->
+
+        <!-- Right Column: Sidebar -->
         <div class="col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">Players</h4>
-                    <span class="badge bg-light text-dark" id="player-count">{{ players|length }}</span>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{% trans "Game Controls" %}</h5>
                 </div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush" id="player-list">
-                        {% for player in players %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="player-rank me-2">{{ forloop.counter }}</span>
-                                {{ player.username }}
-                            </div>
-                            <span class="badge bg-primary rounded-pill">{{ player.score }}</span>
-                        </div>
-                        {% empty %}
-                        <div class="list-group-item text-center text-muted py-4" id="no-players-message">
-                            <p>No players have joined yet</p>
-                            <p>Share your game code</p>
-                            <h2 class="mb-0">{{ game.code }}</h2>
-                        </div>
-                        {% endfor %}
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button id="btn-start-game" class="btn btn-success btn-lg" {% if not players %}disabled{% endif %}>
+                            <i class="fas fa-play me-2"></i>{% trans "Start Game" %}
+                        </button>
+                        <button id="btn-next-question" class="btn btn-primary btn-lg d-none">
+                            <i class="fas fa-step-forward me-2"></i>{% trans "Next Question" %}
+                        </button>
+                        <button id="btn-show-results" class="btn btn-info btn-lg d-none">
+                            <i class="fas fa-chart-bar me-2"></i>{% trans "Show Leaderboard" %}
+                        </button>
+                        <button id="btn-end-game" class="btn btn-danger">
+                            <i class="fas fa-stop-circle me-2"></i>{% trans "End Game" %}
+                        </button>
                     </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>{% trans "Players" %}</h5>
+                    <span class="badge bg-light text-dark rounded-pill fs-6" id="player-count">{{ players|length }}</span>
+                </div>
+                <div class="list-group list-group-flush player-list-container" id="player-list">
+                    {% for player in players %}
+                        <div class="list-group-item player-item" id="player-{{ player.id }}">
+                            <span class="player-name">{{ player.username }}</span>
+                            <span class="player-score badge bg-primary rounded-pill">{{ player.score }}</span>
+                        </div>
+                    {% empty %}
+                        <div class="list-group-item text-center text-muted p-4" id="no-players-message">
+                            {% trans "No players have joined yet." %}
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -136,334 +89,140 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-    // Game object to track state
-    const game = {
-        code: "{{ game.code }}",
-        currentQuestion: null,
-        questions: [],
-        started: false,
-        socket: null,
-        timer: null,
-        timerDuration: 0,
-        timerRemaining: 0,
-        
-        // Initialize the game
-        init: function() {
-            // Set up WebSocket connection
-            this.setupWebSocket();
-            
-            // Get question data
-            this.loadQuestions();
-            
-            // Set up button events
-            this.setupEventListeners();
-        },
-        
-        // Set up WebSocket connection to server
-        setupWebSocket: function() {
-            const gameSocket = new WebSocket(
-                'ws://' + window.location.host + '/ws/game/' + this.code + '/'
-            );
-            
-            gameSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                console.log('WebSocket message:', data);
-                
-                if (data.type === 'player_joined') {
-                    game.handlePlayerJoined(data.player);
-                } else if (data.type === 'player_answer') {
-                    game.handlePlayerAnswer(data.player, data.answer);
-                } else if (data.type === 'game_state') {
-                    game.updateGameState(data.state);
-                }
-            };
-            
-            gameSocket.onclose = function(e) {
-                console.error('Game socket closed unexpectedly');
-            };
-            
-            this.socket = gameSocket;
-        },
-        
-        // Load questions from the DOM
-        loadQuestions: function() {
-            document.querySelectorAll('.question-item').forEach(item => {
-                this.questions.push({
-                    id: item.dataset.questionId,
-                    text: item.dataset.questionText,
-                    time: parseInt(item.dataset.questionTime),
-                    answers: []
-                });
-            });
-        },
-        
-        // Set up event listeners for buttons
-        setupEventListeners: function() {
-            document.getElementById('btn-start-game').addEventListener('click', () => {
-                this.startGame();
-            });
-            
-            document.getElementById('btn-next-question').addEventListener('click', () => {
-                this.nextQuestion();
-            });
-            
-            document.getElementById('btn-show-results').addEventListener('click', () => {
-                this.showResults();
-            });
-            
-            document.getElementById('btn-end-game').addEventListener('click', () => {
-                this.endGame();
-            });
-        },
-        
-        // Handle when a player joins the game
-        handlePlayerJoined: function(player) {
-            const playerCount = document.getElementById('player-count');
-            const playerList = document.getElementById('player-list');
-            const noPlayersMessage = document.getElementById('no-players-message');
-            
-            if (noPlayersMessage) {
-                noPlayersMessage.remove();
-            }
-            
-            // Add player to list
-            const playerItem = document.createElement('div');
-            playerItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-            playerItem.dataset.playerId = player.id;
-            playerItem.innerHTML = `
-                <div>
-                    <span class="player-rank me-2">${parseInt(playerCount.textContent) + 1}</span>
-                    ${player.username}
-                </div>
-                <span class="badge bg-primary rounded-pill">0</span>
-            `;
-            
-            playerList.appendChild(playerItem);
-            
-            // Update player count
-            playerCount.textContent = parseInt(playerCount.textContent) + 1;
-            
-            // Enable start button if we have players
-            if (parseInt(playerCount.textContent) > 0) {
-                document.getElementById('btn-start-game').disabled = false;
-            }
-        },
-        
-        // Handle when a player answers a question
-        handlePlayerAnswer: function(player, answer) {
-            // In a real implementation, we'd update the player's score 
-            // and potentially show a visual indication of their answer
-            console.log(`Player ${player.username} answered with: ${answer}`);
-        },
-        
-        // Start the game
-        startGame: function() {
-            this.started = true;
-            this.sendMessage({
-                'type': 'start_game'
-            });
-            
-            // Hide waiting screen, show first question
-            document.querySelector('.waiting-screen').classList.add('d-none');
-            document.querySelector('.question-screen').classList.remove('d-none');
-            document.querySelector('.game-controls').classList.remove('d-none');
-            
-            // Disable start button, enable next button
-            document.getElementById('btn-start-game').disabled = true;
-            document.getElementById('btn-next-question').disabled = false;
-            
-            // Start with the first question
-            this.currentQuestion = 0;
-            this.showQuestion(this.currentQuestion);
-        },
-        
-        // Show a specific question
-        showQuestion: function(index) {
-            if (index < 0 || index >= this.questions.length) {
-                console.error('Invalid question index:', index);
-                return;
-            }
-            
-            // Hide waiting screen, show question screen
-            document.querySelector('.waiting-screen').classList.add('d-none');
-            document.querySelector('.question-results').classList.add('d-none');
-            document.querySelector('.question-screen').classList.remove('d-none');
-            
-            this.currentQuestion = this.questions[index];
-            
-            // Update question text
-            document.getElementById('current-question-text').textContent = this.currentQuestion.text;
-            
-            // Clear any existing answers
-            const answersContainer = document.querySelector('.answers-container');
-            answersContainer.innerHTML = '';
-            
-            // Get the answers for this question from the server
-            // Send message to server to fetch answers
-            this.sendMessage({
-                'type': 'fetch_answers',
-                'question_id': this.currentQuestion.id
-            });
-            
-            // Show game controls
-            document.querySelector('.game-controls').classList.remove('d-none');
-            
-            // Start the timer
-            this.timerDuration = this.currentQuestion.time;
-            this.startTimer();
-            
-            // Send message to show question to players
-            this.sendMessage({
-                'type': 'show_question',
-                'question': this.currentQuestion.id,
-                'question_text': this.currentQuestion.text,
-                'time_limit': this.currentQuestion.time
-            });
-        },
-        
-        // Start the timer for the current question
-        startTimer: function() {
-            const timerBar = document.getElementById('timer-bar');
-            const totalTime = this.timerDuration;
-            let timeLeft = this.timerRemaining;
-            
-            // Clear any existing timer
-            if (this.timer) {
-                clearInterval(this.timer);
-            }
-            
-            // Update timer bar
-            timerBar.style.width = '100%';
-            
-            // Start the timer
-            this.timer = setInterval(() => {
-                timeLeft -= 1;
-                const percentLeft = (timeLeft / totalTime) * 100;
-                timerBar.style.width = `${percentLeft}%`;
-                
-                // Change color based on time left
-                if (percentLeft < 25) {
-                    timerBar.classList.remove('bg-warning');
-                    timerBar.classList.add('bg-danger');
-                } else if (percentLeft < 50) {
-                    timerBar.classList.remove('bg-info');
-                    timerBar.classList.add('bg-warning');
-                }
-                
-                // When time runs out
-                if (timeLeft <= 0) {
-                    clearInterval(this.timer);
-                    this.showResults();
-                }
-            }, 1000);
-        },
-        
-        // Show results for the current question
-        showResults: function() {
-            // Clear any existing timer
-            if (this.timer) {
-                clearInterval(this.timer);
-            }
-            
-            // Hide question, show results
-            document.querySelector('.question-screen').classList.add('d-none');
-            document.querySelector('.question-results').classList.remove('d-none');
-            
-            // In a real implementation, we'd show a chart of how many players
-            // picked each answer. For this demo, we'll just create a placeholder chart
-            const ctx = document.getElementById('answerChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Option A', 'Option B', 'Option C', 'Option D'],
-                    datasets: [{
-                        label: '# of Players',
-                        data: [
-                            Math.floor(Math.random() * 10),
-                            Math.floor(Math.random() * 10),
-                            Math.floor(Math.random() * 10),
-                            Math.floor(Math.random() * 10)
-                        ],
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.5)',
-                            'rgba(54, 162, 235, 0.5)',
-                            'rgba(255, 206, 86, 0.5)',
-                            'rgba(75, 192, 192, 0.5)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // Send message to clients about question ending
-            this.sendMessage({
-                'type': 'question_end'
-            });
-        },
-        
-        // Move to the next question
-        nextQuestion: function() {
-            // Hide results, show next question
-            document.querySelector('.question-results').classList.add('d-none');
-            document.querySelector('.question-screen').classList.remove('d-none');
-            
-            // Move to next question
-            this.currentQuestion++;
-            
-            if (this.currentQuestion < this.questions.length) {
-                this.showQuestion(this.currentQuestion);
-            } else {
-                this.endGame();
-            }
-        },
-        
-        // End the game and show final results
-        endGame: function() {
-            // Clear any existing timer
-            if (this.timer) {
-                clearInterval(this.timer);
-            }
-            
-            // Send message that game is ending
-            this.sendMessage({
-                'type': 'end_game'
-            });
-            
-            // Redirect to results page
-            window.location.href = `/game/results/${this.code}/`;
-        },
-        
-        // Send a WebSocket message
-        sendMessage: function(message) {
-            this.socket.send(JSON.stringify(message));
-        },
-        
-        // Update the UI based on game state
-        updateGameState: function(state) {
-            // In a real implementation, we would update player scores, etc.
-            console.log('Game state updated:', state);
-        }
-    };
-    
-    // Initialize the game when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+        const game = {
+            code: "{{ game.code }}",
+            quizId: "{{ quiz.id }}",
+            socket: null,
+            currentQuestionIndex: -1,
+            questions: {{ questions_json|safe }},
+            players: {},
+            chart: null,
+
+            elements: {
+                waitingScreen: document.getElementById('waiting-screen'),
+                questionScreen: document.getElementById('question-screen'),
+                resultsScreen: document.getElementById('results-screen'),
+                qrCodeContainer: document.getElementById('qr-code-container'),
+                questionText: document.getElementById('current-question-text'),
+                timerBar: document.getElementById('timer-bar'),
+                answersContainer: document.getElementById('answers-container'),
+                playerList: document.getElementById('player-list'),
+                playerCount: document.getElementById('player-count'),
+                noPlayersMessage: document.getElementById('no-players-message'),
+                btnStart: document.getElementById('btn-start-game'),
+                btnNext: document.getElementById('btn-next-question'),
+                btnShowResults: document.getElementById('btn-show-results'),
+                btnEnd: document.getElementById('btn-end-game'),
+            },
+
+            init: function() {
+                this.setupWebSocket();
+                this.setupEventListeners();
+                this.generateQrCode();
+                this.updatePlayerList();
+            },
+
+            setupWebSocket: function() {
+                const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/');
+
+                this.socket.onmessage = (e) => {
+                    const data = JSON.parse(e.data);
+                    switch (data.type) {
+                        case 'player_joined':
+                            this.handlePlayerJoined(data.player);
+                            break;
+                        case 'player_left':
+                            this.handlePlayerLeft(data.player_id);
+                            break;
+                        case 'player_answer':
+                            this.handlePlayerAnswer(data.player_id);
+                            break;
+                    }
+                };
+
+                this.socket.onclose = () => {
+                    console.error('Game socket closed unexpectedly');
+                    alert('{% trans "Connection to the server was lost. Please refresh the page." %}');
+                };
+            },
+
+            setupEventListeners: function() {
+                this.elements.btnStart.addEventListener('click', () => this.sendControl('start_game'));
+                this.elements.btnNext.addEventListener('click', () => this.sendControl('next_question'));
+                this.elements.btnShowResults.addEventListener('click', () => this.sendControl('show_results'));
+                this.elements.btnEnd.addEventListener('click', () => {
+                    if (confirm('{% trans "Are you sure you want to end the game?" %}')) {
+                        this.sendControl('end_game');
+                        window.location.href = "{% url 'quiz:browse' %}";
+                    }
+                });
+            },
+
+            sendControl: function(command, data = {}) {
+                this.socket.send(JSON.stringify({ type: 'host_control', command: command, ...data }));
+            },
+
+            generateQrCode: function() {
+                const joinUrl = "{{ request.scheme }}://{{ request.get_host }}{% url 'game:join' %}";
+                new QRCode(this.elements.qrCodeContainer, {
+                    text: joinUrl + "?code=" + this.code,
+                    width: 180,
+                    height: 180,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            },
+
+            handlePlayerJoined: function(player) {
+                if (!this.players[player.id]) {
+                    this.players[player.id] = player;
+                    this.updatePlayerList();
+                }
+            },
+            
+            handlePlayerLeft: function(playerId) {
+                delete this.players[playerId];
+                this.updatePlayerList();
+            },
+
+            updatePlayerList: function() {
+                const playerIds = Object.keys(this.players);
+                this.elements.playerCount.textContent = playerIds.length;
+                this.elements.btnStart.disabled = playerIds.length === 0;
+
+                if (this.elements.noPlayersMessage) {
+                    this.elements.noPlayersMessage.style.display = playerIds.length === 0 ? 'block' : 'none';
+                }
+
+                this.elements.playerList.innerHTML = ''; // Clear list
+                if (playerIds.length > 0) {
+                    playerIds.forEach(id => {
+                        const player = this.players[id];
+                        const playerEl = document.createElement('div');
+                        playerEl.className = 'list-group-item player-item';
+                        playerEl.id = `player-${player.id}`;
+                        playerEl.innerHTML = `<span class="player-name">${player.username}</span><span class="player-score badge bg-primary rounded-pill">${player.score || 0}</span>`;
+                        this.elements.playerList.appendChild(playerEl);
+                    });
+                } else {
+                    this.elements.playerList.innerHTML = `<div class="list-group-item text-center text-muted p-4" id="no-players-message">{% trans "No players have joined yet." %}</div>`;
+                }
+            },
+
+            handlePlayerAnswer: function(playerId) {
+                const playerEl = document.getElementById(`player-${playerId}`);
+                if (playerEl) {
+                    playerEl.classList.add('answered');
+                }
+            },
+
+        };
+
         game.init();
     });
 </script>

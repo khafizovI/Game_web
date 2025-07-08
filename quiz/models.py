@@ -39,3 +39,7 @@ class Answer(models.Model):
     
     def __str__(self):
         return self.text
+
+def generate_game_code():
+    """Generate a unique 6-character game code."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
