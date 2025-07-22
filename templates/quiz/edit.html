@@ -26,16 +26,6 @@
                             <label for="description">{% trans "Description" %}</label>
                         </div>
                         
-                        <div class="mb-4">
-                            <label class="form-label">{% trans "Visibility" %}</label>
-                            <div class="form-check form-switch form-check-lg form-control-lg">
-                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" {% if quiz.is_public %}checked{% endif %}>
-                                <label class="form-check-label" for="is_public">
-                                    <span class="text-primary fw-bold">{% trans "Public" %}</span>
-                                </label>
-                            </div>
-                        </div>
-                        
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-2"></i>{% trans "Save Changes" %}

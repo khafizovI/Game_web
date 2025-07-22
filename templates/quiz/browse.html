@@ -33,24 +33,17 @@
         <ul class="nav nav-tabs nav-fill mb-4" id="quizTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="public-tab" data-bs-toggle="tab" data-bs-target="#public-quizzes" type="button" role="tab" aria-controls="public-quizzes" aria-selected="true">
-                    <i class="fas fa-globe-americas me-2"></i>{% trans "Public Quizzes" %}
+                    <i class="fas fa-globe-americas me-2"></i>{% trans "All Quizzes" %}
                 </button>
             </li>
-            {% if user.is_authenticated %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="my-quizzes-tab" data-bs-toggle="tab" data-bs-target="#my-quizzes" type="button" role="tab" aria-controls="my-quizzes" aria-selected="false">
-                    <i class="fas fa-user-lock me-2"></i>{% trans "My Quizzes" %}
-                </button>
-            </li>
-            {% endif %}
         </ul>
 
         <div class="tab-content" id="quizTabsContent">
-            <!-- Public Quizzes Tab -->
+            <!-- All Quizzes Tab -->
             <div class="tab-pane fade show active" id="public-quizzes" role="tabpanel" aria-labelledby="public-tab">
-                {% if public_quizzes %}
+                {% if quizzes %}
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 quiz-list">
-                        {% for quiz in public_quizzes %}
+                        {% for quiz in quizzes %}
                             {% include 'quiz/partials/quiz_card_redesigned.html' with quiz=quiz %}
                         {% endfor %}
                     </div>
@@ -61,32 +54,10 @@
                     <div class="text-center py-5">
                         <i class="fas fa-cloud-moon fa-4x text-muted mb-3"></i>
                         <h4 class="fw-bold">{% trans "It's quiet out here..." %}</h4>
-                        <p class="text-muted">{% trans "No public quizzes are available yet. Why not be the first to create one?" %}</p>
+                        <p class="text-muted">{% trans "No quizzes are available yet. Why not be the first to create one?" %}</p>
                     </div>
                 {% endif %}
             </div>
-
-            <!-- My Quizzes Tab -->
-            {% if user.is_authenticated %}
-            <div class="tab-pane fade" id="my-quizzes" role="tabpanel" aria-labelledby="my-quizzes-tab">
-                {% if user_quizzes %}
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 quiz-list">
-                        {% for quiz in user_quizzes %}
-                            {% include 'quiz/partials/quiz_card_redesigned.html' with quiz=quiz %}
-                        {% endfor %}
-                    </div>
-                    <div class="alert alert-light text-center d-none no-results-message mt-4">
-                        <h5><i class="fas fa-search me-2"></i>{% trans "No quizzes found." %}</h5>
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
-                        <h4 class="fw-bold">{% trans "Nothing to see here!" %}</h4>
-                        <p class="text-muted">{% trans "You haven't created any quizzes yet." %}</p>
-                    </div>
-                {% endif %}
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>

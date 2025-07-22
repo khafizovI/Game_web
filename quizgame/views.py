@@ -2,13 +2,14 @@ from django.shortcuts import render, redirect
 from quiz.models import Quiz
 from django.utils import translation
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 import logging
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
 def home(request):
+    """Render the homepage."""
     # Handle language selection from query parameter
     lang = request.GET.get('lang')
     if lang and lang in [code for code, name in settings.LANGUAGES]:
@@ -22,10 +23,10 @@ def home(request):
         
         return response
     
-    featured_quizzes = Quiz.objects.filter(is_public=True).order_by('-created_at')[:5]
-    
+    # Get the 3 most recent quizzes
+    quizzes = Quiz.objects.all().order_by('-created_at')[:3]
     context = {
-        'featured_quizzes': featured_quizzes
+        'quizzes': quizzes
     }
     
     return render(request, 'home.html', context)
@@ -62,3 +63,6 @@ def set_language(request):
     
     # If something goes wrong, redirect to home
     return redirect('home')
+
+def def_chrome_devtools_json(request):
+    return JsonResponse({})

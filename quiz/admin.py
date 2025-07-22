@@ -17,6 +17,6 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(Quiz)
 class QuizAdmin(admin.ModelAdmin):
-    list_display = ('title', 'created_by', 'created_at', 'is_public')
-    list_filter = ('is_public', 'created_at')
+    list_display = ('title', 'created_by', 'created_at')
     search_fields = ('title', 'description')
+    list_filter = ('created_at',)

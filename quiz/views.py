@@ -6,56 +6,155 @@ from .models import Quiz, Question, Answer
 from game.models import Game, GamePlayer
 from django.db.models import Sum, Avg
 import json
+import re
+from quizgame.moderation import check_and_flag_content, is_ip_blocked
+
+# Import AI libraries
+import torch
+from transformers import T5ForConditionalGeneration, T5Tokenizer
+
+from .utils.ai_quiz_generator import generate_quiz_from_topic
 
 # Quiz Management Views
 def browse_quizzes(request):
-    """View for browsing public quizzes"""
-    public_quizzes = Quiz.objects.filter(is_public=True).annotate(
+    """View for browsing all quizzes"""
+    quizzes = Quiz.objects.annotate(
         total_points=Sum('questions__points')
     ).order_by('-created_at')
-    
-    # Include user's private quizzes if logged in
-    if request.user.is_authenticated:
-        private_quizzes = Quiz.objects.filter(created_by=request.user, is_public=False).annotate(
-            total_points=Sum('questions__points')
-        )
-        user_quizzes = private_quizzes
-    else:
-        user_quizzes = None
-    
+
     context = {
-        'public_quizzes': public_quizzes,
-        'user_quizzes': user_quizzes
+        'quizzes': quizzes,
     }
     return render(request, 'quiz/browse.html', context)
 
 @login_required
 def create_quiz(request):
-    """View for creating a new quiz"""
-    # Check if user is a teacher
+    """View for creating a new quiz, either manually or with AI."""
     if not request.user.profile.is_teacher():
         messages.error(request, "Only teachers can create quizzes.")
         return redirect('accounts:dashboard')
-        
+
     if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        is_public = request.POST.get('is_public') == 'on'
-        
-        if not title:
-            messages.error(request, 'Quiz title is required')
-            return redirect('quiz:create')
-        
-        quiz = Quiz.objects.create(
-            title=title,
-            description=description,
-            created_by=request.user,
-            is_public=is_public
-        )
-        
-        messages.success(request, f'Quiz "{title}" has been created! Now add some questions.')
-        return redirect('quiz:edit', quiz_id=quiz.id)
-    
+        # Check if IP is blocked
+        if is_ip_blocked(request.META.get('REMOTE_ADDR')):
+            messages.error(request, "Your IP has been blocked due to suspicious activity.")
+            return redirect('home')
+
+        # This branch handles the submission from the frontend JavaScript after AI generation
+        if request.POST.get('source') == 'ai':
+            title = request.POST.get('title')
+            description = request.POST.get('description', '')
+
+            # Moderation check
+            is_suspicious, response = check_and_flag_content(request, f"{title} {description}")
+            if is_suspicious:
+                return response
+
+            quiz = Quiz.objects.create(
+                title=title,
+                description=description,
+                created_by=request.user
+            )
+
+            # Reconstruct questions from POST data
+            questions_data = {}
+            for key, value in request.POST.items():
+                match = re.match(r'questions\[(\d+)\]\[(text|answer|options)\](?:\_(\d+))?', key)
+                if match:
+                    q_index, q_key, o_index = match.groups()
+                    q_index = int(q_index)
+                    if q_index not in questions_data:
+                        questions_data[q_index] = {'options': []}
+                    
+                    if q_key == 'options':
+                        questions_data[q_index]['options'].append(value)
+                    else:
+                        questions_data[q_index][q_key] = value
+
+            for index in sorted(questions_data.keys()):
+                q_data = questions_data[index]
+                question = Question.objects.create(quiz=quiz, text=q_data['text'])
+                for o_text in q_data['options']:
+                    Answer.objects.create(
+                        question=question,
+                        text=o_text,
+                        is_correct=(o_text == q_data['answer'])
+                    )
+
+            messages.success(request, 'AI-generated quiz created successfully! You can now edit it.')
+            return redirect('quiz:edit', quiz_id=quiz.id)
+
+        # This branch handles the old form-based AI generation (can be deprecated)
+        elif 'generate_with_ai' in request.POST:
+            title = request.POST.get('title')
+            description = request.POST.get('description', '')
+            topic = request.POST.get('topic')
+            num_questions = int(request.POST.get('num_questions', 5))
+            num_options = int(request.POST.get('num_options', 4))
+
+            # Moderation check
+            is_suspicious, response = check_and_flag_content(request, f"{title} {description} {topic}")
+            if is_suspicious:
+                return response
+
+            if not title or not topic:
+                messages.error(request, "Quiz title and a topic for AI generation are required.")
+                return render(request, 'quiz/create.html')
+
+            try:
+                generated_data = generate_quiz_from_topic(topic, num_questions, num_options)
+                if not generated_data or 'questions' not in generated_data:
+                    raise ValueError("AI failed to generate valid quiz data.")
+                
+                # Create the quiz
+                quiz = Quiz.objects.create(
+                    title=title,
+                    description=description,
+                    created_by=request.user
+                )
+
+                # Create questions and answers
+                for q_data in generated_data['questions']:
+                    question = Question.objects.create(
+                        quiz=quiz,
+                        text=q_data['question']
+                    )
+                    for o_text in q_data['options']:
+                        Answer.objects.create(
+                            question=question,
+                            text=o_text,
+                            is_correct=(o_text == q_data['answer'])
+                        )
+                
+                messages.success(request, 'AI-generated quiz created successfully! You can now edit it.')
+                return redirect('quiz:edit', quiz_id=quiz.id)
+
+            except Exception as e:
+                messages.error(request, f"Could not generate quiz: {e}")
+                return render(request, 'quiz/create.html')
+
+        # This branch handles manual quiz creation (no questions added)
+        elif 'create_manually' in request.POST:
+            title = request.POST.get('title')
+            description = request.POST.get('description', '')
+
+            # Moderation check
+            is_suspicious, response = check_and_flag_content(request, f"{title} {description}")
+            if is_suspicious:
+                return response
+
+            if not title:
+                messages.error(request, 'Quiz title is required.')
+                return render(request, 'quiz/create.html')
+
+            quiz = Quiz.objects.create(
+                title=title,
+                description=description,
+                created_by=request.user
+            )
+            messages.success(request, 'Quiz created successfully! You can now add questions.')
+            return redirect('quiz:edit', quiz_id=quiz.id)
+
     return render(request, 'quiz/create.html')
 
 @login_required
@@ -72,14 +171,12 @@ def edit_quiz(request, quiz_id):
     if request.method == 'POST':
         title = request.POST.get('title')
         description = request.POST.get('description')
-        is_public = request.POST.get('is_public') == 'on'
         
         if not title:
             messages.error(request, 'Quiz title is required')
         else:
             quiz.title = title
             quiz.description = description
-            quiz.is_public = is_public
             quiz.save()
             messages.success(request, 'Quiz details updated successfully')
     
@@ -96,12 +193,7 @@ def edit_quiz(request, quiz_id):
 def quiz_detail(request, quiz_id):
     """View for viewing a quiz's details"""
     quiz = get_object_or_404(Quiz, id=quiz_id)
-    
-    # Only allow the owner or public quizzes to be viewed
-    if not quiz.is_public and quiz.created_by != request.user:
-        messages.error(request, "You don't have permission to view this quiz")
-        return redirect('quiz:browse')
-    
+
     questions = Question.objects.filter(quiz=quiz).order_by('order')
     
     # Calculate quiz stats
@@ -141,6 +233,7 @@ def manage_quizzes(request):
         'quizzes': quizzes
     }
     return render(request, 'quiz/manage.html', context)
+
 
 # Question Management Views
 @login_required

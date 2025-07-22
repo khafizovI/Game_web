@@ -22,6 +22,6 @@ class GamePlayerAdmin(admin.ModelAdmin):
 
 @admin.register(PlayerAnswer)
 class PlayerAnswerAdmin(admin.ModelAdmin):
-    list_display = ('player', 'question', 'answer', 'points_awarded', 'answered_at')
-    list_filter = ('player__game', 'question')
+    list_display = ('player', 'question', 'answer', 'is_correct', 'score_earned', 'answered_at')
+    list_filter = ('player__game', 'question', 'is_correct')
     search_fields = ('player__user__username', 'question__text')

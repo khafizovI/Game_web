@@ -4,68 +4,154 @@
 {% block title %}{% trans "Playing" %}: {{ game.quiz.title }}{% endblock %}
 
 {% block content %}
-<div class="game-player-container d-flex flex-column justify-content-center align-items-center text-white">
-    <div class="game-display">
-        <!-- Lobby Screen -->
-        <div class="game-screen text-center" id="lobby-screen">
-            <h2 class="mb-3">{% trans "Welcome," %} <span class="fw-bold">{{ player.username }}</span>!</h2>
-            <p class="lead text-white-50">{% trans "The host will start the game soon. Get ready!" %}</p>
-            <div class="spinner-border mt-3" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
+<style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        font-family: 'Montserrat', sans-serif;
+        background-color: #f0f0f0;
+        overflow: hidden; /* Prevent scrolling */
+    }
+    .kahoot-main {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+    }
+    .kahoot-header {
+        background-color: #fff;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .kahoot-footer {
+        background-color: #fff;
+        padding: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .kahoot-body {
+        flex-grow: 1;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        padding: 1rem;
+    }
+    .question-container {
+        background-color: #fff;
+        padding: 2rem;
+        text-align: center;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .answers-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 1rem;
+        height: 100%;
+    }
+    .answer-card {
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .answer-card:hover { transform: scale(1.03); }
+    .answer-card.red { background-color: #e21b3c; }
+    .answer-card.blue { background-color: #1368ce; }
+    .answer-card.yellow { background-color: #d89e00; }
+    .answer-card.green { background-color: #26890c; }
+    .answer-card .shape {
+        font-size: 3rem;
+        margin-right: 1rem;
+    }
+    .timer-bar-container {
+        height: 10px;
+        background-color: #ddd;
+        width: 100%;
+    }
+    .timer-bar {
+        height: 100%;
+        background-color: #888;
+        width: 100%;
+        transition: width 1s linear;
+    }
+    .screen { display: none; }
+    .screen.active { display: flex; flex-direction: column; height: 100%; }
+    .answer-card.correct {
+        border: 2px solid #0f0;
+    }
+    .answer-card.incorrect {
+        border: 2px solid #f00;
+    }
+    .answer-card.selected {
+        border: 2px solid #00f;
+    }
+    .leaderboard-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem;
+        border-bottom: 1px solid #ddd;
+    }
+</style>
 
-        <!-- Question Screen -->
-        <div class="game-screen d-none" id="question-screen">
-            <div class="question-header mb-4">
-                <h3 id="question-text" class="text-center"></h3>
-            </div>
-            <div class="answer-grid" id="answers-container">
-                <!-- Answer cards will be injected here -->
-            </div>
-        </div>
-
-        <!-- Feedback Screen -->
-        <div class="game-screen d-none text-center" id="feedback-screen">
-            <div id="feedback-correct" class="feedback-content d-none">
-                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
-                <h2>{% trans "Correct!" %}</h2>
-                <p class="lead fw-bold text-success">+<span id="points-earned"></span> {% trans "points" %}</p>
-            </div>
-            <div id="feedback-incorrect" class="feedback-content d-none">
-                <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
-                <h2>{% trans "Incorrect" %}</h2>
-                <p class="lead text-white-50">{% trans "The correct answer was:" %}</p>
-                <div id="correct-answer-text" class="fw-bold"></div>
-            </div>
-            <div id="feedback-timeout" class="feedback-content d-none">
-                <i class="fas fa-clock fa-4x text-warning mb-3"></i>
-                <h2>{% trans "Time's Up!" %}</h2>
-            </div>
-            <div class="mt-4 text-white-50">{% trans "Waiting for the next question..." %}</div>
-        </div>
-
-        <!-- Game Over Screen -->
-        <div class="game-screen d-none text-center" id="end-screen">
-            <h2 class="mb-3">{% trans "Game Over!" %}</h2>
-            <p class="lead">{% trans "You'll be redirected to the results page shortly..." %}</p>
-            <div class="spinner-grow mt-3" role="status"></div>
+<div id="play-screen" class="kahoot-main screen active">
+    <div class="kahoot-header">
+        <div id="timer-container" class="timer-bar-container">
+            <div id="timer-bar" class="timer-bar"></div>
         </div>
     </div>
-
-    <div class="game-hud">
-        <div class="progress timer-bar-container">
-            <div id="timer-bar" class="progress-bar"></div>
+    <div class="kahoot-body">
+        <div class="question-container">
+            <h2 id="question-text"></h2>
         </div>
-        <div class="hud-info d-flex justify-content-between align-items-center">
-            <div class="hud-player-info">
-                <span class="badge bg-primary fs-6">{{ player.username }}</span>
-                <span class="badge bg-success fs-6 ms-2">{% trans "Score" %}: <span id="current-score">{{ player.score }}</span></span>
-            </div>
-            <button id="leave-game-btn" class="btn btn-sm btn-outline-danger">{% trans "Leave" %}</button>
+        <div class="answers-grid" id="answers-container">
+            <div class="answer-card red" data-index="0"><span class="shape">▲</span><span class="text"></span></div>
+            <div class="answer-card blue" data-index="1"><span class="shape">◆</span><span class="text"></span></div>
+            <div class="answer-card yellow" data-index="2"><span class="shape">●</span><span class="text"></span></div>
+            <div class="answer-card green" data-index="3"><span class="shape">■</span><span class="text"></span></div>
         </div>
+    </div>
+    <div class="kahoot-footer">
+        <div id="question-counter"></div>
+        <div>{{ player.username }}</div>
     </div>
 </div>
+
+<div id="feedback-screen" class="screen">
+    <div id="feedback-content">
+        <h2 id="feedback-text"></h2>
+        <p id="feedback-score-earned"></p>
+        <p id="player-total-score"></p>
+    </div>
+    <div id="feedback-leaderboard-container">
+        <h3>Leaderboard</h3>
+        <div id="feedback-leaderboard"></div>
+    </div>
+</div>
+
+<div id="end-screen" class="screen">
+    <h2 id="final-scores"></h2>
+    <div class="question-container">
+        <h3 id="final-scores"></h3>
+    </div>
+    <div class="answers-grid" id="final-leaderboard">
+    </div>
+    <div class="text-center mt-4">
+        <a href="{% url 'quiz:browse' %}" class="btn btn-primary btn-lg">Play Again</a>
+    </div>
+    <div class="kahoot-footer">
+        <div id="question-counter"></div>
+        <div>{{ player.username }}</div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -76,54 +162,63 @@ document.addEventListener('DOMContentLoaded', function() {
         playerId: "{{ player.id }}",
         socket: null,
         timer: null,
+        answerSubmitted: false,
 
         elements: {
-            screens: {
-                lobby: document.getElementById('lobby-screen'),
-                question: document.getElementById('question-screen'),
-                feedback: document.getElementById('feedback-screen'),
-                end: document.getElementById('end-screen'),
-            },
+            playScreen: document.getElementById('play-screen'),
             questionText: document.getElementById('question-text'),
-            answersContainer: document.getElementById('answers-container'),
+            answerGrid: document.getElementById('answers-container'),
+            answerCards: document.querySelectorAll('.answer-card'),
             timerBar: document.getElementById('timer-bar'),
-            score: document.getElementById('current-score'),
-            leaveBtn: document.getElementById('leave-game-btn'),
-            feedback: {
-                correct: document.getElementById('feedback-correct'),
-                incorrect: document.getElementById('feedback-incorrect'),
-                timeout: document.getElementById('feedback-timeout'),
-                points: document.getElementById('points-earned'),
-                correctAnswer: document.getElementById('correct-answer-text'),
-            }
+            questionCounter: document.getElementById('question-counter'),
+            feedbackText: document.getElementById('feedback-text'),
+            feedbackScoreEarned: document.getElementById('feedback-score-earned'),
+            playerTotalScore: document.getElementById('player-total-score'),
+            feedbackLeaderboard: document.getElementById('feedback-leaderboard'),
+            finalScores: document.getElementById('final-scores'),
+            finalLeaderboard: document.getElementById('final-leaderboard'),
+            playAgainBtn: document.querySelector('.btn-primary')
         },
 
         init: function() {
+            this.cacheElements();
+            this.bindEvents();
             this.setupWebSocket();
-            this.elements.leaveBtn.addEventListener('click', () => {
-                if (confirm('{% trans "Are you sure you want to leave this game?" %}')) {
-                    window.location.href = "{% url 'quiz:browse' %}";
-                }
-            });
+            this.hideHeader();
+        },
+
+        cacheElements: function() {
+            this.elements.answerGrid = document.getElementById('answers-container');
+            this.elements.playAgainBtn = document.querySelector('.btn-primary');
+        },
+
+        bindEvents: function() {
+            this.elements.answerGrid.addEventListener('click', this.handleAnswerClick.bind(this));
+            this.elements.playAgainBtn.addEventListener('click', () => window.location.href = "{% url 'quiz:browse' %}");
+        },
+
+        hideHeader: function() {
+            const header = document.querySelector('nav.navbar');
+            if (header) header.style.display = 'none';
+        },
+
+        switchScreen: function(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const screen = document.getElementById(screenId);
+            if (screen) {
+                screen.classList.add('active');
+            }
         },
 
         setupWebSocket: function() {
             const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/');
-
-            this.socket.onopen = () => {
-                this.sendMessage('player_joined', { username: "{{ player.username }}", id: this.playerId });
-            };
-
+            this.socket.onopen = () => this.sendMessage('player_ready');
             this.socket.onmessage = (e) => {
                 const data = JSON.parse(e.data);
                 if (data.type && this[`handle_${data.type}`]) {
                     this[`handle_${data.type}`](data);
                 }
-            };
-
-            this.socket.onclose = () => {
-                alert('{% trans "Connection lost. Please refresh to reconnect." %}');
             };
         },
 
@@ -131,88 +226,109 @@ document.addEventListener('DOMContentLoaded', function() {
             this.socket.send(JSON.stringify({ type, ...payload }));
         },
 
-        showScreen: function(screenName) {
-            Object.values(this.elements.screens).forEach(s => s.classList.add('d-none'));
-            if (this.elements.screens[screenName]) {
-                this.elements.screens[screenName].classList.remove('d-none');
-            }
-        },
-
-        handle_game_started: function() {
-            // The host will trigger the first question
-        },
-
         handle_show_question: function(data) {
+            this.switchScreen('play-screen');
             this.elements.questionText.textContent = data.question_text;
-            this.renderAnswers(data.answers);
-            this.startTimer(data.time_limit);
-            this.showScreen('question');
-        },
+            this.elements.questionCounter.textContent = `Question ${data.current_question} of ${data.total_questions}`;
 
-        renderAnswers: function(answers) {
-            this.elements.answersContainer.innerHTML = '';
-            const symbols = ['fa-triangle', 'fa-square', 'fa-circle', 'fa-diamond'];
-            const colors = ['bg-danger', 'bg-primary', 'bg-warning', 'bg-success'];
-            answers.forEach((ans, i) => {
-                const card = document.createElement('div');
-                card.className = 'answer-card-container';
-                card.innerHTML = `
-                    <div class="answer-card ${colors[i % 4]}" data-answer-id="${ans.id}">
-                        <i class="fas ${symbols[i % 4]} me-2"></i>
-                        <span>${ans.text}</span>
-                    </div>`;
-                card.querySelector('.answer-card').addEventListener('click', () => this.submitAnswer(ans.id));
-                this.elements.answersContainer.appendChild(card);
+            this.answerSubmitted = false; 
+            this.hideHeader(); 
+
+            document.querySelectorAll('.answer-card').forEach(card => {
+                card.classList.remove('correct', 'incorrect', 'selected');
+                card.dataset.selected = 'false';
             });
+
+            const answerCards = this.elements.answerGrid.querySelectorAll('.answer-card');
+            answerCards.forEach((card, index) => {
+                const answer = data.answers[index];
+                card.querySelector('.text').textContent = answer.text;
+                card.dataset.answerId = answer.id;
+            });
+
+            this.startTimer(data.time_limit);
         },
 
-        submitAnswer: function(answerId) {
-            this.sendMessage('player_answer', { answer_id: answerId });
-            this.elements.answersContainer.querySelectorAll('.answer-card').forEach(c => c.classList.add('disabled'));
-            clearInterval(this.timer);
+        handleAnswerClick: function(e) {
+            const card = e.target.closest('.answer-card');
+            if (!card || this.answerSubmitted) return;
+
+            document.querySelectorAll('.answer-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            card.dataset.selected = 'true';
+
+            this.answerSubmitted = true;
+            const answerId = card.dataset.answerId;
+            this.socket.send(JSON.stringify({ type: 'submit_answer', answer_id: answerId }));
         },
 
         startTimer: function(duration) {
             let timeLeft = duration;
+            this.elements.timerBar.style.transition = 'none'; 
             this.elements.timerBar.style.width = '100%';
-            this.elements.timerBar.classList.remove('bg-danger', 'bg-warning');
+            
+            void this.elements.timerBar.offsetWidth;
+
+            this.elements.timerBar.style.transition = `width ${duration}s linear`;
+            this.elements.timerBar.style.width = '0%';
 
             this.timer = setInterval(() => {
                 timeLeft--;
-                const percent = (timeLeft / duration) * 100;
-                this.elements.timerBar.style.width = `${percent}%`;
-                if (percent < 25) this.elements.timerBar.classList.add('bg-danger');
-                else if (percent < 50) this.elements.timerBar.classList.add('bg-warning');
-
-                if (timeLeft <= 0) {
-                    clearInterval(this.timer);
-                    this.showScreen('feedback');
-                    Object.values(this.elements.feedback).forEach(el => el.classList.add('d-none'));
-                    this.elements.feedback.timeout.classList.remove('d-none');
-                }
+                if (timeLeft <= 0) clearInterval(this.timer);
             }, 1000);
         },
+        
+        handle_show_feedback: function(data) {
+            const result = data.player_result;
 
-        handle_answer_result: function(data) {
-            clearInterval(this.timer);
-            this.elements.score.textContent = data.score;
-            Object.values(this.elements.feedback).forEach(el => el.classList.add('d-none'));
-
-            if (data.is_correct) {
-                this.elements.feedback.correct.classList.remove('d-none');
-                this.elements.feedback.points.textContent = data.points_awarded;
+            if (!result.answered) {
+                this.elements.feedbackText.textContent = "❌ No answer selected";
+                this.elements.feedbackScoreEarned.textContent = "+0 Points";
+            } else if (result.is_correct) {
+                this.elements.feedbackText.textContent = "✅ Correct!";
+                this.elements.feedbackScoreEarned.textContent = `+${result.score_earned} Points`;
             } else {
-                this.elements.feedback.incorrect.classList.remove('d-none');
-                this.elements.feedback.correctAnswer.textContent = data.correct_answer_text;
+                this.elements.feedbackText.textContent = "❌ Incorrect!";
+                this.elements.feedbackScoreEarned.textContent = "+0 Points";
             }
-            this.showScreen('feedback');
+            
+            this.elements.playerTotalScore.textContent = `Total Score: ${result.score}`;
+
+            document.querySelectorAll('.answer-card').forEach(card => {
+                const answerId = parseInt(card.dataset.answerId);
+                card.classList.remove('selected'); 
+
+                if (answerId === data.correct_answer_id) {
+                    card.classList.add('correct');
+                } else if (card.dataset.selected === 'true') {
+                    card.classList.add('incorrect');
+                }
+                card.dataset.selected = 'false'; 
+            });
+
+            this.switchScreen('feedback-screen');
+
+            const leaderboard = this.elements.feedbackLeaderboard;
+            leaderboard.innerHTML = ''; 
+
+            data.player_results.forEach(player => {
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `<span>${player.username}</span><span>${player.score}</span>`;
+                leaderboard.appendChild(item);
+            });
         },
 
-        handle_game_ended: function(data) {
-            this.showScreen('end');
-            setTimeout(() => {
-                window.location.href = `/game/results/${this.code}/`;
-            }, 3000);
+        handle_game_over: function(data) {
+            this.switchScreen('end-screen');
+            this.elements.finalScores.textContent = "Final Scores:";
+            this.elements.finalLeaderboard.innerHTML = '';
+            data.scores.forEach(player => {
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `<span>${player.username}</span><span>${player.score}</span>`;
+                this.elements.finalLeaderboard.appendChild(item);
+            });
         }
     };
 

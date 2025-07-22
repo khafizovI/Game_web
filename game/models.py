@@ -13,7 +13,8 @@ class Game(models.Model):
     is_active = models.BooleanField(default=False)
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    current_question_number = models.PositiveIntegerField(default=0)
+    current_question = models.ForeignKey(Question, on_delete=models.SET_NULL, null=True, blank=True, related_name='active_in_games')
+    current_question_number = models.IntegerField(default=0)
 
     def __str__(self):
         return f"Game {self.code} for {self.quiz.title}"
@@ -36,8 +37,9 @@ class GamePlayer(models.Model):
 class PlayerAnswer(models.Model):
     player = models.ForeignKey(GamePlayer, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    answer = models.ForeignKey(Answer, on_delete=models.CASCADE)
-    points_awarded = models.IntegerField(default=0)
+    answer = models.ForeignKey(Answer, on_delete=models.CASCADE, null=True, blank=True)
+    is_correct = models.BooleanField(default=False)
+    score_earned = models.IntegerField(default=0)
     answered_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

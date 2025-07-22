@@ -1,57 +1,187 @@
 {% extends 'base/base.html' %}
 {% load i18n %}
+{% load static %}
 
-{% block title %}{% trans "Create New Quiz - QuizBattle" %}{% endblock %}
+{% block title %}{% trans "Create New Quiz" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/create_quiz.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-0">
-                <div class="card-header bg-primary text-white text-center">
-                    <h2 class="my-2"><i class="fas fa-feather-alt me-2"></i>{% trans "Craft Your Quiz" %}</h2>
-                    <p class="mb-0">{% trans "Start by giving your new quiz a title and description." %}</p>
-                </div>
-                <div class="card-body p-4 p-md-5">
-                    <form method="POST">
-                        {% csrf_token %}
-                        
-                        <div class="form-floating mb-4">
-                            <input type="text" class="form-control" id="title" name="title" placeholder="{% trans 'Quiz Title' %}" required>
-                            <label for="title">{% trans "Quiz Title" %}</label>
-                            <div class="form-text mt-1 ms-1">{% trans "e.g., 'World Capitals' or 'Math Trivia'" %}</div>
-                        </div>
-                        
-                        <div class="form-floating mb-4">
-                            <textarea class="form-control" id="description" name="description" placeholder="{% trans 'Description' %}" style="height: 120px"></textarea>
-                            <label for="description">{% trans "Description" %}</label>
-                            <div class="form-text mt-1 ms-1">{% trans "A brief summary of what players can expect." %}</div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="form-label">{% trans "Visibility" %}</label>
-                            <div class="form-check form-switch form-check-lg form-control-lg">
-                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public">
-                                <label class="form-check-label" for="is_public">
-                                    <span class="text-primary fw-bold">{% trans "Public" %}</span>
-                                    <small class="text-muted d-block">{% trans "Anyone can find and play this quiz." %}</small>
-                                </label>
+<div class="create-quiz-bg">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card create-quiz-card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="createQuizTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-panel" type="button" role="tab" aria-controls="manual-panel" aria-selected="true">
+                                    <i class="fas fa-pencil-alt me-2"></i>{% trans "Create Manually" %}
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button" role="tab" aria-controls="ai-panel" aria-selected="false">
+                                    <i class="fas fa-robot me-2"></i>{% trans "Generate with AI" %}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="createQuizTabContent">
+                            <!-- Manual Creation Form -->
+                            <div class="tab-pane fade show active" id="manual-panel" role="tabpanel" aria-labelledby="manual-tab">
+                                <h3 class="mb-4">{% trans "Craft Your Quiz" %}</h3>
+                                <form method="POST" action="{% url 'quiz:create' %}" id="manual-creation-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="creation_method" value="manual">
+                                    <div class="mb-4">
+                                        <label for="manual_title" class="form-label">{% trans "Quiz Title" %}</label>
+                                        <input type="text" class="form-control" id="manual_title" name="title" placeholder="{% trans 'e.g., World Capitals' %}" required>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label for="manual_description" class="form-label">{% trans "Description" %}</label>
+                                        <textarea class="form-control" id="manual_description" name="description" placeholder="{% trans 'A brief summary of what players can expect.' %}" style="height: 120px"></textarea>
+                                    </div>
+                                    <div class="d-grid gap-2 mt-5">
+                                        <button type="submit" name="create_manually" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-arrow-right me-2"></i>{% trans "Create & Add Questions" %}
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
-                             <div class="form-text mt-2">{% trans "You can change this later. By default, the quiz is Private." %}</div>
+
+                            <!-- AI Generation Form -->
+                            <div class="tab-pane fade" id="ai-panel" role="tabpanel" aria-labelledby="ai-tab">
+                                <h3 class="mb-4">{% trans "Generate Quiz with AI" %}</h3>
+                                <p class="text-muted mb-4">{% trans "Just provide a topic, and our AI will create a quiz for you." %}</p>
+                                <form method="POST" action="{% url 'quiz:create' %}" id="ai-generation-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="creation_method" value="ai">
+                                    <div class="mb-3">
+                                        <label for="ai_title" class="form-label">{% trans "Quiz Title" %}</label>
+                                        <input type="text" class="form-control" id="ai_title" name="title" required placeholder="e.g. Solar System Facts">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="topic" class="form-label">{% trans "Topic" %}</label>
+                                        <input type="text" class="form-control" id="topic" name="topic" required placeholder="e.g. Photosynthesis">
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="num_questions" class="form-label">{% trans "Number of Questions" %}</label>
+                                            <input type="number" class="form-control" id="num_questions" name="num_questions" value="5" min="1" max="15">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="num_options" class="form-label">{% trans "Options per Question" %}</label>
+                                            <input type="number" class="form-control" id="num_options" name="num_options" value="4" min="2" max="6">
+                                        </div>
+                                    </div>
+                                    <div class="d-grid gap-2 mt-3">
+                                        <button type="submit" name="generate_with_ai" class="btn btn-primary btn-lg">{% trans "Generate Quiz" %}</button>
+                                    </div>
+                                </form>
+                                <div id="loading-indicator" class="text-center mt-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">{% trans "The AI is generating your quiz. This may take a moment..." %}</p>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="d-grid gap-2 mt-5">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-arrow-right me-2"></i>{% trans "Create & Add Questions" %}
-                            </button>
-                            <a href="{% url 'quiz:browse' %}" class="btn btn-outline-secondary">
-                                {% trans "Cancel" %}
-                            </a>
-                        </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const aiForm = document.getElementById('ai-generation-form');
+        const manualForm = document.getElementById('manual-creation-form');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const aiTabPane = document.getElementById('ai-panel');
+
+        if (aiForm) {
+            aiForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                loadingIndicator.style.display = 'block';
+
+                const formData = new FormData(aiForm);
+                const data = {
+                    title: formData.get('title'),
+                    topic: formData.get('topic'),
+                    num_questions: formData.get('num_questions'),
+                    num_options: formData.get('num_options')
+                };
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                fetch('{% url "quiz:ai_generate" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Network response was not ok'); });
+                    }
+                    return response.json();
+                })
+                .then(generatedData => {
+                    // Populate the manual form with the generated data
+                    manualForm.querySelector('[name="title"]').value = data.title; 
+
+                    // Create hidden inputs for the questions and answers
+                    generatedData.questions.forEach((q, index) => {
+                        const questionInput = document.createElement('input');
+                        questionInput.type = 'hidden';
+                        questionInput.name = `questions[${index}][text]`;
+                        questionInput.value = q.question;
+                        manualForm.appendChild(questionInput);
+
+                        q.options.forEach((opt, optIndex) => {
+                            const optionInput = document.createElement('input');
+                            optionInput.type = 'hidden';
+                            optionInput.name = `questions[${index}][options][${optIndex}]`;
+                            optionInput.value = opt;
+                            manualForm.appendChild(optionInput);
+                        });
+
+                        const answerInput = document.createElement('input');
+                        answerInput.type = 'hidden';
+                        answerInput.name = `questions[${index}][answer]`;
+                        answerInput.value = q.answer;
+                        manualForm.appendChild(answerInput);
+                    });
+
+                    // Add a flag to indicate this is an AI-generated quiz being saved
+                    const sourceInput = document.createElement('input');
+                    sourceInput.type = 'hidden';
+                    sourceInput.name = 'source';
+                    sourceInput.value = 'ai';
+                    manualForm.appendChild(sourceInput);
+
+                    // Submit the populated manual form
+                    manualForm.submit();
+                })
+                .catch(error => {
+                    console.error('Error generating quiz:', error);
+                    loadingIndicator.style.display = 'none';
+                    // Display a user-friendly error message on the page
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger mt-3';
+                    errorDiv.textContent = `Failed to generate quiz: ${error.message}`;
+                    aiTabPane.appendChild(errorDiv);
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}

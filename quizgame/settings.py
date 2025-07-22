@@ -1,23 +1,32 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vr3g#ql0h!g3yp+zs#^4npm)z@xisrn65zjtz7fkx9#l&rhs%s'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-vr3g#ql0h!g3yp+zs#^4npm)z@xisrn65zjtz7fkx9#l&rhs%s')
+
+# Groq API Token
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = []
 
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -25,16 +34,18 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third-party apps
-    'channels',
     'crispy_forms',
+    'whitenoise',  # Add whitenoise to installed apps
     # Custom apps
     'accounts',
     'quiz',
     'game',
+    'quizgame',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',  # Add LocaleMiddleware for language support
     'django.middleware.common.CommonMiddleware',
@@ -45,6 +56,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'quizgame.urls'
+
+ASGI_APPLICATION = 'quizgame.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 TEMPLATES = [
     {
@@ -64,14 +82,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'quizgame.wsgi.application'
-ASGI_APPLICATION = 'quizgame.asgi.application'
-
-# Channels configuration
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -145,6 +155,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Whitenoise storage setting
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

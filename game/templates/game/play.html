@@ -113,159 +113,220 @@
 {% endblock %}
 
 {% block content %}
-<div class="play-container">
-    <div class="game-header">
-        <div id="question-progress" class="fs-5 fw-bold">{% trans "Question" %} 1/{{ quiz.questions.count }}</div>
-        <div id="player-score" class="fs-5 fw-bold">{% trans "Score" %}: 0</div>
-    </div>
-
-    <div class="question-area">
-        <div id="timer" class="timer">30</div>
-        <div id="question-text">{% trans "Waiting for the game to start..." %}</div>
-        <div id="answer-grid" class="answer-grid">
-            <!-- Answers will be dynamically inserted here -->
+<div class="container mt-5">
+    <div id="game-area">
+        <!-- Host View -->
+        <div id="host-view" class="text-center d-none">
+            <h2 id="host-question-text"></h2>
+            <p>Time Left: <span id="host-timer"></span></p>
+            <hr>
+            <h3>Live Leaderboard</h3>
+            <ul id="host-leaderboard" class="list-group"></ul>
         </div>
-    </div>
 
-    <div class="game-footer">
-        <div class="fw-bold">{{ player.username }}</div>
-        <div>{{ quiz.title }}</div>
+        <!-- Player View -->
+        <div id="player-view" class="text-center d-none">
+            <h2 id="player-question-text"></h2>
+            <div id="player-timer-bar-container" class="progress mb-3">
+                <div id="player-timer-bar" class="progress-bar" role="progressbar" style="width: 100%;"></div>
+            </div>
+            <div id="answer-options" class="d-grid gap-2 col-6 mx-auto"></div>
+            <div id="feedback-area" class="mt-3"></div>
+        </div>
+
+        <!-- Results View -->
+        <div id="results-view" class="text-center d-none">
+            <h3>Question Results</h3>
+            <h4 id="results-question-text"></h4>
+            <p>The correct answer was: <strong id="correct-answer-text"></strong></p>
+            <hr>
+            <h4>Leaderboard</h4>
+            <ul id="results-leaderboard" class="list-group"></ul>
+            <p class="mt-3">Next question in 5 seconds...</p>
+        </div>
+
+        <!-- Game Over View -->
+        <div id="game-over-view" class="text-center d-none">
+            <h2>Game Over!</h2>
+            <h4>Final Scores</h4>
+            <ul id="final-leaderboard" class="list-group"></ul>
+            <a href="{% url 'quiz:quiz_list' %}" class="btn btn-primary mt-3">Back to Quizzes</a>
+        </div>
+
     </div>
 </div>
-
-<div id="game-overlay" style="display: none;"></div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const gameCode = "{{ game.code }}";
-    const username = "{{ player.username }}";
-
-    // UI Elements
-    const questionProgressEl = document.getElementById('question-progress');
-    const playerScoreEl = document.getElementById('player-score');
-    const timerEl = document.getElementById('timer');
-    const questionTextEl = document.getElementById('question-text');
-    const answerGridEl = document.getElementById('answer-grid');
-    const overlayEl = document.getElementById('game-overlay');
-
-    let score = 0;
-    let timerInterval;
-
     const gameSocket = new WebSocket(
-        'ws://' + window.location.host + '/ws/game/' + gameCode + '/'
+        'ws://' + window.location.host +
+        '/ws/game/{{ game.code }}/'
     );
 
-    gameSocket.onopen = function(e) {
-        console.log('Game socket connected.');
-        // The host will trigger the first question
-    };
+    const isHost = {{ game.host.id }} === {{ user.id }};
+    let timerInterval;
 
+    // Views
+    const hostView = document.getElementById('host-view');
+    const playerView = document.getElementById('player-view');
+    const resultsView = document.getElementById('results-view');
+    const gameOverView = document.getElementById('game-over-view');
+
+    // --- Event Handlers ---
     gameSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
-        console.log('Received data:', data);
-
-        switch (data.type) {
-            case 'game_started':
-            case 'next_question_sent':
-                displayQuestion(data);
-                break;
-            case 'answer_result':
-                displayAnswerResult(data);
-                break;
-            case 'game_ended':
-                window.location.href = `/game/results/${gameCode}/`;
-                break;
+        const handler = messageHandlers[data.type];
+        if (handler) {
+            handler(data);
+        } else {
+            console.error('Unknown message type:', data.type);
         }
     };
 
-    function displayQuestion(data) {
-        hideOverlay();
-        questionProgressEl.textContent = `{% trans "Question" %} ${data.current_question}/${data.total_questions}`;
-        questionTextEl.textContent = data.question_text;
-        answerGridEl.innerHTML = '';
+    gameSocket.onclose = function(e) {
+        console.error('Game socket closed unexpectedly');
+        // Optionally show a message to the user
+    };
 
-        data.answers.forEach(answer => {
-            const button = document.createElement('button');
-            button.className = 'answer-btn';
-            button.dataset.id = answer.id;
-            button.textContent = answer.text;
-            button.onclick = () => submitAnswer(answer.id);
-            answerGridEl.appendChild(button);
-        });
+    // --- Message Handler Logic ---
+    const messageHandlers = {
+        'game_starting': handleGameStarting,
+        'new_question': handleNewQuestion,
+        'answer_feedback': handleAnswerFeedback,
+        'player_answered': handlePlayerAnswered, // Host only
+        'question_results': handleQuestionResults,
+        'game_over': handleGameOver
+    };
 
-        startTimer(data.time_limit);
+    function handleGameStarting(data) {
+        console.log("Game is starting!");
+        // You can add a countdown overlay here if you want
+    }
+
+    function handleNewQuestion(data) {
+        showView(isHost ? 'host' : 'player');
+        const question = data.question;
+
+        if (isHost) {
+            document.getElementById('host-question-text').innerText = question.text;
+            updateLeaderboard('host-leaderboard', {{ game.players.all|length }});
+        } else {
+            document.getElementById('player-question-text').innerText = question.text;
+            const answerOptions = document.getElementById('answer-options');
+            answerOptions.innerHTML = '';
+            question.answers.forEach(answer => {
+                const button = document.createElement('button');
+                button.className = 'btn btn-outline-primary';
+                button.innerText = answer.text;
+                button.onclick = () => submitAnswer(question.id, answer.id);
+                answerOptions.appendChild(button);
+            });
+            document.getElementById('feedback-area').innerHTML = '';
+        }
+        startTimer(question.time_limit);
+    }
+
+    function handleAnswerFeedback(data) {
+        const feedbackArea = document.getElementById('feedback-area');
+        if (data.is_correct) {
+            feedbackArea.innerHTML = `<div class="alert alert-success">Correct ✅ (+${data.score} points)</div>`;
+        } else {
+            feedbackArea.innerHTML = `<div class="alert alert-danger">Incorrect ❌</div>`;
+        }
+        // Disable answer buttons
+        document.querySelectorAll('#answer-options button').forEach(b => b.disabled = true);
+    }
+
+    function handlePlayerAnswered(data) {
+        // Host-only event
+        if (!isHost) return;
+        const playerRow = document.getElementById(`player-${data.player.username}`);
+        if (playerRow) {
+            playerRow.innerHTML = `<span>${data.player.username}</span> <span class="badge bg-success">Answered</span> <span>${data.player.score}</span>`;
+        }
+    }
+
+    function handleQuestionResults(data) {
+        clearInterval(timerInterval);
+        showView('results');
+        document.getElementById('results-question-text').innerText = document.getElementById(isHost ? 'host-question-text' : 'player-question-text').innerText;
+        document.getElementById('correct-answer-text').innerText = data.correct_answer.text;
+        updateLeaderboard('results-leaderboard', data.leaderboard);
+    }
+
+    function handleGameOver(data) {
+        showView('game-over');
+        updateLeaderboard('final-leaderboard', data.leaderboard);
+    }
+
+    // --- UI Helper Functions ---
+    function showView(viewName) {
+        [hostView, playerView, resultsView, gameOverView].forEach(v => v.classList.add('d-none'));
+        if (viewName === 'host') hostView.classList.remove('d-none');
+        else if (viewName === 'player') playerView.classList.remove('d-none');
+        else if (viewName === 'results') resultsView.classList.remove('d-none');
+        else if (viewName === 'game-over') gameOverView.classList.remove('d-none');
     }
 
     function startTimer(duration) {
         let timeLeft = duration;
-        timerEl.textContent = timeLeft;
+        const timerElement = document.getElementById(isHost ? 'host-timer' : 'player-timer-bar');
 
-        clearInterval(timerInterval); // Clear any existing timer
-
+        clearInterval(timerInterval);
         timerInterval = setInterval(() => {
+            if (isHost) {
+                timerElement.innerText = timeLeft;
+            } else {
+                const percentage = (timeLeft / duration) * 100;
+                timerElement.style.width = percentage + '%';
+            }
             timeLeft--;
-            timerEl.textContent = timeLeft;
-
-            if (timeLeft <= 0) {
+            if (timeLeft < 0) {
                 clearInterval(timerInterval);
-                timerEl.textContent = 'Time\'s up!';
-                disableAnswers(); // Disable answer buttons
             }
         }, 1000);
     }
 
-    function submitAnswer(answerId) {
-        console.log(`Submitting answer: ${answerId}`);
-        clearInterval(timerInterval);
-        disableAnswers();
+    function updateLeaderboard(elementId, players) {
+        const leaderboard = document.getElementById(elementId);
+        leaderboard.innerHTML = '';
+        if (Array.isArray(players)) { // For results and game over
+            players.forEach(player => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `<span>${player.user__username}</span> <span class="badge bg-primary rounded-pill">${player.score}</span>`;
+                leaderboard.appendChild(li);
+            });
+        } else { // For host live view
+            {% for player in game.players.all %}
+            const li = document.createElement('li');
+            li.id = `player-{{ player.user.username }}`;
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `<span>{{ player.user.username }}</span> <span class="badge bg-secondary">Waiting...</span> <span>{{ player.score }}</span>`;
+            leaderboard.appendChild(li);
+            {% endfor %}
+        }
+    }
+
+    function submitAnswer(questionId, answerId) {
         gameSocket.send(JSON.stringify({
             'type': 'submit_answer',
-            'answer_id': answerId,
-            'username': username
+            'question_id': questionId,
+            'answer_id': answerId
         }));
     }
 
-    function disableAnswers() {
-        document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
-    }
-
-    function displayAnswerResult(data) {
-        const isCorrect = data.is_correct;
-        score += data.points;
-        playerScoreEl.textContent = `{% trans "Score" %}: ${score}`;
-
-        if (isCorrect) {
-            showOverlay(`{% trans "Correct!" %} +${data.points}`);
+    // Initial setup
+    document.addEventListener('DOMContentLoaded', () => {
+        if (isHost) {
+            showView('host');
+            // Initial leaderboard render for host
+            updateLeaderboard('host-leaderboard', {{ game.players.all|length }});
         } else {
-            showOverlay('{% trans "Incorrect!" %}');
+            showView('player');
         }
+    });
 
-        // Highlight correct/incorrect answers
-        document.querySelectorAll('.answer-btn').forEach(btn => {
-            if (btn.dataset.id == data.correct_answer_id) {
-                btn.classList.add('correct');
-            } else {
-                btn.classList.add('incorrect');
-            }
-        });
-    }
-
-    function showOverlay(message) {
-        overlayEl.textContent = message;
-        overlayEl.style.display = 'flex';
-    }
-
-    function hideOverlay() {
-        overlayEl.style.display = 'none';
-    }
-
-    gameSocket.onclose = function(e) {
-        console.error('Game socket closed unexpectedly');
-        alert('Connection to the game has been lost. Please refresh the page.');
-    };
-});
 </script>
 {% endblock %}

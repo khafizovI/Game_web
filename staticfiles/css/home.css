@@ -1,0 +1,157 @@
+:root {
+    --primary-color: #6a11cb;
+    --secondary-color: #2575fc;
+    --light-gray: #f8f9fa;
+    --dark-text: #343a40;
+    --light-text: #6c757d;
+    --border-color: #dee2e6;
+    --card-shadow: 0 10px 30px rgba(0,0,0,0.07);
+}
+
+.hero-section {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 100px 0;
+}
+
+.hero-section .display-4 {
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.hero-section .lead {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 600px;
+}
+
+.btn-primary {
+    background-color: white;
+    color: var(--primary-color);
+    border: 2px solid white;
+    font-weight: 600;
+    padding: 12px 30px;
+    transition: all 0.3s ease;
+    border-radius: 50px;
+}
+
+.btn-primary:hover {
+    background-color: transparent;
+    color: white;
+}
+
+.btn-outline-light {
+    border-width: 2px;
+    font-weight: 600;
+    padding: 12px 30px;
+    border-radius: 50px;
+}
+
+.section {
+    padding: 80px 0;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 60px;
+    font-weight: 700;
+    color: var(--dark-text);
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    border-radius: 2px;
+}
+
+.feature-card {
+    border: none;
+    border-radius: 15px;
+    padding: 40px 30px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background-color: white;
+    box-shadow: var(--card-shadow);
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+}
+
+.feature-icon {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    font-size: 2rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.feature-card h3 {
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 15px;
+}
+
+.feature-card p {
+    color: var(--light-text);
+}
+
+.bg-light {
+    background-color: var(--light-gray) !important;
+}
+
+.cta-section {
+    padding: 80px 0;
+    background-color: white;
+}
+
+.quiz-card {
+    border: none;
+    border-radius: 15px;
+    background-color: white;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.quiz-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+.quiz-card .card-body {
+    padding: 25px;
+}
+
+.quiz-card .card-title {
+    font-weight: 700;
+    color: var(--dark-text);
+}
+
+.quiz-card .card-text {
+    color: var(--light-text);
+}
+
+.quiz-card .btn-primary {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    border: none;
+    color: white;
+    padding: 10px 25px;
+}
+
+.quiz-card .btn-primary:hover {
+    opacity: 0.9;
+}
