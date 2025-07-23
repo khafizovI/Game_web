@@ -8,6 +8,12 @@ class AnswerInline(admin.TabularInline):
     extra = 4
     max_num = 4
 
+class QuizAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_by', 'created_at', 'is_public')
+    list_filter = ('is_public', 'created_at')
+    search_fields = ('title', 'created_by__username')
+    list_editable = ('is_public',)
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ('text', 'quiz', 'time_limit', 'points')
@@ -15,8 +21,4 @@ class QuestionAdmin(admin.ModelAdmin):
     search_fields = ('text',)
     inlines = [AnswerInline]
 
-@admin.register(Quiz)
-class QuizAdmin(admin.ModelAdmin):
-    list_display = ('title', 'created_by', 'created_at')
-    search_fields = ('title', 'description')
-    list_filter = ('created_at',)
+admin.site.register(Quiz, QuizAdmin)

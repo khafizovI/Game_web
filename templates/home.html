@@ -57,7 +57,7 @@
     <div class="container">
         <h2 class="section-title">{% trans "Featured Quizzes" %}</h2>
         <div class="row g-4">
-            {% for quiz in public_quizzes|slice:":3" %}
+            {% for quiz in quizzes %}
             <div class="col-lg-4">
                 <div class="quiz-card">
                     <div class="card-body">

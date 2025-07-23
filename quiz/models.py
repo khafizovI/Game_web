@@ -1,14 +1,15 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 import random
 import string
 
 class Quiz(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_quizzes')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_quizzes')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(default=False)
     
     def __str__(self):
         return self.title

@@ -1,0 +1,45 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Page Not Found" %}{% endblock %}
+
+{% block content %}
+<style>
+    .error-page {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 70vh;
+        text-align: center;
+        padding: 2rem;
+    }
+    .error-container {
+        max-width: 600px;
+    }
+    .error-code {
+        font-size: 6rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .error-message {
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-top: 0;
+    }
+    .error-description {
+        color: #6c757d;
+        margin-bottom: 2rem;
+    }
+</style>
+
+<div class="error-page">
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h1 class="error-message">{% trans "Oops! Page Not Found." %}</h1>
+        <p class="error-description">{% trans "We can't seem to find the page you're looking for. It might have been moved, deleted, or maybe it never existed." %}</p>
+        <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-home me-2"></i>{% trans "Go Back to Home" %}
+        </a>
+    </div>
+</div>
+{% endblock %}

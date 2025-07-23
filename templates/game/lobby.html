@@ -6,6 +6,19 @@
 
 {% block content %}
 <style>
+    body {
+        background: linear-gradient(270deg, #1a1a2e, #16213e, #0f3460, #16213e, #1a1a2e);
+        background-size: 600% 600%;
+        animation: gradient-animation 30s ease infinite;
+        color: #e0e0e0;
+    }
+
+    @keyframes gradient-animation {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
     #countdown-overlay {
         position: fixed;
         top: 0;
@@ -40,47 +53,84 @@
         transform: scale(1);
         opacity: 1;
     }
+
+    .lobby-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+    }
+
+    .player-list-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+
+    .game-code-display {
+        font-size: 4rem;
+        font-weight: bold;
+        letter-spacing: 0.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .list-group-item {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .host-badge {
+        background-color: #f0ad4e;
+        color: #212529;
+    }
 </style>
 
 <div id="countdown-overlay">
     <div id="countdown-number"></div>
 </div>
 
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="card-title mb-0">{% trans "Game Lobby" %}</h2>
-                    <p class="card-subtitle mt-1">{% trans "Quiz" %}: {{ game.quiz.title }}</p>
+<div class="container my-5">
+    <div class="lobby-container text-white shadow-lg">
+        <div class="row align-items-center">
+            <!-- Left Column: Game Info -->
+            <div class="col-lg-7 text-center text-lg-start mb-4 mb-lg-0">
+                <h1 class="display-4 fw-bold">{% trans "Game Lobby" %}</h1>
+                <p class="lead fs-4">{% trans "Quiz" %}: {{ game.quiz.title }}</p>
+                <hr class="border-light my-4">
+                <h2 class="h4">{% trans "Share this code with your friends!" %}</h2>
+                <div class="d-flex justify-content-center justify-content-lg-start align-items-center mt-3">
+                    <div class="game-code-display me-3">{{ game.code }}</div>
+                    <button class="btn btn-light btn-lg" id="copy-code-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy to clipboard">
+                        <i class="fas fa-copy"></i>
+                    </button>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="mb-0">{% trans "Players" %} (<span id="player-count">{{ players|length }}</span>)</h4>
-                        <div class="input-group w-50">
-                            <span class="input-group-text">{% trans "Game Code" %}</span>
-                            <input type="text" class="form-control" value="{{ game.code }}" readonly>
-                            <button class="btn btn-outline-secondary" id="copy-code-btn">{% trans "Copy" %}</button>
-                        </div>
-                    </div>
+            </div>
 
-                    <ul class="list-group" id="player-list">
+            <!-- Right Column: Players & Start Button -->
+            <div class="col-lg-5">
+                <div class="player-list-card p-4">
+                    <h3 class="mb-3">{% trans "Players" %} (<span id="player-count">{{ players|length }}</span>)</h3>
+                    <ul class="list-group" id="player-list" style="max-height: 200px; overflow-y: auto;">
                         {% for player in players %}
-                            <li class="list-group-item" id="player-{{ player.id }}">
-                                {{ player.user.username }}
+                            <li class="list-group-item d-flex justify-content-between align-items-center" id="player-{{ player.id }}">
+                                <span><i class="fas fa-user me-2"></i>{{ player.user.username }}</span>
                                 {% if player.is_host %}
-                                    <span class="badge bg-warning ms-2">{% trans "Host" %}</span>
+                                    <span class="badge host-badge">{% trans "Host" %}</span>
                                 {% endif %}
                             </li>
                         {% endfor %}
                     </ul>
-                </div>
-                <div class="card-footer text-end">
-                    {% if is_host %}
-                        <button class="btn btn-success btn-lg" id="start-game-btn">{% trans "Start Game" %}</button>
-                    {% else %}
-                        <p class="text-muted">{% trans "Waiting for the host to start the game..." %}</p>
-                    {% endif %}
+                    <div class="d-grid mt-4">
+                        {% if is_host %}
+                            <button class="btn btn-success btn-lg" id="start-game-btn"><i class="fas fa-rocket me-2"></i>{% trans "Start Game" %}</button>
+                        {% else %}
+                            <p class="text-center mb-0"><i class="fas fa-hourglass-start me-2"></i>{% trans "Waiting for the host to start..." %}</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,26 +141,48 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+
     const roomCode = '{{ game.code }}';
     const isHost = {{ is_host|yesno:"true,false" }};
 
     const playerList = document.getElementById('player-list');
     const playerCount = document.getElementById('player-count');
     const startButton = document.getElementById('start-game-btn');
+    const copyButton = document.getElementById('copy-code-btn');
     const countdownOverlay = document.getElementById('countdown-overlay');
     const countdownNumber = document.getElementById('countdown-number');
+
+    copyButton.addEventListener('click', () => {
+        navigator.clipboard.writeText(roomCode).then(() => {
+            const tooltip = bootstrap.Tooltip.getInstance(copyButton);
+            copyButton.setAttribute('data-bs-original-title', 'Copied!');
+            tooltip.show();
+            setTimeout(() => {
+                copyButton.setAttribute('data-bs-original-title', 'Copy to clipboard');
+                tooltip.hide();
+            }, 2000);
+        });
+    });
 
     function updatePlayerList(players) {
         playerList.innerHTML = '';
         players.forEach(player => {
             const newPlayer = document.createElement('li');
-            newPlayer.className = 'list-group-item';
+            newPlayer.className = 'list-group-item d-flex justify-content-between align-items-center';
             newPlayer.id = `player-${player.id}`;
-            newPlayer.textContent = player.username;
+            
+            const playerName = document.createElement('span');
+            playerName.innerHTML = `<i class="fas fa-user me-2"></i>${player.username}`;
+            newPlayer.appendChild(playerName);
 
             if (player.is_host) {
                 const hostBadge = document.createElement('span');
-                hostBadge.className = 'badge bg-warning ms-2';
+                hostBadge.className = 'badge host-badge';
                 hostBadge.textContent = '{% trans "Host" %}';
                 newPlayer.appendChild(hostBadge);
             }
@@ -134,15 +206,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data.type === 'lobby_state') {
             updatePlayerList(data.players);
         } else if (data.type === 'player_joined') {
-            // Add the new player to the list
             const newPlayer = document.createElement('li');
-            newPlayer.className = 'list-group-item';
+            newPlayer.className = 'list-group-item d-flex justify-content-between align-items-center';
             newPlayer.id = `player-${data.player.id}`;
-            newPlayer.textContent = data.player.username;
+
+            const playerName = document.createElement('span');
+            playerName.innerHTML = `<i class="fas fa-user me-2"></i>${data.player.username}`;
+            newPlayer.appendChild(playerName);
 
             if (data.player.is_host) {
                 const hostBadge = document.createElement('span');
-                hostBadge.className = 'badge bg-warning ms-2';
+                hostBadge.className = 'badge host-badge';
                 hostBadge.textContent = '{% trans "Host" %}';
                 newPlayer.appendChild(hostBadge);
             }
@@ -188,7 +262,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     socket.onclose = function (e) {
         console.error('Game socket closed unexpectedly');
-        alert('Connection to the lobby was lost. Please refresh the page.');
+        // Optional: Add a more user-friendly notification here
+        const toastBody = document.querySelector('.toast-body');
+        if(toastBody) {
+            toastBody.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Connection to the lobby was lost. Please refresh.';
+            const toast = new bootstrap.Toast(document.querySelector('.toast'));
+            toast.show();
+        }
     };
 
     if (isHost && startButton) {
@@ -198,22 +278,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }));
         });
     }
-
-    // Copy game code to clipboard
-    const copyCodeBtn = document.getElementById('copy-code-btn');
-    copyCodeBtn.addEventListener('click', function() {
-        navigator.clipboard.writeText(roomCode).then(function() {
-            // Success feedback
-            const originalText = copyCodeBtn.innerHTML;
-            copyCodeBtn.innerHTML = '<i class="fas fa-check"></i> {% trans "Copied!" %}';
-            setTimeout(() => {
-                copyCodeBtn.innerHTML = originalText;
-            }, 2000);
-        }, function(err) {
-            // Error feedback
-            console.error('Could not copy text: ', err);
-        });
-    });
 });
 </script>
 {% endblock %}

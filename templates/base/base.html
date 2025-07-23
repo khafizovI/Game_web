@@ -24,7 +24,7 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
@@ -109,9 +109,9 @@
 
     <!-- Footer -->
     {% block footer %}
-    <footer class="mt-5">
+    <footer class="mt-auto py-3 bg-dark text-white">
         <div class="container text-center">
-            <p>&copy; 2025 QuizBattle. All rights reserved.</p>
+            <p class="mb-0">&copy; 2025 QuizBattle. All rights reserved.</p>
         </div>
     </footer>
     {% endblock %}

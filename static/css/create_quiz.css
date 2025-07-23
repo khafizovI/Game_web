@@ -1,69 +1,74 @@
-.create-quiz-bg {
-    background-color: #f0f2f5;
-    padding-top: 50px;
-    padding-bottom: 50px;
+body {
+    background-color: #f0f2f5; /* A light grey background */
 }
 
-.create-quiz-card {
-    background-color: white;
+.create-quiz-container {
+    background-color: #ffffff;
     border-radius: 15px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-    border: none;
-    overflow: hidden; /* To contain the header background */
+    padding: 2rem 3rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
-.card-header-tabs {
-    margin: 0;
-    border-bottom: 0;
+.create-quiz-container h1 {
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
-.card-header-tabs .nav-link {
-    border: 0;
-    color: rgba(255, 255, 255, 0.8);
+/* Tab styling */
+.nav-pills .nav-link {
+    border-radius: 50px;
     font-weight: 600;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.5rem;
+    color: #6c757d;
+    transition: all 0.3s ease;
 }
 
-.card-header-tabs .nav-link.active {
-    background-color: white;
-    color: var(--bs-primary);
-    border-bottom-color: var(--bs-primary);
-    border-top-left-radius: .25rem;
-    border-top-right-radius: .25rem;
-}
-
-.card-header {
-    background-color: var(--bs-primary);
-    padding: 0;
+.nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+    color: #fff;
+    background-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(124, 77, 255, 0.4);
 }
 
 .tab-content {
-    padding: 2rem 2.5rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 1.5rem;
+    margin-top: -1px; /* Align with bottom of tabs */
 }
 
-.form-label {
-    font-weight: 600;
-    color: #495057;
+.tab-pane {
+    background-color: #f8f9fa;
+    border-radius: 10px;
 }
 
+/* Form styling */
 .form-control {
     border-radius: 8px;
-    padding: 0.8rem 1rem;
+    padding: 1rem;
     border: 1px solid #ced4da;
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
 
 .form-control:focus {
-    border-color: var(--bs-primary);
-    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), .25);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(124, 77, 255, 0.25);
+}
+
+.form-floating>label {
+    padding: 1rem 1.25rem;
 }
 
 .btn-primary {
+    padding: 0.75rem 1.5rem;
     font-weight: 600;
-    padding: 0.8rem 1.5rem;
-    border-radius: 8px;
+    border-radius: 50px;
+    transition: all 0.3s ease;
 }
 
-#loading-indicator {
-    display: none;
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3);
+}
+
+#loading-indicator p {
+    color: #6c757d;
 }

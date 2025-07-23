@@ -23,8 +23,8 @@ def home(request):
         
         return response
     
-    # Get the 3 most recent quizzes
-    quizzes = Quiz.objects.all().order_by('-created_at')[:3]
+    # Get the 3 most recent public quizzes
+    quizzes = Quiz.objects.filter(is_public=True).order_by('-created_at')[:3]
     context = {
         'quizzes': quizzes
     }
