@@ -69,6 +69,41 @@
         max-width: 800px;
         margin: 2rem auto;
     }
+
+    .question-review {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 3rem;
+        text-align: left;
+    }
+
+    .question-review .list-group-item {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .question-review .list-group-item.correct-answer {
+        background-color: #28a745; /* Green for correct */
+        border-color: #28a745;
+    }
+
+    .question-review .list-group-item.wrong-answer {
+        background-color: #dc3545; /* Red for wrong */
+        border-color: #dc3545;
+    }
+
+    .question-review .list-group-item.selected-answer::before {
+        content: '➤';
+        font-weight: bold;
+        margin-right: 10px;
+        color: #ffc107;
+    }
+
+    .list-group-item.dimmed {
+        opacity: 0.4;
+        transition: opacity 0.3s ease-in-out;
+    }
 </style>
 {% endblock %}
 
@@ -127,6 +162,39 @@
             {% endfor %}
         </ul>
     </div>
+
+    {% if player %}
+    <div class="leaderboard question-review">
+        <h3 class="mb-4 text-center">{% trans "Question Review" %}</h3>
+        {% for question in questions %}
+            <div class="mb-4">
+                <h5 class="fw-bold">{{ forloop.counter }}. {{ question.text }}</h5>
+                <ul class="list-group">
+                    {% for answer in question.answers.all %}
+                        <li class="list-group-item text-white
+                            {% if answer.id == question.selected_answer_id %}
+                                selected-answer
+                                {% if answer.is_correct %}
+                                    correct-answer
+                                {% else %}
+                                    wrong-answer
+                                {% endif %}
+                            {% else %}
+                                {% if answer.is_correct %}
+                                    correct-answer
+                                {% else %}
+                                    dimmed
+                                {% endif %}
+                            {% endif %}
+                        ">
+                            {{ answer.text }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="mt-5">
         <a href="{% url 'accounts:dashboard' %}" class="btn btn-light btn-lg me-3">{% trans "Go to Dashboard" %}</a>

@@ -1,2 +1,15 @@
 .venv
 .idea
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+db.sqlite3
+
+# Environment
+.env
+
+# Media files
+/media/

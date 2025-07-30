@@ -200,55 +200,91 @@
     };
 
     function handleGameStarting(data) {
-        console.log("Game is starting!");
-        // You can add a countdown overlay here if you want
+        const overlay = document.getElementById('game-overlay');
+        if (!overlay) return;
+
+        overlay.classList.remove('d-none');
+        let count = 3;
+        overlay.innerText = `Game starting in ${count}...`;
+
+        const countdown = setInterval(() => {
+            count--;
+            if (count > 0) {
+                overlay.innerText = `Game starting in ${count}...`;
+            } else {
+                clearInterval(countdown);
+                overlay.classList.add('d-none');
+            }
+        }, 1000);
     }
 
     function handleNewQuestion(data) {
         showView(isHost ? 'host' : 'player');
-        const question = data.question;
 
         if (isHost) {
-            document.getElementById('host-question-text').innerText = question.text;
-            updateLeaderboard('host-leaderboard', {{ game.players.all|length }});
-        } else {
-            document.getElementById('player-question-text').innerText = question.text;
-            const answerOptions = document.getElementById('answer-options');
-            answerOptions.innerHTML = '';
-            question.answers.forEach(answer => {
-                const button = document.createElement('button');
-                button.className = 'btn btn-outline-primary';
-                button.innerText = answer.text;
-                button.onclick = () => submitAnswer(question.id, answer.id);
-                answerOptions.appendChild(button);
-            });
-            document.getElementById('feedback-area').innerHTML = '';
+            document.getElementById('host-question-text').innerText = data.question_text;
+            startTimer(data.time_limit, 'host-timer');
+            return;
         }
-        startTimer(question.time_limit);
+
+        document.getElementById('player-question-text').innerText = data.question_text;
+        const answerOptions = document.getElementById('answer-options');
+        answerOptions.innerHTML = ''; // Clear previous answers
+
+        const colors = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
+        const icons = ['▲', '◆', '●', '■'];
+
+        data.answers.forEach((answer, index) => {
+            const button = document.createElement('button');
+            button.className = 'answer-btn';
+            button.style.backgroundColor = colors[index % colors.length];
+            button.style.color = 'white';
+            button.innerHTML = `<span>${icons[index % icons.length]}</span> ${answer.text}`;
+            button.onclick = () => {
+                selectAnswer(data.question_id, answer.id, button);
+            };
+            answerOptions.appendChild(button);
+        });
+
+        startTimer(data.time_limit);
+    }
+
+    function selectAnswer(questionId, answerId, clickedButton) {
+        console.log(`Answer selected for Question ID: ${questionId}. You clicked: ${clickedButton.innerText}`);
+
+        // Send the answer to the server first
+        submitAnswer(questionId, answerId);
+
+        // Get all answer buttons
+        const answerButtons = document.querySelectorAll('#answer-options .answer-btn');
+        console.log(`Found ${answerButtons.length} buttons to update.`);
+
+        // Loop through all buttons to apply the visual change
+        answerButtons.forEach(button => {
+            // Disable the button to prevent multiple clicks
+            button.disabled = true;
+
+            // If the button is not the one that was clicked, dim it
+            if (button !== clickedButton) {
+                console.log(`Dimming button: ${button.innerText}`);
+                button.style.setProperty('opacity', '0.3', 'important');
+            } else {
+                console.log(`Highlighting selected button: ${button.innerText}`);
+                // Optional: Add a visual cue to the selected button itself if needed
+                button.style.border = '3px solid yellow';
+            }
+        });
     }
 
     function handleAnswerFeedback(data) {
-        const feedbackArea = document.getElementById('feedback-area');
-        if (data.is_correct) {
-            feedbackArea.innerHTML = `<div class="alert alert-success">Correct ✅ (+${data.score} points)</div>`;
-        } else {
-            feedbackArea.innerHTML = `<div class="alert alert-danger">Incorrect ❌</div>`;
-        }
-        // Disable answer buttons
-        document.querySelectorAll('#answer-options button').forEach(b => b.disabled = true);
+        // The UI is reset for the next question in the handleNewQuestion function.
     }
 
     function handlePlayerAnswered(data) {
-        // Host-only event
-        if (!isHost) return;
-        const playerRow = document.getElementById(`player-${data.player.username}`);
-        if (playerRow) {
-            playerRow.innerHTML = `<span>${data.player.username}</span> <span class="badge bg-success">Answered</span> <span>${data.player.score}</span>`;
-        }
+        // Host-side logic can be updated here.
     }
 
     function handleQuestionResults(data) {
-        clearInterval(timerInterval);
         showView('results');
         document.getElementById('results-question-text').innerText = document.getElementById(isHost ? 'host-question-text' : 'player-question-text').innerText;
         document.getElementById('correct-answer-text').innerText = data.correct_answer.text;
@@ -269,9 +305,9 @@
         else if (viewName === 'game-over') gameOverView.classList.remove('d-none');
     }
 
-    function startTimer(duration) {
+    function startTimer(duration, timerElementId) {
         let timeLeft = duration;
-        const timerElement = document.getElementById(isHost ? 'host-timer' : 'player-timer-bar');
+        const timerElement = document.getElementById(timerElementId);
 
         clearInterval(timerInterval);
         timerInterval = setInterval(() => {

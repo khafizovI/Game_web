@@ -78,7 +78,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 current_question = await self.get_current_question(re_send=True)
                 if current_question:
                     await self.send(text_data=json.dumps({
-                        'type': 'show_question',
+                        'type': 'new_question',
+                        'question_id': current_question['id'],
                         'question_text': current_question['question_text'],
                         'answers': current_question['answers'],
                         'time_limit': current_question['time_limit'],
@@ -182,7 +183,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
-                    'type': 'show_question',
+                    'type': 'show_question', 
+                    'question_id': question_data['id'],
                     'question_text': question_data['question_text'],
                     'answers': question_data['answers'],
                     'time_limit': question_data['time_limit'],
@@ -247,12 +249,13 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def broadcast_question(self, event):
         question_data = event['question_data']
         await self.send(text_data=json.dumps({
-            'type': 'show_question',
+            'type': 'new_question',
+            'question_id': question_data['id'],
             'question_text': question_data['question_text'],
             'answers': question_data['answers'],
             'time_limit': question_data['time_limit'],
             'current_question': question_data['current_question'],
-            'total_questions': question_data['total_questions']
+            'total_questions': question_data['total_questions'],
         }))
 
     async def broadcast_results(self, event):
@@ -299,14 +302,15 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     async def show_question(self, event):
-        """Sends question data to the client."""
+        """Sends question data to the client after being broadcast to the group."""
         await self.send(text_data=json.dumps({
-            'type': 'show_question',
+            'type': 'new_question',
+            'question_id': event['question_id'],
             'question_text': event['question_text'],
             'answers': event['answers'],
             'time_limit': event['time_limit'],
             'current_question': event['current_question'],
-            'total_questions': event['total_questions']
+            'total_questions': event['total_questions'],
         }))
 
     # --- Database Helpers (must be @database_sync_to_async) ---
@@ -430,30 +434,32 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_current_question(self, re_send=False):
-        game = Game.objects.select_related('quiz__created_by').get(code=self.room_code)
-        total_questions = game.quiz.questions.count()
-
-        if not re_send:
-            game.current_question_number += 1
-            game.save()
-
-        if game.current_question_number <= 0 or game.current_question_number > total_questions:
-            return None
-
+        """Gets the next question for the game.""" 
         try:
-            question = game.quiz.questions.all().order_by('order')[game.current_question_number - 1]
+            game = Game.objects.get(code=self.room_code)
+
+            if not re_send:
+                game.current_question_number += 1
+                game.save()
+
+            question = Question.objects.filter(quiz=game.quiz).order_by('order').all()[game.current_question_number - 1]
+
+            if not question:
+                return None
+
             answers = list(question.answers.all())
-            random.shuffle(answers)  # Shuffle answers randomly
+            random.shuffle(answers)
 
             return {
                 'id': question.id,
                 'question_text': question.text,
-                'time_limit': question.time_limit,
                 'answers': [{'id': a.id, 'text': a.text} for a in answers],
+                'time_limit': question.time_limit,
                 'current_question': game.current_question_number,
-                'total_questions': total_questions
+                'total_questions': game.quiz.questions.count()
             }
-        except IndexError:
+        except (Game.DoesNotExist, IndexError, Question.DoesNotExist) as e:
+            logger.error(f"Could not retrieve question for game {self.room_code}: {e}")
             return None
 
     @database_sync_to_async

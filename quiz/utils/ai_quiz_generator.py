@@ -20,19 +20,29 @@ def generate_quiz_from_topic(topic: str, num_questions: int, num_options: int) -
     """
     try:
         question_list_completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": question_generation_prompt}],
             model="llama3-8b-8192",
+            messages=[{"role": "user", "content": question_generation_prompt}],
             temperature=0.7,
             max_tokens=1024,
             top_p=1,
             stream=False,
         )
         generated_text = question_list_completion.choices[0].message.content
-        question_texts = [
-            line.strip().lstrip("1234567890. ")
-            for line in generated_text.strip().splitlines()
-            if line.strip()
-        ]
+        # Filter out the introductory line and process only the actual questions.
+        question_texts = []
+        for line in generated_text.strip().splitlines():
+            # A valid question line typically starts with a number and a period.
+            if re.match(r"^\d+\.\s", line.strip()):
+                question_texts.append(line.strip().lstrip("1234567890. "))
+
+        if not question_texts:
+            # Fallback for cases where the AI doesn't number the questions
+            lines = [line.strip() for line in generated_text.strip().splitlines() if line.strip()]
+            # If there's a title-like first line, remove it.
+            if len(lines) > num_questions and not re.match(r"^\d+\.\s", lines[0]):
+                lines.pop(0)
+            question_texts = [l.lstrip("1234567890. ") for l in lines]
+
         if not question_texts:
             raise ValueError("AI failed to generate question texts.")
 
@@ -48,13 +58,12 @@ def generate_quiz_from_topic(topic: str, num_questions: int, num_options: int) -
         Provide the output ONLY in JSON format with two keys:
         1. "options": a list of {num_options} string options.
         2. "answer": the string of the correct answer, which must be one of the options.
-        Do not include the question text or any other explanation.
         """
         try:
             options_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": options_generation_prompt}],
                 model="llama3-8b-8192",
-                response_format={"type": "json_object"}, # Use JSON mode for reliability
+                messages=[{"role": "user", "content": options_generation_prompt}],
+                response_format={"type": "json_object"},
                 temperature=0.7,
                 max_tokens=1024,
                 top_p=1,

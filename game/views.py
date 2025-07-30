@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils.crypto import get_random_string
 from quiz.models import Quiz, Question, Answer
-from .models import Game, GamePlayer
+from .models import Game, GamePlayer, PlayerAnswer
 import json
 
 # Create your views here.
@@ -103,24 +103,40 @@ def play_game(request, game_code):
 def game_results(request, game_code):
     """View for seeing game results"""
     game = get_object_or_404(Game, code=game_code)
-    
+
     # Mark game as completed if not already
     if not game.is_completed:
         game.is_completed = True
         game.save()
-    
+
     # Get all players sorted by score
     players = GamePlayer.objects.filter(game=game).order_by('-score')
-    
+
     # Calculate player ranks
     for i, player in enumerate(players):
         player.rank = i + 1
-    
+
+    # Get the current player's participation object
+    current_player = players.filter(user=request.user).first()
+
+    # Get all questions for the quiz, prefetching the possible answers
+    questions = game.quiz.questions.prefetch_related('answers').order_by('order')
+
+    # Get the player's answers and map them to the questions
+    if current_player:
+        player_answers_qs = PlayerAnswer.objects.filter(player=current_player)
+        player_answers_map = {pa.question_id: pa.answer_id for pa in player_answers_qs}
+
+        # Attach the player's selected answer ID to each question object
+        for question in questions:
+            question.selected_answer_id = player_answers_map.get(question.id)
+
     context = {
         'game': game,
         'quiz': game.quiz,
         'players': players,
         'is_host': game.host == request.user,
-        'player': players.filter(user=request.user).first()
+        'player': current_player,
+        'questions': questions,  # Add questions for the review section
     }
     return render(request, 'game/results.html', context)
