@@ -78,7 +78,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 current_question = await self.get_current_question(re_send=True)
                 if current_question:
                     await self.send(text_data=json.dumps({
-                        'type': 'new_question',
+                        'type': 'show_question',
                         'question_id': current_question['id'],
                         'question_text': current_question['question_text'],
                         'answers': current_question['answers'],
@@ -105,9 +105,9 @@ class GameConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-            # TODO: Add logic to handle host disconnecting (e.g., end the game)
+            # If the host (teacher) disconnects, end the game and kick all students
             if player_left_data.get('was_host'):
-                pass
+                await self.handle_host_disconnect()
 
         await self.channel_layer.group_discard(
             self.game_group_name,
@@ -124,6 +124,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.player_ready()
         elif message_type == 'submit_answer':
             await self.submit_answer(data)
+        elif message_type == 'next_question' and await self.is_user_host():
+            await self.proceed_to_next_question()
 
     async def start_game(self):
         # Set the game to active and broadcast the starting event.
@@ -161,8 +163,17 @@ class GameConsumer(AsyncWebsocketConsumer):
             return # Ignore submission if no question is active
 
         is_correct, score_to_add = await self.calculate_score(answer_id, time_taken, time_limit)
-
         await self.save_player_answer(self.player, question_id, answer_id, is_correct, score_to_add)
+
+        # Send immediate feedback to the student
+        correct_answer = await self.get_correct_answer(question_id)
+        await self.send(text_data=json.dumps({
+            'type': 'immediate_feedback',
+            'is_correct': is_correct,
+            'correct_answer_id': correct_answer.id if correct_answer else None,
+            'score_earned': score_to_add,
+            'selected_answer_id': answer_id
+        }))
 
     async def game_loop(self):
         """The main loop that controls the game flow."""
@@ -183,25 +194,21 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
-                    'type': 'show_question', 
-                    'question_id': question_data['id'],
-                    'question_text': question_data['question_text'],
-                    'answers': question_data['answers'],
-                    'time_limit': question_data['time_limit'],
-                    'current_question': question_data['current_question'],
-                    'total_questions': question_data['total_questions']
+                    'type': 'show_question',
+                    'question_data': question_data
                 }
             )
 
             # Wait for the question's time limit
             await asyncio.sleep(question_data['time_limit'])
 
-            # Get and send feedback
+            # Get and send feedback to students, and leaderboard to teacher
             feedback_data = await self.get_feedback_data(self.current_question_context['question_id'])
+            
+            # Send feedback to students
             for player_id, channel_name in self.player_channels.items():
                 player_result = next((p for p in feedback_data['player_results'] if p['id'] == player_id), None)
                 
-                # Handle case where a player might not have a result (e.g., joined late)
                 if not player_result:
                     player_result = {
                         'id': player_id,
@@ -222,8 +229,34 @@ class GameConsumer(AsyncWebsocketConsumer):
                     }
                 )
             
-            # Wait on feedback screen
-            await asyncio.sleep(5)
+            # Send leaderboard to teacher
+            teacher_channel = await self.get_teacher_channel()
+            if teacher_channel:
+                await self.channel_layer.send(teacher_channel, {
+                    'type': 'send_teacher_leaderboard',
+                    'player_results': feedback_data['player_results'],
+                    'current_question': await self.get_current_question_number(),
+                    'total_questions': await self.get_total_questions()
+                })
+            
+            # Wait for teacher to click "Next" - the loop will continue when proceed_to_next_question is called
+            return
+
+    async def send_teacher_leaderboard(self, event):
+        """Sends leaderboard data to the teacher."""
+        await self.send(text_data=json.dumps({
+            'type': 'teacher_leaderboard',
+            'player_results': event['player_results'],
+            'current_question': event['current_question'],
+            'total_questions': event['total_questions']
+        }))
+
+    async def proceed_to_next_question(self):
+        game = await self.get_game()
+        if game.is_active and not game.is_completed:
+            await self.increment_question_number()
+            # Continue the game loop by calling it again
+            await self.game_loop()
 
     async def end_game(self):
         game = await self.get_game()
@@ -249,7 +282,7 @@ class GameConsumer(AsyncWebsocketConsumer):
     async def broadcast_question(self, event):
         question_data = event['question_data']
         await self.send(text_data=json.dumps({
-            'type': 'new_question',
+            'type': 'show_question',
             'question_id': question_data['id'],
             'question_text': question_data['question_text'],
             'answers': question_data['answers'],
@@ -303,14 +336,56 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     async def show_question(self, event):
         """Sends question data to the client after being broadcast to the group."""
+        question_data = event['question_data']
         await self.send(text_data=json.dumps({
-            'type': 'new_question',
-            'question_id': event['question_id'],
-            'question_text': event['question_text'],
-            'answers': event['answers'],
-            'time_limit': event['time_limit'],
-            'current_question': event['current_question'],
-            'total_questions': event['total_questions'],
+            'type': 'show_question',
+            'question_id': question_data['id'],
+            'question_text': question_data['question_text'],
+            'answers': question_data['answers'],
+            'time_limit': question_data['time_limit'],
+            'current_question': question_data['current_question'],
+            'total_questions': question_data['total_questions'],
+        }))
+
+    async def handle_host_disconnect(self):
+        """Handle teacher disconnection by ending the game and kicking all students."""
+        try:
+            # Mark the game as completed
+            await self.set_game_completed()
+            
+            # Get final scores for the game summary
+            final_scores = await self.get_final_scores()
+            
+            # Notify all remaining players that the game has ended due to host disconnect
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'host_disconnected',
+                    'message': 'The teacher has left the game. The test has been ended.',
+                    'scores': final_scores
+                }
+            )
+            
+            # Send final game results to all players
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_over',
+                    'scores': final_scores,
+                    'reason': 'host_disconnect'
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling host disconnect for game {self.room_code}: {e}")
+
+    async def host_disconnected(self, event):
+        """Handle host disconnection event - notify client and redirect."""
+        await self.send(text_data=json.dumps({
+            'type': 'host_disconnected',
+            'message': event['message'],
+            'scores': event.get('scores', []),
+            'redirect': True
         }))
 
     # --- Database Helpers (must be @database_sync_to_async) ---
@@ -427,6 +502,13 @@ class GameConsumer(AsyncWebsocketConsumer):
         game = Game.objects.get(code=self.room_code)
         game.current_question_number += 1
         game.save()
+        return game
+
+    @database_sync_to_async
+    def get_current_question_number(self):
+        """Gets the current question number without incrementing it."""
+        game = Game.objects.get(code=self.room_code)
+        return game.current_question_number
 
     @database_sync_to_async
     def set_game_completed(self):
@@ -442,12 +524,21 @@ class GameConsumer(AsyncWebsocketConsumer):
                 game.current_question_number += 1
                 game.save()
 
-            question = Question.objects.filter(quiz=game.quiz).order_by('order').all()[game.current_question_number - 1]
-
-            if not question:
+            if game.current_question_number <= 0:
                 return None
 
+            questions = list(Question.objects.filter(quiz=game.quiz).order_by('order'))
+            
+            if not questions or game.current_question_number > len(questions):
+                return None
+
+            question = questions[game.current_question_number - 1]
+
             answers = list(question.answers.all())
+            if not answers:
+                logger.error(f"Question {question.id} has no answers")
+                return None
+                
             random.shuffle(answers)
 
             return {
@@ -456,7 +547,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 'answers': [{'id': a.id, 'text': a.text} for a in answers],
                 'time_limit': question.time_limit,
                 'current_question': game.current_question_number,
-                'total_questions': game.quiz.questions.count()
+                'total_questions': len(questions)
             }
         except (Game.DoesNotExist, IndexError, Question.DoesNotExist) as e:
             logger.error(f"Could not retrieve question for game {self.room_code}: {e}")
@@ -591,3 +682,28 @@ class GameConsumer(AsyncWebsocketConsumer):
             'is_host': game.host == player.user,
             'avatar_url': None  # Placeholder
         }
+
+    @database_sync_to_async
+    def get_correct_answer(self, question_id):
+        try:
+            return Answer.objects.get(question_id=question_id, is_correct=True)
+        except Answer.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def get_total_questions(self):
+        game = Game.objects.get(code=self.room_code)
+        return game.quiz.questions.count()
+
+    @database_sync_to_async
+    def get_player_by_id(self, player_id):
+        try:
+            return GamePlayer.objects.get(id=player_id)
+        except GamePlayer.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def get_teacher_channel(self):
+        game = Game.objects.get(code=self.room_code)
+        teacher_player = GamePlayer.objects.get(game=game, user=game.host)
+        return self.player_channels.get(teacher_player.id)

@@ -85,19 +85,133 @@
     .screen { display: none; }
     .screen.active { display: flex; flex-direction: column; height: 100%; }
     .answer-card.correct {
-        border: 2px solid #0f0;
+        border: 4px solid #00ff00 !important;
+        background-color: rgba(0, 255, 0, 0.2) !important;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
     }
     .answer-card.incorrect {
-        border: 2px solid #f00;
+        border: 4px solid #ff0000 !important;
+        background-color: rgba(255, 0, 0, 0.2) !important;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
     }
     .answer-card.selected {
-        border: 2px solid #00f;
+        border: 4px solid #0066ff !important;
+        background-color: rgba(0, 102, 255, 0.2) !important;
+        box-shadow: 0 0 20px rgba(0, 102, 255, 0.5);
+        transform: scale(1.05);
+    }
+    .answer-card.submitted {
+        border: 4px solid #ffaa00 !important;
+        background-color: rgba(255, 170, 0, 0.2) !important;
+        box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1.05); }
+        50% { transform: scale(1.08); }
+        100% { transform: scale(1.05); }
+    }
+    @keyframes feedbackPop {
+        0% { transform: scale(0); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
     }
     .leaderboard-item {
         display: flex;
         justify-content: space-between;
         padding: 0.5rem;
         border-bottom: 1px solid #ddd;
+    }
+    
+    #feedback-screen {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 2rem;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    #feedback-content {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    #feedback-content h2 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    #feedback-content p {
+        font-size: 1.5rem;
+        margin: 0.5rem 0;
+        font-weight: bold;
+    }
+    
+    #feedback-leaderboard-container {
+        background: rgba(255, 255, 255, 0.95);
+        color: #333;
+        border-radius: 15px;
+        padding: 1.5rem;
+        max-width: 500px;
+        margin: 0 auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    #feedback-leaderboard-container h3 {
+        margin-top: 0;
+        color: #333;
+        font-size: 1.8rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    #teacher-leaderboard-screen {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 2rem;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    #teacher-leaderboard {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border-radius: 15px;
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    #teacher-leaderboard h2 {
+        margin-top: 0;
+        color: #333;
+        font-size: 2.5rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    #next-question-btn {
+        background-color: #4CAF50;
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1.5rem;
+        margin: 2rem auto;
+        display: none;
+    }
+    
+    #next-question-btn:hover {
+        background-color: #3e8e41;
     }
 </style>
 
@@ -133,6 +247,14 @@
     <div id="feedback-leaderboard-container">
         <h3>Leaderboard</h3>
         <div id="feedback-leaderboard"></div>
+    </div>
+</div>
+
+<div id="teacher-leaderboard-screen" class="screen">
+    <div id="teacher-leaderboard">
+        <h2 id="teacher-leaderboard-header">Question Results</h2>
+        <div id="teacher-leaderboard-content"></div>
+        <button id="next-question-btn" onclick="gameClient.nextQuestion()">Next Question</button>
     </div>
 </div>
 
@@ -177,7 +299,11 @@ document.addEventListener('DOMContentLoaded', function() {
             feedbackLeaderboard: document.getElementById('feedback-leaderboard'),
             finalScores: document.getElementById('final-scores'),
             finalLeaderboard: document.getElementById('final-leaderboard'),
-            playAgainBtn: document.querySelector('.btn-primary')
+            playAgainBtn: document.querySelector('.btn-primary'),
+            teacherLeaderboard: document.getElementById('teacher-leaderboard'),
+            teacherLeaderboardHeader: document.getElementById('teacher-leaderboard-header'),
+            teacherLeaderboardContent: document.getElementById('teacher-leaderboard-content'),
+            nextQuestionBtn: document.getElementById('next-question-btn')
         },
 
         init: function() {
@@ -214,10 +340,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/');
             this.socket.onopen = () => this.sendMessage('player_ready');
-            this.socket.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                if (data.type && this[`handle_${data.type}`]) {
-                    this[`handle_${data.type}`](data);
+            this.socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message received:', data);
+
+                switch (data.type) {
+                    case 'show_question':
+                        this.handle_show_question(data);
+                        break;
+                    case 'show_feedback':
+                        this.handle_show_feedback(data);
+                        break;
+                    case 'immediate_feedback':
+                        this.handle_immediate_feedback(data);
+                        break;
+                    case 'teacher_leaderboard':
+                        this.handle_teacher_leaderboard(data);
+                        break;
+                    case 'game_over':
+                        this.handle_game_over(data);
+                        break;
+                    default:
+                        console.log('Unknown message type:', data.type);
                 }
             };
         },
@@ -227,39 +371,117 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         handle_show_question: function(data) {
+            console.log('Showing question:', data); // Debug log
+            
+            // Ensure we're on the play screen
             this.switchScreen('play-screen');
-            this.elements.questionText.textContent = data.question_text;
-            this.elements.questionCounter.textContent = `Question ${data.current_question} of ${data.total_questions}`;
+            
+            // Clear any previous feedback states
+            this.answerSubmitted = false;
+            
+            // Set question text and counter
+            if (this.elements.questionText) {
+                this.elements.questionText.textContent = data.question_text || 'Loading question...';
+            }
+            if (this.elements.questionCounter) {
+                this.elements.questionCounter.textContent = `Question ${data.current_question} of ${data.total_questions}`;
+            }
 
-            this.answerSubmitted = false; 
+            // Hide header for full screen experience
             this.hideHeader(); 
 
-            document.querySelectorAll('.answer-card').forEach(card => {
-                card.classList.remove('correct', 'incorrect', 'selected');
+            // Reset all answer cards to clean state
+            const answerCards = document.querySelectorAll('.answer-card');
+            answerCards.forEach(card => {
+                // Remove all state classes
+                card.classList.remove('correct', 'incorrect', 'selected', 'submitted');
                 card.dataset.selected = 'false';
+                card.style.position = 'relative'; // Ensure relative positioning for icons
+                
+                // Remove any existing feedback icons
+                const existingIcon = card.querySelector('.feedback-icon');
+                if (existingIcon) {
+                    existingIcon.remove();
+                }
+                
+                // Reset any inline styles
+                card.style.transform = '';
+                card.style.border = '';
+                card.style.backgroundColor = '';
+                card.style.boxShadow = '';
             });
 
-            const answerCards = this.elements.answerGrid.querySelectorAll('.answer-card');
-            answerCards.forEach((card, index) => {
-                const answer = data.answers[index];
-                card.querySelector('.text').textContent = answer.text;
-                card.dataset.answerId = answer.id;
-            });
+            // Set up answer options with validation
+            if (data.answers && Array.isArray(data.answers) && data.answers.length > 0) {
+                answerCards.forEach((card, index) => {
+                    if (index < data.answers.length) {
+                        const answer = data.answers[index];
+                        const textElement = card.querySelector('.text');
+                        if (textElement && answer) {
+                            textElement.textContent = answer.text || `Answer ${index + 1}`;
+                        }
+                        card.dataset.answerId = answer.id || index;
+                        card.style.display = 'flex'; // Show the card
+                        card.style.visibility = 'visible';
+                    } else {
+                        // Hide unused cards
+                        card.style.display = 'none';
+                        card.style.visibility = 'hidden';
+                    }
+                });
+            } else {
+                console.error('No valid answers provided in question data:', data);
+                // Show error state
+                answerCards.forEach((card, index) => {
+                    const textElement = card.querySelector('.text');
+                    if (textElement) {
+                        textElement.textContent = `Option ${index + 1}`;
+                    }
+                    card.style.display = 'flex';
+                });
+            }
 
-            this.startTimer(data.time_limit);
+            // Start the timer with fallback
+            const timeLimit = data.time_limit || 30;
+            this.startTimer(timeLimit);
+            
+            console.log('Question setup complete, timer started for', timeLimit, 'seconds');
         },
 
         handleAnswerClick: function(e) {
             const card = e.target.closest('.answer-card');
-            if (!card || this.answerSubmitted) return;
+            if (!card || this.answerSubmitted) {
+                console.log('Answer click ignored - card:', !!card, 'submitted:', this.answerSubmitted);
+                return;
+            }
 
-            document.querySelectorAll('.answer-card').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
+            console.log('Processing answer click for card:', card.dataset.answerId);
+
+            // Remove previous selections
+            document.querySelectorAll('.answer-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+            
+            // Mark this card as selected and submitted
+            card.classList.add('selected', 'submitted');
             card.dataset.selected = 'true';
 
+            // Disable further clicks
             this.answerSubmitted = true;
-            const answerId = card.dataset.answerId;
-            this.socket.send(JSON.stringify({ type: 'submit_answer', answer_id: answerId }));
+
+            // Submit the answer
+            const answerId = parseInt(card.dataset.answerId);
+            console.log('Submitting answer:', answerId);
+            
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.socket.send(JSON.stringify({ 
+                    type: 'submit_answer', 
+                    answer_id: answerId 
+                }));
+                console.log('Answer submitted successfully');
+            } else {
+                console.error('WebSocket not ready, cannot submit answer');
+            }
         },
 
         startTimer: function(duration) {
@@ -281,42 +503,264 @@ document.addEventListener('DOMContentLoaded', function() {
         handle_show_feedback: function(data) {
             const result = data.player_result;
 
+            // Clear any existing feedback messages
+            const existingFeedback = document.querySelector('.immediate-feedback');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+
+            // Update feedback text with better styling
             if (!result.answered) {
-                this.elements.feedbackText.textContent = "❌ No answer selected";
+                this.elements.feedbackText.textContent = "⏰ Time's Up! No answer selected";
+                this.elements.feedbackText.style.color = "#ff6b6b";
                 this.elements.feedbackScoreEarned.textContent = "+0 Points";
+                this.elements.feedbackScoreEarned.style.color = "#666";
             } else if (result.is_correct) {
-                this.elements.feedbackText.textContent = "✅ Correct!";
+                this.elements.feedbackText.textContent = "🎉 Correct Answer!";
+                this.elements.feedbackText.style.color = "#51cf66";
                 this.elements.feedbackScoreEarned.textContent = `+${result.score_earned} Points`;
+                this.elements.feedbackScoreEarned.style.color = "#51cf66";
             } else {
-                this.elements.feedbackText.textContent = "❌ Incorrect!";
+                this.elements.feedbackText.textContent = "❌ Incorrect Answer";
+                this.elements.feedbackText.style.color = "#ff6b6b";
                 this.elements.feedbackScoreEarned.textContent = "+0 Points";
+                this.elements.feedbackScoreEarned.style.color = "#666";
             }
             
             this.elements.playerTotalScore.textContent = `Total Score: ${result.score}`;
+            this.elements.playerTotalScore.style.color = "#339af0";
 
+            // Enhanced answer card feedback with animations
             document.querySelectorAll('.answer-card').forEach(card => {
                 const answerId = parseInt(card.dataset.answerId);
-                card.classList.remove('selected'); 
+                card.classList.remove('selected', 'submitted'); 
 
                 if (answerId === data.correct_answer_id) {
                     card.classList.add('correct');
+                    // Add a checkmark to correct answer
+                    if (!card.querySelector('.feedback-icon')) {
+                        const icon = document.createElement('span');
+                        icon.className = 'feedback-icon';
+                        icon.textContent = '✓';
+                        icon.style.cssText = `
+                            position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            font-size: 2rem;
+                            color: #00ff00;
+                            font-weight: bold;
+                        `;
+                        card.style.position = 'relative';
+                        card.appendChild(icon);
+                    }
                 } else if (card.dataset.selected === 'true') {
                     card.classList.add('incorrect');
+                    // Add an X to incorrect selected answer
+                    if (!card.querySelector('.feedback-icon')) {
+                        const icon = document.createElement('span');
+                        icon.className = 'feedback-icon';
+                        icon.textContent = '✗';
+                        icon.style.cssText = `
+                            position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            font-size: 2rem;
+                            color: #ff0000;
+                            font-weight: bold;
+                        `;
+                        card.style.position = 'relative';
+                        card.appendChild(icon);
+                    }
                 }
                 card.dataset.selected = 'false'; 
             });
 
             this.switchScreen('feedback-screen');
 
+            // Enhanced leaderboard display with bigger names
             const leaderboard = this.elements.feedbackLeaderboard;
             leaderboard.innerHTML = ''; 
 
-            data.player_results.forEach(player => {
+            data.player_results.forEach((player, index) => {
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
-                item.innerHTML = `<span>${player.username}</span><span>${player.score}</span>`;
+                item.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 15px 20px;
+                    margin: 8px 0;
+                    border-radius: 12px;
+                    background: ${index < 3 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f8f9fa'};
+                    color: ${index < 3 ? 'white' : '#333'};
+                    font-weight: ${index < 3 ? 'bold' : 'normal'};
+                    border-left: 6px solid ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#ddd'};
+                    font-size: 1.4rem;
+                `;
+                
+                const rank = index + 1;
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${rank}.`;
+                
+                item.innerHTML = `
+                    <span style="font-size: 1.5rem;">${medal} ${player.username}</span>
+                    <span style="font-size: 1.3rem; font-weight: bold;">${player.score} pts</span>
+                `;
                 leaderboard.appendChild(item);
             });
+        },
+
+        handle_immediate_feedback: function(data) {
+            console.log('Received immediate feedback:', data);
+            
+            // Find the selected answer card
+            const selectedCard = document.querySelector(`[data-answer-id="${data.selected_answer_id}"]`);
+            if (!selectedCard) {
+                console.error('Could not find selected answer card with ID:', data.selected_answer_id);
+                return;
+            }
+
+            // Remove the submitted state but keep it selected
+            selectedCard.classList.remove('submitted');
+            selectedCard.classList.add('selected');
+
+            // Apply correct or incorrect styling
+            if (data.is_correct) {
+                selectedCard.classList.add('correct');
+                selectedCard.classList.remove('incorrect');
+                
+                // Add checkmark icon
+                this.addFeedbackIcon(selectedCard, '✓', '#00ff00', 'Correct!');
+                
+                console.log('Answer is correct! Score earned:', data.score_earned);
+            } else {
+                selectedCard.classList.add('incorrect');
+                selectedCard.classList.remove('correct');
+                
+                // Add X mark icon
+                this.addFeedbackIcon(selectedCard, '✗', '#ff0000', 'Incorrect');
+                
+                console.log('Answer is incorrect');
+            }
+
+            // Show a brief text feedback
+            this.showFeedbackText(data.is_correct ? 'Correct!' : 'Incorrect', data.is_correct);
+        },
+
+        addFeedbackIcon: function(card, icon, color, title) {
+            // Remove any existing feedback icon
+            const existingIcon = card.querySelector('.feedback-icon');
+            if (existingIcon) {
+                existingIcon.remove();
+            }
+
+            // Create new feedback icon
+            const feedbackIcon = document.createElement('span');
+            feedbackIcon.className = 'feedback-icon';
+            feedbackIcon.textContent = icon;
+            feedbackIcon.title = title;
+            feedbackIcon.style.cssText = `
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                font-size: 2.5rem;
+                color: ${color};
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+                z-index: 10;
+                animation: feedbackPop 0.3s ease-out;
+            `;
+
+            // Ensure card has relative positioning
+            card.style.position = 'relative';
+            card.appendChild(feedbackIcon);
+        },
+
+        showFeedbackText: function(text, isCorrect) {
+            // Create or update feedback text overlay
+            let feedbackOverlay = document.getElementById('feedback-text-overlay');
+            if (!feedbackOverlay) {
+                feedbackOverlay = document.createElement('div');
+                feedbackOverlay.id = 'feedback-text-overlay';
+                feedbackOverlay.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 20px 40px;
+                    border-radius: 10px;
+                    font-size: 2rem;
+                    font-weight: bold;
+                    z-index: 1000;
+                    text-align: center;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+                document.body.appendChild(feedbackOverlay);
+            }
+
+            // Update content and color
+            feedbackOverlay.textContent = text;
+            feedbackOverlay.style.borderLeft = `5px solid ${isCorrect ? '#00ff00' : '#ff0000'}`;
+            
+            // Show with animation
+            feedbackOverlay.style.opacity = '1';
+            
+            // Hide after 2 seconds
+            setTimeout(() => {
+                feedbackOverlay.style.opacity = '0';
+            }, 2000);
+        },
+
+        handle_teacher_leaderboard: function(data) {
+            // Show teacher leaderboard with Next button
+            this.switchScreen('teacher-leaderboard-screen');
+            
+            const leaderboard = this.elements.teacherLeaderboardContent;
+            leaderboard.innerHTML = '';
+            
+            // Add header
+            this.elements.teacherLeaderboardHeader.textContent = `Question ${data.current_question} Results`;
+            
+            // Add leaderboard items
+            data.player_results.forEach((player, index) => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 20px 30px;
+                    margin: 10px 0;
+                    border-radius: 15px;
+                    background: ${index < 3 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255, 255, 255, 0.9)'};
+                    color: ${index < 3 ? 'white' : '#333'};
+                    font-weight: bold;
+                    border-left: 8px solid ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#ddd'};
+                    font-size: 1.8rem;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                `;
+                
+                const rank = index + 1;
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${rank}.`;
+                
+                item.innerHTML = `
+                    <span style="font-size: 2rem;">${medal} ${player.username}</span>
+                    <span style="font-size: 1.6rem;">${player.score} pts</span>
+                `;
+                leaderboard.appendChild(item);
+            });
+            
+            // Show Next button if not the last question
+            if (data.current_question < data.total_questions) {
+                this.elements.nextQuestionBtn.style.display = 'block';
+                this.elements.nextQuestionBtn.textContent = 'Next Question';
+            } else {
+                this.elements.nextQuestionBtn.style.display = 'block';
+                this.elements.nextQuestionBtn.textContent = 'End Game';
+            }
+        },
+
+        nextQuestion: function() {
+            this.socket.send(JSON.stringify({ type: 'next_question' }));
         },
 
         handle_game_over: function(data) {
