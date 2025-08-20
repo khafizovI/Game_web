@@ -1,0 +1,113 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h3 class="mb-0 text-center">
+                        <i class="fas fa-envelope-open-text me-2"></i>
+                        {% trans "Email Verification" %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="verification-icon mb-3">
+                            <i class="fas fa-shield-alt text-info" style="font-size: 3rem;"></i>
+                        </div>
+                        <p class="text-muted">
+                            We've sent a 6-digit verification code to:<br>
+                            <strong>{{ user.email }}</strong>
+                        </p>
+                        <p class="small text-muted">
+                            Please check your email and enter the code below to complete your registration.
+                        </p>
+                    </div>
+
+                    <form method="post" action="{% url 'accounts:verify_email' %}">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-4">
+                            <label for="{{ form.code.id_for_label }}" class="form-label text-center d-block">
+                                {% trans "Verification Code" %}
+                            </label>
+                            {{ form.code }}
+                            {% for error in form.code.errors %}
+                                <div class="invalid-feedback d-block text-center">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text text-center">
+                                Enter the 6-digit code sent to your email
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-info btn-lg">
+                                <i class="fas fa-check-circle me-2"></i>
+                                {% trans "Verify Email" %}
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted small">Didn't receive the code?</p>
+                        <form method="post" action="{% url 'accounts:verify_email' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" name="resend_code" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-redo me-1"></i>
+                                {% trans "Resend Code" %}
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Code expires in 10 minutes
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'accounts:register' %}" class="text-muted">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Back to Registration
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.verification-icon {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.form-control:focus {
+    border-color: #17a2b8;
+    box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+}
+</style>
+{% endblock %}

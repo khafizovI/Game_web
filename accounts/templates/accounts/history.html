@@ -1,42 +1,651 @@
 {% extends 'base/base.html' %}
 {% load i18n %}
 
-{% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">{% trans "Hosted Game History" %}</h2>
+{% block title %}{% trans "Teacher History" %}{% endblock %}
 
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 fw-bold text-primary mb-2">
+                        <i class="fas fa-history me-3"></i>{% trans "Teaching History" %}
+                    </h1>
+                    <p class="text-muted mb-0">{% trans "Comprehensive overview of your hosted games and student performance" %}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success" onclick="exportAllData()">
+                        <i class="fas fa-download me-2"></i>{% trans "Export All" %}
+                    </button>
+                    <a href="{% url 'accounts:dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Dashboard" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
     {% if hosted_games_history %}
-        <div class="accordion" id="hostedHistoryAccordion">
-            {% for game in hosted_games_history %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-history-{{ forloop.counter }}">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-history-{{ forloop.counter }}" aria-expanded="false" aria-controls="collapse-history-{{ forloop.counter }}">
-                            {{ game.quiz_title }}
-                        </button>
-                    </h2>
-                    <div id="collapse-history-{{ forloop.counter }}" class="accordion-collapse collapse" aria-labelledby="heading-history-{{ forloop.counter }}" data-bs-parent="#hostedHistoryAccordion">
-                        <div class="accordion-body">
-                            <ul class="list-group">
-                                {% for stats in game.players_stats %}
-                                    <li class="list-group-item">
-                                        <p class="mb-1">{{ stats.username }}</p>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ stats.correct_percentage }}%;" aria-valuenow="{{ stats.correct_percentage }}" aria-valuemin="0" aria-valuemax="100">
-                                                {{ stats.correct_percentage }}% Correct
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary">
+                <div class="stat-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_games }}</h3>
+                    <p>{% trans "Total Games" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_students }}</h3>
+                    <p>{% trans "Students Taught" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ hosted_games_history|length }}</h3>
+                    <p>{% trans "Completed Games" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ hosted_games_history.0.date|date:"M" }}</h3>
+                    <p>{% trans "Latest Activity" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Games History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0 text-dark fw-semibold">
+                        <i class="fas fa-list-alt me-2"></i>{% trans "Game History" %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% for game in hosted_games_history %}
+                    <div class="game-card" data-game-id="{{ game.id }}">
+                        <div class="game-header" data-bs-toggle="collapse" data-bs-target="#game-{{ forloop.counter }}" aria-expanded="false">
+                            <div class="game-info">
+                                <div class="game-title">
+                                    <h6 class="mb-1 fw-bold">{{ game.quiz_title }}</h6>
+                                    <div class="game-meta">
+                                        <span class="badge bg-light text-dark me-2">
+                                            <i class="fas fa-code me-1"></i>{{ game.game_code }}
+                                        </span>
+                                        <span class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>{{ game.date|date:"M d, Y" }}
+                                        </span>
+                                        <span class="text-muted ms-3">
+                                            <i class="fas fa-clock me-1"></i>{{ game.date|date:"H:i" }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="game-stats">
+                                    <div class="stat-item">
+                                        <span class="stat-value">{{ game.total_players }}</span>
+                                        <span class="stat-label">{% trans "Players" %}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value">{{ game.total_questions }}</span>
+                                        <span class="stat-label">{% trans "Questions" %}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value">{{ game.average_percentage }}%</span>
+                                        <span class="stat-label">{% trans "Avg Score" %}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="game-actions">
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="exportGameData({{ game.id }}, '{{ game.quiz_title }}', event)">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <i class="fas fa-chevron-down expand-icon"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="collapse" id="game-{{ forloop.counter }}">
+                            <div class="game-details">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="fas fa-trophy me-2"></i>{% trans "Student Rankings" %}
+                                        </h6>
+                                        <div class="rankings-list">
+                                            {% for player in game.players_stats %}
+                                            <div class="ranking-item">
+                                                <div class="rank-badge rank-{{ player.rank_class }}">
+                                                    {% if player.rank == 1 %}
+                                                        <i class="fas fa-crown"></i>
+                                                    {% elif player.rank == 2 %}
+                                                        <i class="fas fa-medal"></i>
+                                                    {% elif player.rank == 3 %}
+                                                        <i class="fas fa-award"></i>
+                                                    {% else %}
+                                                        {{ player.rank }}
+                                                    {% endif %}
+                                                </div>
+                                                <div class="player-info">
+                                                    <div class="player-name">{{ player.username }}</div>
+                                                    <div class="player-stats-mini">
+                                                        <span>{{ player.correct_answers }}/{{ player.total_questions }} correct</span>
+                                                    </div>
+                                                </div>
+                                                <div class="player-score">
+                                                    <div class="score-value">{{ player.score }}</div>
+                                                    <div class="score-percentage">{{ player.correct_percentage }}%</div>
+                                                </div>
+                                                <div class="progress-container">
+                                                    <div class="progress">
+                                                        <div class="progress-bar progress-bar-{{ player.rank_class }}" 
+                                                             style="width: {{ player.correct_percentage }}%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h6 class="fw-semibold mb-3">
+                                            <i class="fas fa-chart-pie me-2"></i>{% trans "Game Statistics" %}
+                                        </h6>
+                                        <div class="stats-grid">
+                                            <div class="mini-stat">
+                                                <div class="mini-stat-icon bg-primary">
+                                                    <i class="fas fa-users"></i>
+                                                </div>
+                                                <div class="mini-stat-content">
+                                                    <div class="mini-stat-value">{{ game.total_players }}</div>
+                                                    <div class="mini-stat-label">{% trans "Participants" %}</div>
+                                                </div>
+                                            </div>
+                                            <div class="mini-stat">
+                                                <div class="mini-stat-icon bg-success">
+                                                    <i class="fas fa-percentage"></i>
+                                                </div>
+                                                <div class="mini-stat-content">
+                                                    <div class="mini-stat-value">{{ game.average_percentage }}%</div>
+                                                    <div class="mini-stat-label">{% trans "Average Score" %}</div>
+                                                </div>
+                                            </div>
+                                            <div class="mini-stat">
+                                                <div class="mini-stat-icon bg-info">
+                                                    <i class="fas fa-star"></i>
+                                                </div>
+                                                <div class="mini-stat-content">
+                                                    <div class="mini-stat-value">{{ game.average_score }}</div>
+                                                    <div class="mini-stat-label">{% trans "Average Points" %}</div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </li>
-                                {% empty %}
-                                    <li class="list-group-item">{% trans "No player data available for this game." %}</li>
-                                {% endfor %}
-                            </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-            {% endfor %}
+            </div>
         </div>
+    </div>
     {% else %}
-        <p class="text-muted">{% trans "You have no completed games in your history." %}</p>
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col-12">
+            <div class="empty-state text-center py-5">
+                <div class="empty-icon mb-4">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h3 class="text-muted mb-3">{% trans "No Game History Yet" %}</h3>
+                <p class="text-muted mb-4">{% trans "Start hosting games to see your teaching history and student performance analytics." %}</p>
+                <a href="{% url 'quiz:browse' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-gamepad me-2"></i>{% trans "Host Your First Game" %}
+                </a>
+            </div>
+        </div>
+    </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Main Layout */
+    .container-fluid {
+        max-width: 1400px;
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: linear-gradient(135deg, var(--bs-primary), var(--bs-primary-dark, #0056b3));
+        border-radius: 16px;
+        padding: 24px;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 20px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .stat-card.bg-success { background: linear-gradient(135deg, #28a745, #1e7e34); }
+    .stat-card.bg-info { background: linear-gradient(135deg, #17a2b8, #117a8b); }
+    .stat-card.bg-warning { background: linear-gradient(135deg, #ffc107, #d39e00); }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+
+    .stat-content h3 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .stat-content p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+
+    /* Game Cards */
+    .game-card {
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .game-card:hover {
+        background-color: #f8f9fa;
+    }
+
+    .game-header {
+        padding: 20px 24px;
+        cursor: pointer;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .game-info {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .game-title h6 {
+        color: #2c3e50;
+        font-size: 1.1rem;
+    }
+
+    .game-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .game-stats {
+        display: flex;
+        gap: 24px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    .game-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .expand-icon {
+        color: #6c757d;
+        transition: transform 0.3s ease;
+    }
+
+    .game-header[aria-expanded="true"] .expand-icon {
+        transform: rotate(180deg);
+    }
+
+    /* Game Details */
+    .game-details {
+        padding: 0 24px 24px;
+        background-color: #fafbfc;
+        border-top: 1px solid #e9ecef;
+    }
+
+    /* Rankings */
+    .rankings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .ranking-item:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .rank-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: white;
+    }
+
+    .rank-badge.rank-gold {
+        background: linear-gradient(135deg, #ffd700, #ffb300);
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    }
+
+    .rank-badge.rank-silver {
+        background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+        box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+    }
+
+    .rank-badge.rank-bronze {
+        background: linear-gradient(135deg, #cd7f32, #b8860b);
+        box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+    }
+
+    .rank-badge.rank-default {
+        background: linear-gradient(135deg, #6c757d, #495057);
+    }
+
+    .player-info {
+        flex: 1;
+    }
+
+    .player-name {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+
+    .player-stats-mini {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    .player-score {
+        text-align: right;
+        margin-right: 16px;
+    }
+
+    .score-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+    }
+
+    .score-percentage {
+        font-size: 0.85rem;
+        color: #28a745;
+        margin-top: 2px;
+    }
+
+    .progress-container {
+        width: 120px;
+    }
+
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar-gold { background: linear-gradient(90deg, #ffd700, #ffb300); }
+    .progress-bar-silver { background: linear-gradient(90deg, #c0c0c0, #a0a0a0); }
+    .progress-bar-bronze { background: linear-gradient(90deg, #cd7f32, #b8860b); }
+    .progress-bar-default { background: linear-gradient(90deg, #6c757d, #495057); }
+
+    /* Mini Stats */
+    .stats-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .mini-stat {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .mini-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+
+    .mini-stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+    }
+
+    .mini-stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: 80px 20px;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .game-info {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .game-stats {
+            gap: 16px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+        }
+
+        .ranking-item {
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .progress-container {
+            width: 100%;
+        }
+
+        .stats-grid {
+            margin-top: 20px;
+        }
+    }
+
+    /* Animation */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .game-card {
+        animation: slideIn 0.5s ease forwards;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Export functionality
+    function exportGameData(gameId, gameTitle, event) {
+        event.stopPropagation();
+        
+        // Find the game data
+        const gameCard = document.querySelector(`[data-game-id="${gameId}"]`);
+        const rankings = gameCard.querySelectorAll('.ranking-item');
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += `Game: ${gameTitle}\n`;
+        csvContent += "Rank,Student Name,Score,Correct Answers,Total Questions,Percentage\n";
+        
+        rankings.forEach(ranking => {
+            const rank = ranking.querySelector('.rank-badge').textContent.trim();
+            const name = ranking.querySelector('.player-name').textContent.trim();
+            const score = ranking.querySelector('.score-value').textContent.trim();
+            const percentage = ranking.querySelector('.score-percentage').textContent.trim();
+            const stats = ranking.querySelector('.player-stats-mini').textContent.trim();
+            
+            // Extract correct answers and total questions from stats
+            const [correct, total] = stats.match(/(\d+)\/(\d+)/).slice(1);
+            
+            csvContent += `${rank},${name},${score},${correct},${total},${percentage}\n`;
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${gameTitle.replace(/[^a-z0-9]/gi, '_')}_results.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    function exportAllData() {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Game Title,Game Code,Date,Student Name,Rank,Score,Correct Answers,Total Questions,Percentage\n";
+        
+        document.querySelectorAll('.game-card').forEach(gameCard => {
+            const gameTitle = gameCard.querySelector('.game-title h6').textContent.trim();
+            const gameCode = gameCard.querySelector('.badge').textContent.trim().replace('', '');
+            const gameDate = gameCard.querySelector('.game-meta .text-muted').textContent.trim().replace('', '');
+            
+            gameCard.querySelectorAll('.ranking-item').forEach(ranking => {
+                const rank = ranking.querySelector('.rank-badge').textContent.trim();
+                const name = ranking.querySelector('.player-name').textContent.trim();
+                const score = ranking.querySelector('.score-value').textContent.trim();
+                const percentage = ranking.querySelector('.score-percentage').textContent.trim();
+                const stats = ranking.querySelector('.player-stats-mini').textContent.trim();
+                
+                const [correct, total] = stats.match(/(\d+)\/(\d+)/).slice(1);
+                
+                csvContent += `"${gameTitle}","${gameCode}","${gameDate}","${name}",${rank},${score},${correct},${total},"${percentage}"\n`;
+            });
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "teaching_history_complete.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    // Add smooth animations
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate stat cards
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+        
+        // Animate game cards
+        const gameCards = document.querySelectorAll('.game-card');
+        gameCards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+    });
+</script>
 {% endblock %}

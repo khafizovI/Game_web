@@ -37,17 +37,27 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'home' %}">Home</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'quiz:browse' %}">{% trans "Browse Quizzes" %}</a>
-                    </li>
                     {% if user.is_authenticated %}
                         {% if user.profile.role == 'teacher' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'quiz:browse' %}">{% trans "Browse Quizzes" %}</a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'quiz:create' %}">{% trans "Create Quiz" %}</a>
                         </li>
                         {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'game:join' %}">{% trans "Join Game" %}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:student_dashboard' %}">
+                                <i class="fas fa-tachometer-alt me-1"></i>{% trans "Dashboard" %}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:shop' %}">
+                                <i class="fas fa-shopping-cart me-1"></i>{% trans "Shop" %}
+                            </a>
                         </li>
                         {% endif %}
                         <li class="nav-item dropdown">
@@ -60,9 +70,15 @@
                                 {{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                {% if user.profile.role == 'student' %}
+                                <li><a class="dropdown-item" href="{% url 'accounts:student_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:shop' %}"><i class="fas fa-shopping-cart me-2"></i>Shop</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% else %}
                                 <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="fas fa-user-circle me-2"></i>My Profile</a></li>
                                 <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}"><i class="fas fa-edit me-2"></i>Edit Profile</a></li>
                                 <li><hr class="dropdown-divider"></li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{% url 'accounts:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                             </ul>
                         </li>

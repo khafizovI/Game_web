@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from .models import Quiz, Question, Answer
 from game.models import Game, GamePlayer
-from django.db.models import Sum, Avg
+from django.db.models import Sum, Avg, Count
 import json
 import re
 from quizgame.moderation import check_and_flag_content, is_ip_blocked
@@ -14,16 +14,49 @@ import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 
 from .utils.ai_quiz_generator import generate_quiz_from_topic
+from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 # Quiz Management Views
+@login_required
 def browse_quizzes(request):
-    """View for browsing all quizzes"""
+    """View for browsing all quizzes - Teachers only"""
+    # Redirect students to join game page
+    if not request.user.profile.is_teacher:
+        return redirect('game:join')
+    
+    # Get search query if provided
+    search_query = request.GET.get('search', '').strip()
+    
+    # Base queryset with annotations
     quizzes = Quiz.objects.annotate(
-        total_points=Sum('questions__points')
-    ).order_by('-created_at')
+        total_points=Sum('questions__points'),
+        question_count=Count('questions')
+    ).select_related('created_by__profile')
+    
+    # Apply search filter if provided
+    if search_query:
+        quizzes = quizzes.filter(
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(created_by__username__icontains=search_query)
+        )
+    
+    # Order by creation date (newest first)
+    quizzes = quizzes.order_by('-created_at')
+    
+    # Get statistics for the teacher
+    total_quizzes = Quiz.objects.count()
+    user_quizzes = Quiz.objects.filter(created_by=request.user).count()
+    recent_quizzes = Quiz.objects.filter(created_at__gte=timezone.now() - timedelta(days=7)).count()
 
     context = {
         'quizzes': quizzes,
+        'search_query': search_query,
+        'total_quizzes': total_quizzes,
+        'user_quizzes': user_quizzes,
+        'recent_quizzes': recent_quizzes,
     }
     return render(request, 'quiz/browse.html', context)
 

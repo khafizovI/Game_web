@@ -1,0 +1,96 @@
+/* STYLING FOR THE GAME LOBBY AND PLAY SCREENS */
+
+/* Game Container */
+.game-player-container, .game-lobby-container {
+    height: calc(100vh - 80px); /* Full viewport height minus navbar */
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: #fff;
+    padding: 20px;
+}
+
+/* Game Display Area */
+.game-display {
+    width: 100%;
+    max-width: 800px;
+    margin: auto;
+}
+
+.game-screen {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Answer Grid */
+.answer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.answer-card-container .answer-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 1.1rem;
+    color: #fff;
+}
+
+.answer-card-container .answer-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.answer-card.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Game HUD */
+.game-hud {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0,0,0,0.3);
+    padding: 10px 20px;
+}
+
+.timer-bar-container {
+    height: 10px;
+    background-color: rgba(255,255,255,0.2);
+}
+
+#timer-bar {
+    height: 10px;
+    background-color: #4caf50; /* Green */
+    transition: width 1s linear, background-color 0.5s;
+}
+
+/* Feedback Screen */
+#feedback-screen h2 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+/* Lobby Specific */
+.lobby-player-list {
+    list-style: none;
+    padding: 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.lobby-player-list li {
+    background-color: rgba(255,255,255,0.1);
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}

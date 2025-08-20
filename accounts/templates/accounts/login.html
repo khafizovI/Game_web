@@ -40,26 +40,6 @@
                             {% endfor %}
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label d-block">{% trans "Login as" %}:</label>
-                            {% for error in form.role.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                            <div class="role-selection">
-                                {% for radio in form.role %}
-                                <div class="form-check form-check-inline">
-                                    {{ radio.tag }}
-                                    <label class="form-check-label" for="{{ radio.id_for_label }}">
-                                        <div class="role-icon {{ radio.choice_label|lower }}">
-                                            <i class="fas fa-{% if radio.choice_label == 'Student' %}user-graduate{% else %}chalkboard-teacher{% endif %}"></i>
-                                        </div>
-                                        {{ radio.choice_label }}
-                                    </label>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">{% trans "Log In" %}</button>
                         </div>

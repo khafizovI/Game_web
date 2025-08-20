@@ -1,0 +1,1714 @@
+/* Student Dashboard Styles */
+:root {
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
+    --accent-color: #f093fb;
+    --success-color: #4ecdc4;
+    --warning-color: #ffe66d;
+    --danger-color: #ff6b6b;
+    --dark-color: #2c3e50;
+    --light-color: #f8f9fa;
+    --border-radius: 15px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    --gradient-accent: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+}
+
+.dashboard-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding-bottom: 2rem;
+}
+
+/* Header Section */
+.dashboard-header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.user-welcome {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.user-avatar-container {
+    position: relative;
+}
+
+.user-avatar, .default-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.default-avatar {
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+}
+
+/* Avatar Frames */
+.avatar-frame {
+    position: relative;
+    display: inline-block;
+    padding: 5px;
+    border-radius: 50%;
+    width: fit-content;
+    height: fit-content;
+}
+
+.avatar-frame.golden-frame {
+    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.avatar-frame.silver-frame {
+    background: linear-gradient(45deg, #c0c0c0, #e8e8e8, #c0c0c0);
+    box-shadow: 0 0 20px rgba(192, 192, 192, 0.5);
+}
+
+.avatar-frame.rainbow-frame {
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    animation: rainbow-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes rainbow-glow {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.default-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+}
+
+.user-info {
+    color: white;
+}
+
+.welcome-text {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.username {
+    color: white;
+    font-weight: 700;
+}
+
+.user-level {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+}
+
+.level-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--gradient-accent);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    min-width: 120px;
+}
+
+.quick-stats {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: flex-end;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem 1.5rem;
+    border-radius: var(--border-radius);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--gradient-accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    color: white;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Dashboard Content */
+.dashboard-content {
+    padding: 0 0 2rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stat-card-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-card-content p {
+    color: #6c757d;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.dashboard-section.compact {
+    margin-bottom: 20px;
+}
+
+.dashboard-section.compact .section-header h2 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.section-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin: 0;
+}
+
+/* Games List */
+.games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.game-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.game-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.game-info h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.game-details {
+    display: flex;
+    gap: 1rem;
+    margin: 0;
+}
+
+.game-code {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.game-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.game-score {
+    text-align: right;
+}
+
+.score {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--success-color);
+    display: block;
+}
+
+.score-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--gradient-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.action-btn:hover {
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn i {
+    font-size: 1.2rem;
+}
+
+/* Achievements */
+.achievements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.achievement-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.achievement-item.earned {
+    background: linear-gradient(135deg, #4ecdc4, #44a08d);
+    border-color: #4ecdc4;
+    color: white;
+}
+
+.achievement-item.available {
+    border-left: 4px solid #64b5f6;
+}
+
+.achievement-item.game {
+    border-left: 4px solid #FF9800;
+}
+
+.achievement-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.achievement-item.earned .achievement-icon {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.achievement-item:not(.earned) .achievement-icon {
+    background: #e9ecef;
+    color: #6c757d;
+}
+
+.achievement-info {
+    flex: 1;
+}
+
+.achievement-info h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.achievement-info p {
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    line-height: 1.3;
+}
+
+.earned-date {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.achievement-reward {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.no-achievements {
+    text-align: center;
+    padding: 30px 20px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.no-achievements i {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #64b5f6;
+}
+
+.no-achievements p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Collection Section */
+.collection-category {
+    margin-bottom: 2rem;
+}
+
+.collection-category h4 {
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+}
+
+.collection-grid.compact {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.8rem;
+}
+
+.collection-item {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.3s ease;
+}
+
+.collection-item.compact {
+    padding: 0.8rem;
+}
+
+.collection-item:hover {
+    transform: translateY(-5px);
+}
+
+.collection-item-info h5 {
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+    color: var(--dark-color);
+}
+
+.collection-item-info .equipped-badge {
+    background: #4CAF50;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.collection-item-info .btn {
+    color: white !important;
+}
+
+.collection-item-info h5 {
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+    color: #333 !important; /* Force black text */
+}
+
+.collection-item-info .equipped-badge {
+    background: #4CAF50;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.collection-item-info .btn {
+    color: white !important;
+}
+
+/* Badge Preview Styles */
+.badge-preview {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.badge-preview img {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+    filter: brightness(1.1);
+}
+
+.badge-preview i {
+    font-size: 2rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Theme Preview Styles */
+.theme-preview {
+    width: 100%;
+    height: 120px;
+    margin: 0 auto 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #ddd;
+}
+
+.theme-preview.ocean-theme {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.theme-preview.sunset-theme {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.theme-preview.forest-theme {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.theme-preview.dark-theme {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+.theme-preview.default-theme {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.theme-preview i {
+    font-size: 2.5rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.theme-preview::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(1px);
+}
+
+/* Collection Grid Compact Styles */
+.collection-grid.compact {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.collection-item.compact {
+    padding: 1.5rem;
+    min-height: 200px;
+    max-width: 200px;
+}
+
+.collection-item.compact .collection-item-info h5 {
+    font-size: 0.85rem;
+    color: #333 !important;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+/* Force black text in collection items */
+.collection-full-width .collection-item h5,
+.collection-full-width .collection-item p,
+.collection-full-width .collection-item span:not(.equipped-badge):not(.btn) {
+    color: #333 !important;
+}
+
+/* Ensure buttons remain styled properly */
+.collection-full-width .collection-item .btn-primary {
+    background: #667eea;
+    border-color: #667eea;
+    color: white !important;
+}
+
+.collection-full-width .collection-item .btn-primary:hover {
+    background: #5a67d8;
+    border-color: #5a67d8;
+}
+
+/* Frame Preview Styles */
+.frame-preview {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 0.5rem;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.frame-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.default-avatar-preview {
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+/* Frame Effects */
+.golden-frame {
+    border: 3px solid #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.silver-frame {
+    border: 3px solid #C0C0C0;
+    box-shadow: 0 0 15px rgba(192, 192, 192, 0.5);
+}
+
+.rainbow-frame {
+    border: 3px solid transparent;
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    background-clip: padding-box;
+    animation: rainbow-rotate 3s linear infinite;
+}
+
+.rainbow-frame::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    border-radius: 50%;
+    z-index: -1;
+    animation: rainbow-rotate 3s linear infinite;
+}
+
+@keyframes rainbow-rotate {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+.diamond-frame {
+    border: 3px solid #B9F2FF;
+    box-shadow: 0 0 20px rgba(185, 242, 255, 0.8);
+    animation: diamond-sparkle 2s ease-in-out infinite alternate;
+}
+
+@keyframes diamond-sparkle {
+    0% { box-shadow: 0 0 20px rgba(185, 242, 255, 0.8); }
+    100% { box-shadow: 0 0 30px rgba(185, 242, 255, 1); }
+}
+
+.fire-frame {
+    border: 3px solid #FF4500;
+    box-shadow: 0 0 20px rgba(255, 69, 0, 0.8);
+    animation: fire-flicker 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes fire-flicker {
+    0% { 
+        box-shadow: 0 0 20px rgba(255, 69, 0, 0.8);
+        border-color: #FF4500;
+    }
+    50% { 
+        box-shadow: 0 0 25px rgba(255, 140, 0, 0.9);
+        border-color: #FF6347;
+    }
+    100% { 
+        box-shadow: 0 0 30px rgba(255, 0, 0, 1);
+        border-color: #DC143C;
+    }
+}
+
+/* Rating System */
+.rating-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.rating-text {
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.star-rating {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.star {
+    font-size: 2rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.star:hover,
+.star.active {
+    color: #ffd700;
+    transform: scale(1.1);
+}
+
+.star.active {
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.rating-feedback {
+    margin-bottom: 1rem;
+}
+
+.current-rating {
+    color: var(--dark-color);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.submit-rating {
+    background: var(--gradient-primary);
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 25px;
+    color: white;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.submit-rating:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.rating-success {
+    color: var(--success-color);
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+/* Theme Styles */
+.dashboard-container.ocean-theme {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4ecdc4 100%);
+}
+
+.dashboard-container.dark-theme {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+    color: #ecf0f1; /* Default text color for dark theme */
+}
+
+.dashboard-container.dark-theme .dashboard-section {
+    background: rgba(52, 73, 94, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-container.dark-theme .section-header h2 {
+    color: #ecf0f1;
+}
+
+.dashboard-container.dark-theme .stat-card {
+    background: rgba(52, 73, 94, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-container.dark-theme .stat-card h3 {
+    color: #ecf0f1;
+}
+
+/* All text elements in dark theme should be white */
+.dashboard-container.dark-theme h1,
+.dashboard-container.dark-theme h2,
+.dashboard-container.dark-theme h3,
+.dashboard-container.dark-theme h4,
+.dashboard-container.dark-theme h5,
+.dashboard-container.dark-theme h6,
+.dashboard-container.dark-theme p,
+.dashboard-container.dark-theme span,
+.dashboard-container.dark-theme div,
+.dashboard-container.dark-theme label,
+.dashboard-container.dark-theme .text-muted,
+.dashboard-container.dark-theme .profile-info p,
+.dashboard-container.dark-theme .profile-info span,
+.dashboard-container.dark-theme .achievement-info h4,
+.dashboard-container.dark-theme .achievement-info p,
+.dashboard-container.dark-theme .quick-action h4,
+.dashboard-container.dark-theme .quick-action p,
+.dashboard-container.dark-theme .stat-card p,
+.dashboard-container.dark-theme .welcome-section h1,
+.dashboard-container.dark-theme .welcome-section p,
+.dashboard-container.dark-theme .rating-section h3,
+.dashboard-container.dark-theme .rating-section p {
+    color: #ecf0f1 !important;
+}
+
+/* Collection items should have black text (they have white backgrounds) - Higher specificity */
+.dashboard-container .collection-item h4,
+.dashboard-container .collection-item p,
+.dashboard-container .collection-item .item-price,
+.dashboard-container .collection-item .equip-btn,
+.dashboard-container .collection-item .equipped-badge,
+.dashboard-container .collection-item .owned-badge,
+.dashboard-container .collection-item .purchase-btn {
+    color: #333 !important;
+}
+
+/* Daily Tasks Styles */
+.daily-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.tasks-counter {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.task-item {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary-color);
+}
+
+.task-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+.task-item.completed {
+    border-left-color: var(--success-color);
+    background: rgba(78, 205, 196, 0.1);
+}
+
+.task-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.task-item.completed .task-icon {
+    background: var(--gradient-accent);
+}
+
+.task-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.task-description {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.task-progress {
+    margin-bottom: 0.75rem;
+}
+
+.task-progress .progress-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.task-progress .progress-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.task-item.completed .task-progress .progress-fill {
+    background: var(--success-color);
+}
+
+.progress-text {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.task-rewards {
+    display: flex;
+    gap: 1rem;
+}
+
+.reward-coins,
+.reward-points {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.reward-coins i {
+    color: #ffd700;
+}
+
+.reward-points i {
+    color: #ff6b35;
+}
+
+.task-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+}
+
+.task-status.completed {
+    color: var(--success-color);
+}
+
+.task-status.completed i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.task-status.completed span {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.progress-percentage {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.no-tasks {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+}
+
+.no-tasks i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+}
+
+.no-tasks p {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+/* Responsive Design for Daily Tasks */
+@media (max-width: 768px) {
+    .task-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .task-content {
+        width: 100%;
+    }
+    
+    .task-rewards {
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .tasks-counter {
+        align-self: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .task-item {
+        padding: 1rem;
+    }
+    
+    .task-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .task-name {
+        font-size: 1rem;
+    }
+    
+    .task-description {
+        font-size: 0.85rem;
+    }
+}
+
+/* Collection Section Styles */
+.collection-full-width {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.collection-full-width .section-header {
+    margin-bottom: 2.5rem;
+}
+
+.collection-full-width .section-header h2 {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.collection-full-width .collection-category {
+    margin-bottom: 3rem;
+}
+
+.collection-full-width .collection-category:last-child {
+    margin-bottom: 0;
+}
+
+.collection-full-width .collection-category h4 {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-align: left;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.collection-full-width .collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    justify-items: center;
+}
+
+.collection-full-width .collection-item {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 280px;
+    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.collection-full-width .collection-item:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+}
+
+.collection-full-width .empty-collection {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 3rem 2rem;
+    text-align: center;
+    color: white;
+}
+
+.collection-full-width .empty-collection i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+}
+
+.collection-full-width .empty-collection p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.9;
+}
+
+/* Quick Actions Grid Styling */
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    min-height: 100px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.quick-action-btn i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.quick-action-btn span {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Responsive Design for Collection */
+@media (max-width: 1200px) {
+    .collection-full-width .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .collection-full-width {
+        padding: 2.5rem 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .collection-full-width {
+        padding: 2rem 1rem;
+    }
+    
+    .collection-full-width .section-header h2 {
+        font-size: 2rem;
+    }
+    
+    .collection-full-width .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .collection-full-width .collection-item {
+        padding: 1.5rem;
+        min-height: 200px;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .collection-full-width .collection-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .collection-full-width .collection-item {
+        max-width: 100%;
+    }
+}
+
+/* Tasks and Games Side-by-Side Layout */
+.tasks-games-row {
+    margin-bottom: 2rem;
+}
+
+/* Equal height columns on desktop - Fixed height with scrollable content */
+@media (min-width: 992px) {
+    .tasks-games-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .tasks-games-row .col-lg-6 {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .tasks-games-section {
+        height: 500px; /* Fixed height for equal cards */
+        max-height: 500px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden; /* Prevent content from overflowing the rounded card */
+    }
+}
+
+/* Mobile layout - stack vertically */
+@media (max-width: 991px) {
+    .tasks-games-row {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .tasks-games-section {
+        height: 400px; /* Fixed height for mobile */
+        max-height: 400px;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+}
+
+.tasks-games-section .daily-tasks,
+.tasks-games-section .achievements-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+
+.tasks-games-section .no-tasks,
+.tasks-games-section .no-achievements {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+/* Content distribution within sections */
+.tasks-games-section .section-header {
+    flex-shrink: 0; /* Never compress the header */
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.tasks-games-section .section-header h2 {
+    margin-bottom: 0;
+    font-size: 1.4rem;
+}
+
+/* Scrollable content areas */
+.tasks-games-section .daily-tasks,
+.tasks-games-section .achievements-grid {
+    flex: 1; /* Take remaining space after header */
+    overflow-y: auto; /* Enable vertical scrolling */
+    overflow-x: hidden; /* Prevent horizontal overflow */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-right: 0.5rem; /* Space for scrollbar */
+    margin-right: -0.5rem; /* Offset padding to align content */
+}
+
+/* Custom scrollbar styling */
+.tasks-games-section .daily-tasks::-webkit-scrollbar,
+.tasks-games-section .achievements-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.tasks-games-section .daily-tasks::-webkit-scrollbar-track,
+.tasks-games-section .achievements-grid::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.tasks-games-section .daily-tasks::-webkit-scrollbar-thumb,
+.tasks-games-section .achievements-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.tasks-games-section .daily-tasks::-webkit-scrollbar-thumb:hover,
+.tasks-games-section .achievements-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Empty state containers - centered in scrollable area */
+.tasks-games-section .no-tasks,
+.tasks-games-section .no-achievements {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.tasks-games-section .no-tasks i,
+.tasks-games-section .no-achievements i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
+.tasks-games-section .no-tasks p,
+.tasks-games-section .no-achievements p {
+    margin: 0;
+    opacity: 0.8;
+    font-size: 1rem;
+}
+
+/* Task and achievement items */
+.tasks-games-section .task-item,
+.tasks-games-section .achievement-item {
+    flex-shrink: 0; /* Prevent compression */
+    margin-bottom: 0; /* Use gap instead */
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 768px) {
+    .tasks-games-section {
+        height: 350px;
+        max-height: 350px;
+        padding: 1rem;
+    }
+    
+    .tasks-games-section .section-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .tasks-games-row .col-lg-6 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Task Item Styles */
+.task-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.task-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+.task-item.completed {
+    border-left: 4px solid #4CAF50;
+    opacity: 0.8;
+}
+
+.task-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #64b5f6, #42a5f5);
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.task-item.completed .task-icon {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.task-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-name {
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.task-description {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+}
+
+.task-progress {
+    margin-bottom: 0.75rem;
+}
+
+.progress-bar {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.task-rewards {
+    display: flex;
+    gap: 1rem;
+}
+
+.reward-coins,
+.reward-points {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.task-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    text-align: center;
+}
+
+.task-status.completed {
+    color: #4CAF50;
+}
+
+.task-status i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.progress-percentage {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Achievement Item Styles */
+.achievement-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    gap: 1rem;
+}
+
+.achievement-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+.achievement-item.game {
+    border-left: 4px solid #FF9800;
+}
+
+.achievement-icon {
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    color: white;
+}
+
+.achievement-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.achievement-info h4 {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+
+.achievement-info p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+
+.achievement-date {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* No tasks/games states */
+.no-tasks,
+.no-achievements {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.no-tasks i,
+.no-achievements i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
+.no-tasks p,
+.no-achievements p {
+    font-size: 0.95rem;
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Dark theme fixes for task and achievement items */
+.dashboard-container.dark-theme .task-item,
+.dashboard-container.dark-theme .achievement-item {
+    background: white !important;
+}
+
+.dashboard-container.dark-theme .task-name,
+.dashboard-container.dark-theme .task-description,
+.dashboard-container.dark-theme .progress-text,
+.dashboard-container.dark-theme .reward-coins,
+.dashboard-container.dark-theme .reward-points,
+.dashboard-container.dark-theme .progress-percentage,
+.dashboard-container.dark-theme .achievement-info h4,
+.dashboard-container.dark-theme .achievement-info p {
+    color: #333 !important;
+}
+
+.dashboard-container.dark-theme .task-icon,
+.dashboard-container.dark-theme .achievement-icon,
+.dashboard-container.dark-theme .achievement-date {
+    color: white !important;
+}

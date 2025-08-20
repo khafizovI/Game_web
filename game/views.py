@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.utils.crypto import get_random_string
 from quiz.models import Quiz, Question, Answer
 from .models import Game, GamePlayer, PlayerAnswer
+from accounts.views import award_game_points, check_achievements
 import json
 
 # Create your views here.
@@ -108,6 +109,18 @@ def game_results(request, game_code):
     if not game.is_completed:
         game.is_completed = True
         game.save()
+        
+        # Award points to all student players
+        student_players = GamePlayer.objects.filter(
+            game=game, 
+            user__profile__role='student'
+        )
+        
+        for player in student_players:
+            # Award points and coins based on performance
+            award_game_points(player.user, player.score, game.quiz.questions.count())
+            # Check for new achievements
+            check_achievements(player.user)
 
     # Get all players sorted by score
     players = GamePlayer.objects.filter(game=game).order_by('-score')

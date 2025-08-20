@@ -6,100 +6,338 @@
 {% block extra_css %}
 <style>
     body {
-        background-color: #f0f2f5; /* A light grey background */
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .browse-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .search-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .search-input {
+        border: 2px solid #e9ecef;
+        border-radius: 50px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .quiz-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        height: 100%;
+        border: none;
+    }
+    
+    .quiz-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+    
+    .quiz-card .quiz-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+    
+    .quiz-card .quiz-description {
+        color: #666;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+    
+    .quiz-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: #888;
+    }
+    
+    .quiz-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .quiz-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.9rem;
+        color: #667eea;
+    }
+    
+    .quiz-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-host {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        color: white;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        flex: 1;
+    }
+    
+    .btn-host:hover {
+        background: linear-gradient(135deg, #5a6fd8, #6a42a0);
+        transform: translateY(-2px);
+        color: white;
+    }
+    
+    .btn-preview {
+        background: transparent;
+        border: 2px solid #667eea;
+        border-radius: 25px;
+        padding: 0.5rem 1rem;
+        color: #667eea;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-preview:hover {
+        background: #667eea;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: #ccc;
+        margin-bottom: 1rem;
+    }
+    
+    .creator-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    @media (max-width: 768px) {
+        .quiz-actions {
+            flex-direction: column;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="browse-page-redesigned">
+<div class="container py-4">
     <!-- Header Section -->
-    <div class="container py-5">
+    <div class="browse-header p-4">
         <div class="row align-items-center">
-            <div class="col-lg-6">
-                <h1 class="display-5 fw-bold">{% trans "Explore & Discover" %}</h1>
-                <p class="lead text-muted">{% trans "Find, create, and share quizzes on any topic." %}</p>
+            <div class="col-lg-8">
+                <h1 class="display-6 fw-bold mb-2">
+                    <i class="fas fa-book-open text-primary me-3"></i>
+                    {% trans "Quiz Library" %}
+                </h1>
+                <p class="lead text-muted mb-0">
+                    {% trans "Discover, host, and manage quizzes for your students" %}
+                </p>
             </div>
-            <div class="col-lg-6 d-flex justify-content-lg-end mt-4 mt-lg-0">
-                {% if user.is_authenticated and user.profile.is_teacher %}
-                    <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg me-3">
-                        <i class="fas fa-plus-circle me-2"></i>{% trans "Create a New Quiz" %}
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-        <div class="mt-4">
-            <div class="input-group input-group-lg shadow-sm">
-                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search"></i></span>
-                <input class="form-control border-start-0" type="search" id="quiz-search-input" placeholder="{% trans 'Search for quizzes...' %}">
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus-circle me-2"></i>{% trans "Create New Quiz" %}
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Tabs and Content -->
-    <div class="container pb-5">
-        <ul class="nav nav-tabs nav-fill mb-4" id="quizTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="public-tab" data-bs-toggle="tab" data-bs-target="#public-quizzes" type="button" role="tab" aria-controls="public-quizzes" aria-selected="true">
-                    <i class="fas fa-globe-americas me-2"></i>{% trans "All Quizzes" %}
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="quizTabsContent">
-            <!-- All Quizzes Tab -->
-            <div class="tab-pane fade show active" id="public-quizzes" role="tabpanel" aria-labelledby="public-tab">
-                {% if quizzes %}
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 quiz-list">
-                        {% for quiz in quizzes %}
-                            {% include 'quiz/partials/quiz_card_redesigned.html' with quiz=quiz %}
-                        {% endfor %}
-                    </div>
-                    <div class="alert alert-light text-center d-none no-results-message mt-4">
-                        <h5><i class="fas fa-search me-2"></i>{% trans "No quizzes found." %}</h5>
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-cloud-moon fa-4x text-muted mb-3"></i>
-                        <h4 class="fw-bold">{% trans "It's quiet out here..." %}</h4>
-                        <p class="text-muted">{% trans "No quizzes are available yet. Why not be the first to create one?" %}</p>
-                    </div>
-                {% endif %}
-            </div>
+    <!-- Search Section -->
+    <div class="search-section">
+        <div class="input-group">
+            <span class="input-group-text bg-light border-0">
+                <i class="fas fa-search text-muted"></i>
+            </span>
+            <input type="text" name="search" class="form-control search-input border-start-0" 
+                   placeholder="{% trans 'Search quizzes by title, description, or creator...' %}"
+                   value="{{ search_query }}">
         </div>
     </div>
+
+    <!-- Quiz Content -->
+    {% if quizzes %}
+        <div class="row g-4" id="quiz-grid">
+            {% for quiz in quizzes %}
+                <div class="col-lg-4 col-md-6 quiz-item" 
+                     data-creator="{{ quiz.created_by.username|lower }}"
+                     data-title="{{ quiz.title|lower }}"
+                     data-description="{{ quiz.description|lower }}"
+                     data-created="{{ quiz.created_at|date:'Y-m-d' }}">
+                    <div class="quiz-card">
+                        <div class="quiz-meta">
+                            <span class="creator-badge">
+                                <i class="fas fa-user me-1"></i>{{ quiz.created_by.username }}
+                            </span>
+                            <span class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>{{ quiz.created_at|date:"M d, Y" }}
+                            </span>
+                        </div>
+                        
+                        <h3 class="quiz-title">{{ quiz.title }}</h3>
+                        
+                        {% if quiz.description %}
+                            <p class="quiz-description">
+                                {{ quiz.description|truncatechars:120 }}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="quiz-stats">
+                            <div class="quiz-stat">
+                                <i class="fas fa-question-circle"></i>
+                                <span>{{ quiz.question_count|default:0 }} {% trans "questions" %}</span>
+                            </div>
+                            <div class="quiz-stat">
+                                <i class="fas fa-star"></i>
+                                <span>{{ quiz.total_points|default:0 }} {% trans "points" %}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="quiz-actions">
+                            <a href="{% url 'game:host' quiz.id %}" class="btn btn-host">
+                                <i class="fas fa-play me-2"></i>{% trans "Host Game" %}
+                            </a>
+                            <a href="{% url 'quiz:detail' quiz.id %}" class="btn btn-preview">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- No Results Message -->
+        <div class="empty-state d-none" id="no-results">
+            <i class="fas fa-search"></i>
+            <h4 class="fw-bold">{% trans "No quizzes found" %}</h4>
+            <p class="text-muted">{% trans "Try adjusting your search criteria or browse all quizzes." %}</p>
+            <button class="btn btn-primary" onclick="clearSearch()">
+                <i class="fas fa-refresh me-2"></i>{% trans "Clear Search" %}
+            </button>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book-open"></i>
+            <h4 class="fw-bold">{% trans "No quizzes available" %}</h4>
+            <p class="text-muted">{% trans "Be the first to create a quiz and start engaging your students!" %}</p>
+            <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle me-2"></i>{% trans "Create Your First Quiz" %}
+            </a>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('quiz-search-input');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', function() {
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        const activeTabPane = document.querySelector('.tab-pane.active');
-        const quizList = activeTabPane.querySelector('.quiz-list');
-        const noResultsMessage = activeTabPane.querySelector('.no-results-message');
-
-        if (!quizList) return;
-
-        const quizCards = quizList.querySelectorAll('.quiz-card-container');
+    // Search functionality
+    const searchForm = document.querySelector('form');
+    const quizItems = document.querySelectorAll('.quiz-item');
+    const noResultsDiv = document.getElementById('no-results');
+    
+    if (searchForm) {
+        const searchInput = searchForm.querySelector('input[name="search"]');
+        
+        // Real-time search
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch(this.value.toLowerCase().trim());
+            }, 300);
+        });
+    }
+    
+    function performSearch(searchTerm) {
         let visibleCount = 0;
-
-        quizCards.forEach(card => {
-            const searchText = card.dataset.searchText || '';
-            const isVisible = searchText.includes(searchTerm);
-            card.style.display = isVisible ? '' : 'none';
-            if (isVisible) {
+        
+        quizItems.forEach(item => {
+            const title = item.dataset.title;
+            const description = item.dataset.description;
+            const creator = item.dataset.creator;
+            
+            const matches = !searchTerm || 
+                           title.includes(searchTerm) || 
+                           description.includes(searchTerm) || 
+                           creator.includes(searchTerm);
+            
+            if (matches) {
+                item.style.display = '';
                 visibleCount++;
+            } else {
+                item.style.display = 'none';
             }
         });
-
-        if (noResultsMessage) {
-            noResultsMessage.classList.toggle('d-none', visibleCount > 0);
+        
+        // Show/hide no results message
+        if (noResultsDiv) {
+            noResultsDiv.classList.toggle('d-none', visibleCount > 0);
         }
+    }
+    
+    // Initialize search if there's a query
+    const initialSearch = '{{ search_query|lower }}';
+    if (initialSearch) {
+        performSearch(initialSearch);
+    }
+});
+
+function clearSearch() {
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input'));
+    }
+}
+
+// Add smooth animations
+document.querySelectorAll('.quiz-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-8px)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
     });
 });
 </script>

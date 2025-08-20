@@ -1,0 +1,440 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Student Dashboard" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/student_dashboard.css' %}">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/student_dashboard.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="dashboard-container{% if profile.selected_theme %} {{ profile.selected_theme.css_class }}{% endif %}">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="user-welcome">
+                        <div class="user-avatar-container">
+                            {% if profile.selected_frame %}
+                                <div class="avatar-frame {{ profile.selected_frame.css_class }}">
+                                    {% if profile.avatar %}
+                                        <img src="{{ profile.avatar.url }}" alt="Avatar" class="user-avatar">
+                                    {% else %}
+                                        <div class="default-avatar">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                {% if profile.avatar %}
+                                    <img src="{{ profile.avatar.url }}" alt="Avatar" class="user-avatar">
+                                {% else %}
+                                    <div class="default-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="user-info">
+                            <h1 class="welcome-text">{% trans "Welcome back," %} <span class="username">{{ user.username }}</span></h1>
+                            <p class="user-level">{% trans "Level" %} {{ level }} {% trans "Student" %}</p>
+                            <div class="level-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ level_progress }}%"></div>
+                                </div>
+                                <span class="progress-text">{{ profile.experience_points }} XP / {{ profile.get_next_level_xp }} XP ({{ level_progress|floatformat:0 }}% {% trans "to next level" %})</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="quick-stats">
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-number">{{ profile.coins }}</span>
+                                <span class="stat-label">{% trans "Coins" %}</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-number">{{ profile.experience_points }}</span>
+                                <span class="stat-label">{% trans "Experience" %}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Content -->
+    <div class="dashboard-content">
+        <div class="container">
+            <div class="row">
+                <!-- Left Column -->
+                <div class="col-lg-8">
+                    <!-- Statistics Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-gamepad"></i>
+                            </div>
+                            <div class="stat-card-content">
+                                <h3>{{ total_games }}</h3>
+                                <p>{% trans "Games Played" %}</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="stat-card-content">
+                                <h3>{{ avg_score }}</h3>
+                                <p>{% trans "Average Score" %}</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div class="stat-card-content">
+                                <h3>{{ recent_activity }}</h3>
+                                <p>{% trans "Games This Week" %}</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-icon">
+                                <i class="fas fa-medal"></i>
+                            </div>
+                            <div class="stat-card-content">
+                                <h3>{{ user_achievements.count }}</h3>
+                                <p>{% trans "Achievements" %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Tasks and Recent Games Row -->
+                    <div class="row tasks-games-row">
+                        <!-- Daily Tasks Column -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <!-- Daily Tasks -->
+                            <div class="dashboard-section tasks-games-section">
+                                <div class="section-header">
+                                    <h2>{% trans "Daily Tasks" %}</h2>
+                                    <span class="tasks-counter">{{ completed_tasks_count }}/3 {% trans "completed" %}</span>
+                                </div>
+                                <div class="daily-tasks">
+                                    {% for user_task in daily_tasks %}
+                                    <div class="task-item {% if user_task.is_completed %}completed{% endif %}">
+                                        <div class="task-icon">
+                                            <i class="{{ user_task.task.icon }}"></i>
+                                        </div>
+                                        <div class="task-content">
+                                            <h4 class="task-name">{{ user_task.task.name }}</h4>
+                                            <p class="task-description">{{ user_task.task.description }}</p>
+                                            <div class="task-progress">
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: {{ user_task.get_progress_percentage }}%"></div>
+                                                </div>
+                                                <span class="progress-text">{{ user_task.current_progress }}/{{ user_task.task.target_value }}</span>
+                                            </div>
+                                            <div class="task-rewards">
+                                                <span class="reward-coins">
+                                                    <i class="fas fa-coins"></i> +{{ user_task.task.reward_coins }}
+                                                </span>
+                                                <span class="reward-points">
+                                                    <i class="fas fa-star"></i> +{{ user_task.task.reward_points }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {% if user_task.is_completed %}
+                                        <div class="task-status completed">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>{% trans "Completed" %}</span>
+                                        </div>
+                                        {% else %}
+                                        <div class="task-status">
+                                            <span class="progress-percentage">{{ user_task.get_progress_percentage|floatformat:0 }}%</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% empty %}
+                                    <div class="no-tasks">
+                                        <i class="fas fa-tasks"></i>
+                                        <p>{% trans "No tasks available today. Check back tomorrow!" %}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Games Column -->
+                        <div class="col-lg-6 col-md-12 mb-4">
+                            <!-- Recent Games -->
+                            <div class="dashboard-section tasks-games-section">
+                                <div class="section-header">
+                                    <h2>{% trans "Recent Games" %}</h2>
+                                </div>
+                                {% if recent_games %}
+                                    <div class="achievements-grid">
+                                        {% for game in recent_games|slice:":6" %}
+                                        <div class="achievement-item game">
+                                            <div class="achievement-icon">
+                                                {% if game.score >= 80 %}
+                                                    <i class="fas fa-star" style="color: #ffd700;"></i>
+                                                {% elif game.score >= 60 %}
+                                                    <i class="fas fa-thumbs-up" style="color: #4CAF50;"></i>
+                                                {% else %}
+                                                    <i class="fas fa-gamepad" style="color: #64b5f6;"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="achievement-info">
+                                                <h4>{{ game.game.quiz.title }}</h4>
+                                                <p>{% trans "Score:" %} {{ game.score }} {% trans "points" %}</p>
+                                                <span class="achievement-date">{{ game.joined_at|date:"M d" }}</span>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="no-achievements">
+                                        <i class="fas fa-gamepad"></i>
+                                        <p>{% trans "No recent games. Join a game to get started!" %}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-lg-4">
+                    <!-- Quick Actions -->
+                    <div class="dashboard-section">
+                        <div class="section-header">
+                            <h2>{% trans "Quick Actions" %}</h2>
+                        </div>
+                        <div class="quick-actions-grid">
+                            <a href="{% url 'accounts:shop' %}" class="quick-action-btn">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span>{% trans "Shop" %}</span>
+                            </a>
+                            <a href="{% url 'game:join' %}" class="quick-action-btn">
+                                <i class="fas fa-gamepad"></i>
+                                <span>{% trans "Play Game" %}</span>
+                            </a>
+                            <a href="#" class="quick-action-btn" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                <i class="fas fa-user-edit"></i>
+                                <span>{% trans "Edit Profile" %}</span>
+                            </a>
+                            <a href="{% url 'game:join' %}" class="quick-action-btn">
+                                <i class="fas fa-users"></i>
+                                <span>{% trans "Join Game" %}</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Rate Your Experience -->
+                    {% if not user.profile.user_rating %}
+                    <div class="dashboard-section">
+                        <div class="section-header">
+                            <h2>{% trans "Rate Your Experience" %}</h2>
+                        </div>
+                        <div class="rating-container">
+                            <p class="rating-text">{% trans "How would you rate your learning experience?" %}</p>
+                            <div class="star-rating" id="starRating">
+                                <span class="star" data-rating="1">★</span>
+                                <span class="star" data-rating="2">★</span>
+                                <span class="star" data-rating="3">★</span>
+                                <span class="star" data-rating="4">★</span>
+                                <span class="star" data-rating="5">★</span>
+                            </div>
+                            <button class="btn btn-primary mt-3" id="submitRating" style="display: none;">
+                                {% trans "Submit Rating" %}
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            
+            <!-- Full Width Collection Section -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <!-- My Collection -->
+                    <div class="dashboard-section collection-full-width">
+                        <div class="section-header text-center">
+                            <h2>{% trans "My Collection" %}</h2>
+                        </div>
+                        
+                        <!-- Purchased Frames -->
+                        {% if purchased_frames %}
+                        <div class="collection-category">
+                            <h4>{% trans "Profile Frames" %}</h4>
+                            <div class="collection-grid compact">
+                                {% for purchase in purchased_frames %}
+                                <div class="collection-item compact">
+                                    <div class="frame-preview {{ purchase.item.css_class }}">
+                                        {% if profile.avatar %}
+                                            <img src="{{ profile.avatar.url }}" alt="Preview">
+                                        {% else %}
+                                            <div class="default-avatar-preview">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="collection-item-info">
+                                        <h5>{{ purchase.item.name }}</h5>
+                                        {% if profile.selected_frame and profile.selected_frame.id == purchase.item.id %}
+                                            <span class="equipped-badge">{% trans "Equipped" %}</span>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-primary equip-btn" data-item-id="{{ purchase.item.id }}">
+                                                {% trans "Equip" %}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Purchased Badges -->
+                        {% if purchased_badges %}
+                        <div class="collection-category">
+                            <h4>{% trans "Badges" %}</h4>
+                            <div class="collection-grid compact">
+                                {% for purchase in purchased_badges %}
+                                <div class="collection-item compact">
+                                    <div class="badge-preview">
+                                        {% if purchase.item.image %}
+                                            <img src="{{ purchase.item.image.url }}" alt="{{ purchase.item.name }}">
+                                        {% else %}
+                                            <i class="fas fa-medal"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="collection-item-info">
+                                        <h5>{{ purchase.item.name }}</h5>
+                                        <span class="owned-badge">{% trans "Owned" %}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Purchased Themes -->
+                        {% if purchased_themes %}
+                        <div class="collection-category">
+                            <h4>{% trans "Themes" %}</h4>
+                            <div class="collection-grid compact">
+                                {% for purchase in purchased_themes %}
+                                <div class="collection-item compact">
+                                    <div class="theme-preview {{ purchase.item.css_class }}-preview">
+                                        {% if purchase.item.image %}
+                                            <img src="{{ purchase.item.image.url }}" alt="{{ purchase.item.name }}">
+                                        {% else %}
+                                            <i class="fas fa-palette"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="collection-item-info">
+                                        <h5>{{ purchase.item.name }}</h5>
+                                        {% if profile.selected_theme and profile.selected_theme.id == purchase.item.id %}
+                                            <span class="equipped-badge">{% trans "Equipped" %}</span>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-primary equip-theme-btn" data-item-id="{{ purchase.item.id }}">
+                                                {% trans "Equip" %}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if not purchased_frames and not purchased_badges and not purchased_themes %}
+                        <div class="empty-collection compact">
+                            <i class="fas fa-shopping-bag"></i>
+                            <p>{% trans "You haven't purchased any items yet." %}</p>
+                            <a href="{% url 'accounts:shop' %}" class="btn btn-primary btn-sm">{% trans "Visit Shop" %}</a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Edit Modal -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Edit Profile" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label">{% trans "First Name" %}</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label">{% trans "Last Name" %}</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">{% trans "Email" %}</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">{% trans "Bio" %}</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="3" placeholder="Tell us about yourself...">{{ profile.bio }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="avatar" class="form-label">{% trans "Profile Picture" %}</label>
+                        <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
+                        {% if profile.avatar %}
+                        <div class="mt-2">
+                            <small class="text-muted">{% trans "Current avatar:" %}</small>
+                            <img src="{{ profile.avatar.url }}" alt="Current Avatar" class="rounded-circle ms-2" width="40" height="40">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="submit" class="btn btn-primary">{% trans "Save Changes" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/student_dashboard.js' %}"></script>
+{% endblock %}

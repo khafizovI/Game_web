@@ -72,10 +72,29 @@ def generate_quiz_from_topic(topic: str, num_questions: int, num_options: int) -
             options_data_text = options_completion.choices[0].message.content
             options_data = json.loads(options_data_text)
 
+            # --- Validation Step ---
+            options = options_data.get('options', [])
+            answer = options_data.get('answer', '')
+
+            if not answer or not options:
+                print(f"Warning: Missing options or answer for question '{q_text}'. Skipping.")
+                continue
+
+            # Find the correct answer, allowing for minor variations.
+            correct_option = None
+            for option in options:
+                if option.strip().lower() == answer.strip().lower():
+                    correct_option = option
+                    break
+            
+            if not correct_option:
+                print(f"Warning: AI-provided answer '{answer}' does not match any option for question '{q_text}'. Skipping.")
+                continue
+
             final_questions.append({
                 "question": q_text,
-                "options": options_data.get('options', []),
-                "answer": options_data.get('answer', '')
+                "options": options,
+                "answer": correct_option # Use the exact option text
             })
 
         except Exception as e:

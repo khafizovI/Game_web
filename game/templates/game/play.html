@@ -63,25 +63,34 @@
     .answer-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        max-width: 1000px;
-        margin: 0 auto;
+        gap: 1rem;
+        max-width: 800px;
+        margin: 2rem auto;
     }
 
     .answer-btn {
-        background-color: rgba(255, 255, 255, 0.9);
-        color: #333;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 120px;
         border: none;
-        border-radius: 10px;
-        padding: 1.5rem;
+        border-radius: 8px;
+        color: white;
         font-size: 1.5rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
+        font-weight: bold;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        padding: 1rem;
     }
 
     .answer-btn:hover:not(:disabled) {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+
+    .answer-btn .shape {
+        font-size: 2.5rem;
+        margin-right: 1rem;
     }
     
     .answer-btn.correct {
@@ -130,7 +139,7 @@
             <div id="player-timer-bar-container" class="progress mb-3">
                 <div id="player-timer-bar" class="progress-bar" role="progressbar" style="width: 100%;"></div>
             </div>
-            <div id="answer-options" class="d-grid gap-2 col-6 mx-auto"></div>
+            <div id="answer-options" class="answer-grid"></div>
             <div id="feedback-area" class="mt-3"></div>
         </div>
 
@@ -174,6 +183,14 @@
     const gameOverView = document.getElementById('game-over-view');
 
     // --- Event Handlers ---
+    gameSocket.onopen = function(e) {
+        console.log('WebSocket connection established');
+        // Send player ready message to initialize game
+        gameSocket.send(JSON.stringify({
+            type: 'player_ready'
+        }));
+    };
+
     gameSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         const handler = messageHandlers[data.type];
@@ -193,95 +210,100 @@
     const messageHandlers = {
         'game_starting': handleGameStarting,
         'new_question': handleNewQuestion,
-        'answer_feedback': handleAnswerFeedback,
+        'show_feedback': handleShowFeedback,
         'player_answered': handlePlayerAnswered, // Host only
         'question_results': handleQuestionResults,
         'game_over': handleGameOver
     };
 
     function handleGameStarting(data) {
-        const overlay = document.getElementById('game-overlay');
-        if (!overlay) return;
-
-        overlay.classList.remove('d-none');
-        let count = 3;
-        overlay.innerText = `Game starting in ${count}...`;
-
-        const countdown = setInterval(() => {
-            count--;
-            if (count > 0) {
-                overlay.innerText = `Game starting in ${count}...`;
-            } else {
-                clearInterval(countdown);
-                overlay.classList.add('d-none');
-            }
-        }, 1000);
+        // Transition from lobby to game view
+        // You might have a different initial view
+        showView(isHost ? 'host' : 'player');
     }
 
     function handleNewQuestion(data) {
-        showView(isHost ? 'host' : 'player');
-
         if (isHost) {
-            document.getElementById('host-question-text').innerText = data.question_text;
+            document.getElementById('host-question-text').textContent = data.question_text;
             startTimer(data.time_limit, 'host-timer');
-            return;
+        } else {
+            updatePlayerView(data.question_text, data.answers, data.question_id);
+            startPlayerTimerBar(data.time_limit);
         }
+    }
 
-        document.getElementById('player-question-text').innerText = data.question_text;
-        const answerOptions = document.getElementById('answer-options');
-        answerOptions.innerHTML = ''; // Clear previous answers
+    function updatePlayerView(questionText, answers, questionId) {
+        const questionEl = document.getElementById('player-question-text');
+        const answersEl = document.getElementById('answer-options');
+
+        questionEl.textContent = questionText;
+        answersEl.innerHTML = ''; // Clear previous answers
 
         const colors = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
-        const icons = ['▲', '◆', '●', '■'];
+        const shapes = ['▲', '◆', '●', '■'];
 
-        data.answers.forEach((answer, index) => {
+        answers.forEach((answer, index) => {
             const button = document.createElement('button');
             button.className = 'answer-btn';
             button.style.backgroundColor = colors[index % colors.length];
-            button.style.color = 'white';
-            button.innerHTML = `<span>${icons[index % icons.length]}</span> ${answer.text}`;
-            button.onclick = () => {
-                selectAnswer(data.question_id, answer.id, button);
-            };
-            answerOptions.appendChild(button);
+            button.onclick = () => selectAnswer(questionId, answer.id, button);
+
+            const shapeSpan = document.createElement('span');
+            shapeSpan.className = 'shape';
+            shapeSpan.textContent = shapes[index % shapes.length];
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = answer.text;
+
+            button.appendChild(shapeSpan);
+            button.appendChild(textSpan);
+            answersEl.appendChild(button);
         });
 
-        startTimer(data.time_limit);
+        showView('player');
     }
 
     function selectAnswer(questionId, answerId, clickedButton) {
-        console.log(`Answer selected for Question ID: ${questionId}. You clicked: ${clickedButton.innerText}`);
-
-        // Send the answer to the server first
-        submitAnswer(questionId, answerId);
-
-        // Get all answer buttons
-        const answerButtons = document.querySelectorAll('#answer-options .answer-btn');
-        console.log(`Found ${answerButtons.length} buttons to update.`);
-
-        // Loop through all buttons to apply the visual change
+        // Disable all buttons after one is clicked
+        const answerButtons = document.querySelectorAll('.answer-btn');
         answerButtons.forEach(button => {
-            // Disable the button to prevent multiple clicks
             button.disabled = true;
-
-            // If the button is not the one that was clicked, dim it
-            if (button !== clickedButton) {
-                console.log(`Dimming button: ${button.innerText}`);
-                button.style.setProperty('opacity', '0.3', 'important');
-            } else {
-                console.log(`Highlighting selected button: ${button.innerText}`);
-                // Optional: Add a visual cue to the selected button itself if needed
-                button.style.border = '3px solid yellow';
-            }
         });
+
+        // Send the answer to the server
+        gameSocket.send(JSON.stringify({
+            type: 'submit_answer',
+            question_id: questionId,
+            answer_id: answerId
+        }));
     }
 
-    function handleAnswerFeedback(data) {
-        // The UI is reset for the next question in the handleNewQuestion function.
+    function handleShowFeedback(data) {
+        const answerButtons = document.querySelectorAll('.answer-btn');
+        const correctAnswerId = data.correct_answer_id;
+        const playerResult = data.player_result;
+
+        answerButtons.forEach(button => {
+            const btnAnswerId = parseInt(button.dataset.answerId);
+
+            if (btnAnswerId === correctAnswerId) {
+                button.classList.add('correct');
+            } else if (playerResult.answered && playerResult.answer_id === btnAnswerId && !playerResult.is_correct) {
+                button.classList.add('incorrect');
+            }
+        });
+
+        // You can also update the score display here
+        // e.g., document.getElementById('score-display').textContent = playerResult.score;
+
+        setTimeout(() => {
+            showView('results');
+        }, 5000); // Wait 5 seconds before moving on
     }
 
     function handlePlayerAnswered(data) {
-        // Host-side logic can be updated here.
+        // HOST-ONLY: Update UI to show which players have answered
+        // e.g., light up their name on the leaderboard
     }
 
     function handleQuestionResults(data) {
@@ -298,18 +320,33 @@
 
     // --- UI Helper Functions ---
     function showView(viewName) {
-        [hostView, playerView, resultsView, gameOverView].forEach(v => v.classList.add('d-none'));
-        if (viewName === 'host') hostView.classList.remove('d-none');
-        else if (viewName === 'player') playerView.classList.remove('d-none');
-        else if (viewName === 'results') resultsView.classList.remove('d-none');
-        else if (viewName === 'game-over') gameOverView.classList.remove('d-none');
+        ['host', 'player', 'results', 'game-over'].forEach(id => {
+            document.getElementById(`${id}-view`).classList.add('d-none');
+        });
+        document.getElementById(`${viewName}-view`).classList.remove('d-none');
+    }
+
+    function startPlayerTimerBar(duration) {
+        const timerBar = document.getElementById('player-timer-bar');
+        let width = 100;
+        const interval = 100; // update every 100ms
+        const decrement = (interval / (duration * 1000)) * 100;
+
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            width -= decrement;
+            timerBar.style.width = width + '%';
+            if (width <= 0) {
+                clearInterval(timerInterval);
+            }
+        }, interval);
     }
 
     function startTimer(duration, timerElementId) {
+        clearInterval(timerInterval);
         let timeLeft = duration;
         const timerElement = document.getElementById(timerElementId);
 
-        clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if (isHost) {
                 timerElement.innerText = timeLeft;
@@ -346,10 +383,11 @@
     }
 
     function submitAnswer(questionId, answerId) {
+        // Send the answer to the server
         gameSocket.send(JSON.stringify({
-            'type': 'submit_answer',
-            'question_id': questionId,
-            'answer_id': answerId
+            type: 'submit_answer',
+            question_id: questionId,
+            answer_id: answerId
         }));
     }
 

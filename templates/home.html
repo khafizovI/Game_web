@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static i18n %}
 
-{% block title %}{% trans "Welcome to QuizBattle - The Ultimate Quiz Platform" %}{% endblock %}
+{% block title %}{% trans "QuizBattle - Interactive Learning Platform" %}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
@@ -9,113 +9,310 @@
 
 {% block content %}
 <!-- Hero Section -->
-<div class="hero-section text-center">
-    <div class="container">
-        <h1 class="display-4">{% trans "Unleash Your Inner Genius" %}</h1>
-        <p class="lead mx-auto">{% trans "Create, compete, and conquer. The ultimate platform for quiz enthusiasts." %}</p>
-        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
-            {% if user.is_authenticated and user.profile.is_teacher %}
-                <a href="{% url 'quiz:create' %}" class="btn btn-primary btn-lg">{% trans "Create a Quiz" %}</a>
-                <a href="{% url 'quiz:browse' %}" class="btn btn-outline-light btn-lg">{% trans "Host a Game" %}</a>
-            {% else %}
-                <a href="{% url 'game:join' %}" class="btn btn-primary btn-lg">{% trans "Join a Game" %}</a>
-            {% endif %}
+<div class="hero-section">
+    <div class="hero-background">
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+            <div class="shape shape-4"></div>
         </div>
     </div>
-</div>
-
-<!-- How It Works Section -->
-<div class="container section">
-    <h2 class="section-title">{% trans "How It Works" %}</h2>
-    <div class="row g-5">
-        <div class="col-lg-4">
-            <div class="feature-card h-100">
-                <div class="feature-icon"><i class="fas fa-pencil-ruler"></i></div>
-                <h3>{% trans "1. Create" %}</h3>
-                <p>{% trans "Build custom quizzes with our intuitive manual creator or generate them instantly with AI." %}</p>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="feature-card h-100">
-                <div class="feature-icon"><i class="fas fa-rocket"></i></div>
-                <h3>{% trans "2. Host" %}</h3>
-                <p>{% trans "Launch a live game, share the PIN, and watch the competition unfold in real-time." %}</p>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="feature-card h-100">
-                <div class="feature-icon"><i class="fas fa-trophy"></i></div>
-                <h3>{% trans "3. Conquer" %}</h3>
-                <p>{% trans "Join games, test your knowledge, and climb the leaderboard to claim victory." %}</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Featured Quizzes Section -->
-<div class="bg-light section">
     <div class="container">
-        <h2 class="section-title">{% trans "Featured Quizzes" %}</h2>
-        <div class="row g-4">
-            {% for quiz in quizzes %}
-            <div class="col-lg-4">
-                <div class="quiz-card">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ quiz.title }}</h5>
-                        <p class="card-text text-muted">{{ quiz.description|truncatewords:15 }}</p>
-                        <a href="{% url 'quiz:detail' quiz.id %}" class="btn btn-primary">{% trans "Play Now" %}</a>
-                    </div>
+        <div class="row align-items-center min-vh-75">
+            <div class="col-lg-12">
+                <div class="hero-content text-center">
+                    <h1 class="hero-title">
+                        <span class="gradient-text">{% trans "Welcome to" %}</span><br>
+                        <span class="brand-text">QuizBattle</span>
+                    </h1>
+                    <p class="hero-subtitle mx-auto">{% trans "The ultimate interactive learning platform where knowledge meets competition" %}</p>
+                    
+                    <!-- Role-specific action buttons -->
+                    {% if user.is_authenticated %}
+                        {% if user.profile.role == 'teacher' %}
+                            <div class="hero-actions justify-content-center">
+                                <a href="{% url 'quiz:browse' %}" class="btn btn-hero btn-primary">
+                                    <i class="fas fa-rocket me-2"></i>
+                                    {% trans "Host Game" %}
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="hero-actions justify-content-center">
+                                <a href="{% url 'game:join' %}" class="btn btn-hero btn-primary">
+                                    <i class="fas fa-gamepad me-2"></i>
+                                    {% trans "Join Game" %}
+                                </a>
+                                {% if user.profile.role == 'student' %}
+                                <a href="{% url 'accounts:student_dashboard' %}" class="btn btn-hero btn-outline">
+                                    <i class="fas fa-tachometer-alt me-2"></i>
+                                    {% trans "Dashboard" %}
+                                </a>
+                                {% else %}
+                                <a href="{% url 'accounts:profile' %}" class="btn btn-hero btn-outline">
+                                    <i class="fas fa-user me-2"></i>
+                                    {% trans "Profile" %}
+                                </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="hero-actions justify-content-center">
+                            <a href="{% url 'accounts:register' %}" class="btn btn-hero btn-primary">
+                                <i class="fas fa-rocket me-2"></i>
+                                {% trans "Get Started" %}
+                            </a>
+                            <a href="{% url 'accounts:login' %}" class="btn btn-hero btn-outline">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                {% trans "Sign In" %}
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
-            {% empty %}
-            <div class="col">
-                <p class="text-center">{% trans "No public quizzes available at the moment. Check back soon!" %}</p>
-            </div>
-            {% endfor %}
         </div>
     </div>
 </div>
 
 <!-- Features Section -->
-<div class="section">
+<div class="features-section">
     <div class="container">
-        <h2 class="section-title">{% trans "Awesome Features" %}</h2>
-        <div class="row g-5">
-            <div class="col-lg-4">
-                <div class="feature-card h-100">
-                    <div class="feature-icon"><i class="fas fa-robot"></i></div>
-                    <h3>{% trans "AI-Powered Creation" %}</h3>
-                    <p>{% trans "Generate engaging quizzes from any text in seconds with our powerful AI assistant." %}</p>
+        <div class="section-header text-center">
+            <h2 class="section-title">{% trans "Why Choose QuizBattle?" %}</h2>
+            <p class="section-subtitle">{% trans "Discover the features that make learning engaging and fun" %}</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>{% trans "Real-time Competition" %}</h3>
+                    <p>{% trans "Join live quiz battles and compete with players from around the world in real-time" %}</p>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="feature-card h-100">
-                    <div class="feature-icon"><i class="fas fa-cogs"></i></div>
-                    <h3>{% trans "Fully Customizable" %}</h3>
-                    <p>{% trans "Tailor quizzes with various question types, time limits, and scoring options to fit your needs." %}</p>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <h3>{% trans "Leaderboards" %}</h3>
+                    <p>{% trans "Track your progress and climb the rankings to become the ultimate quiz champion" %}</p>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="feature-card h-100">
-                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
-                    <h3>{% trans "Detailed Analytics" %}</h3>
-                    <p>{% trans "Gain insights into player performance and identify knowledge gaps with our reports." %}</p>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>{% trans "Multiplayer Fun" %}</h3>
+                    <p>{% trans "Challenge friends or join public games with players who share your interests" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>{% trans "Progress Tracking" %}</h3>
+                    <p>{% trans "Monitor your learning journey with detailed analytics and performance insights" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>{% trans "Mobile Friendly" %}</h3>
+                    <p>{% trans "Play anywhere, anytime with our responsive design that works on all devices" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <h3>{% trans "Educational Content" %}</h3>
+                    <p>{% trans "Learn while you play with carefully crafted questions across various subjects" %}</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Final CTA Section -->
-<div class="cta-section text-center bg-light">
+<!-- Stats Section -->
+<div class="stats-section">
     <div class="container">
-        <h2 class="display-5 fw-bold">{% trans "Ready to Battle?" %}</h2>
-        <p class="lead text-muted mb-4">{% trans "Join thousands of players and start your quiz adventure today!" %}</p>
-        <a href="{% url 'game:join' %}" class="btn btn-primary btn-lg">{% trans "Join a Game Now" %}</a>
+        <div class="row">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.active_players|default:"0" }}</div>
+                    <div class="stat-label">{% trans "Active Players" %}</div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.quiz_questions|default:"0" }}</div>
+                    <div class="stat-label">{% trans "Quiz Questions" %}</div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-gamepad"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.games_played|default:"0" }}</div>
+                    <div class="stat-label">{% trans "Games Played" %}</div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-number">{{ stats.user_rating|default:"0" }}</div>
+                    <div class="stat-label">{% trans "User Rating" %}</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% endblock %}
 
-{% block footer %}
-    {{ block.super }}
+<!-- How It Works Section -->
+{% if user.is_authenticated and user.profile.role == 'teacher' %}
+<div class="how-it-works-section">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2 class="section-title">{% trans "Host Your First Game" %}</h2>
+            <p class="section-subtitle">{% trans "Get started in just a few simple steps" %}</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <h3>{% trans "Create Quiz" %}</h3>
+                    <p>{% trans "Build your quiz with custom questions or use our AI-powered generator" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h3>{% trans "Launch Game" %}</h3>
+                    <p>{% trans "Start a live game session and share the game PIN with your students" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h3>{% trans "Track Results" %}</h3>
+                    <p>{% trans "Monitor student performance and analyze results in real-time" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="how-it-works-section">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2 class="section-title">{% trans "How to Play" %}</h2>
+            <p class="section-subtitle">{% trans "Jump into the action in seconds" %}</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3>{% trans "Enter Game PIN" %}</h3>
+                    <p>{% trans "Get the game PIN from your teacher or find a public game to join" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">
+                        <i class="fas fa-gamepad"></i>
+                    </div>
+                    <h3>{% trans "Play & Compete" %}</h3>
+                    <p>{% trans "Answer questions quickly and accurately to earn points and climb the leaderboard" %}</p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">
+                        <i class="fas fa-medal"></i>
+                    </div>
+                    <h3>{% trans "Win Rewards" %}</h3>
+                    <p>{% trans "Earn achievements, climb rankings, and become the ultimate quiz champion" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- CTA Section -->
+<div class="cta-section">
+    <div class="container">
+        <div class="cta-content text-center">
+            {% if user.is_authenticated %}
+                {% if user.profile.role == 'teacher' %}
+                    <h2>{% trans "Ready to Engage Your Students?" %}</h2>
+                    <p>{% trans "Create interactive quizzes and host live games that make learning fun and competitive" %}</p>
+                    <a href="{% url 'quiz:browse' %}" class="btn btn-cta">
+                        <i class="fas fa-rocket me-2"></i>
+                        {% trans "Host Your First Game" %}
+                    </a>
+                {% else %}
+                    <h2>{% trans "Ready to Test Your Knowledge?" %}</h2>
+                    <p>{% trans "Join exciting quiz battles and compete with players from around the world" %}</p>
+                    <a href="{% url 'game:join' %}" class="btn btn-cta">
+                        <i class="fas fa-gamepad me-2"></i>
+                        {% trans "Join a Game Now" %}
+                    </a>
+                {% endif %}
+            {% else %}
+                <h2>{% trans "Ready to Start Your Journey?" %}</h2>
+                <p>{% trans "Join thousands of learners and educators in the ultimate quiz experience" %}</p>
+                <a href="{% url 'accounts:register' %}" class="btn btn-cta">
+                    <i class="fas fa-rocket me-2"></i>
+                    {% trans "Get Started Today" %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
