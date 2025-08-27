@@ -6,6 +6,11 @@
 
 {% block content %}
 <style>
+    /* Hide the navbar for lobby page */
+    .navbar {
+        display: none !important;
+    }
+
     body {
         background: linear-gradient(270deg, #1a1a2e, #16213e, #0f3460, #16213e, #1a1a2e);
         background-size: 600% 600%;
@@ -87,6 +92,539 @@
         background-color: #f0ad4e;
         color: #212529;
     }
+
+    /* Enhanced Player Display Styles */
+    .player-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 0;
+    }
+
+    .player-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .player-item:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .player-avatar-container {
+        position: relative;
+        margin-right: 15px;
+    }
+
+    .player-avatar, .default-player-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .default-player-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 24px;
+    }
+
+    .game-pin {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .player-info {
+        flex: 1;
+        margin-right: 15px;
+    }
+
+    .player-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 5px;
+    }
+
+    .player-stats {
+        display: flex;
+        gap: 15px;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .player-badges {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        align-items: flex-end;
+    }
+
+    .level-badge {
+        background: linear-gradient(135deg, #4facfe, #00f2fe);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .host-badge {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .start-game-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 15px;
+        padding: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .start-game-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+
+    /* Profile Frame Styles */
+    .player-avatars-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2.5rem;
+        justify-content: center;
+    }
+
+    .player-avatar-circle {
+        position: relative;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .player-avatar-circle:hover {
+        transform: translateY(-3px) scale(1.05);
+    }
+
+    .avatar-container {
+        position: relative;
+        margin-bottom: 0.5rem;
+    }
+
+    .avatar-frame-wrapper {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        margin: 0 auto;
+    }
+
+    .avatar-frame-wrapper .circle-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: none;
+        box-shadow: none;
+    }
+
+    .avatar-frame-wrapper .circle-default-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 32px;
+        border: none;
+        box-shadow: none;
+    }
+
+    .avatar-frame-wrapper.cosmic-frame {
+        border: 4px solid #ff6b6b;
+        box-shadow: 0 0 20px rgba(255, 107, 107, 0.6), inset 0 0 20px rgba(255, 107, 107, 0.3);
+        animation: cosmic-glow 3s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.dragon-frame {
+        border: 4px solid #ff4757;
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.6), inset 0 0 20px rgba(255, 71, 87, 0.3);
+        animation: dragon-pulse 2s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.crystal-frame {
+        border: 4px solid #3742fa;
+        box-shadow: 0 0 25px rgba(55, 66, 250, 0.7), inset 0 0 25px rgba(55, 66, 250, 0.4);
+        animation: crystal-sparkle 2.5s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.neon-frame {
+        border: 4px solid #2ed573;
+        box-shadow: 0 0 30px rgba(46, 213, 115, 0.8), inset 0 0 30px rgba(46, 213, 115, 0.4);
+        animation: neon-flicker 1.5s ease-in-out infinite alternate;
+    }
+
+    .avatar-frame-wrapper.royal-frame {
+        border: 4px solid #ffa502;
+        box-shadow: 0 0 20px rgba(255, 165, 2, 0.6), inset 0 0 20px rgba(255, 165, 2, 0.3);
+        animation: royal-shine 3s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.ocean-frame {
+        border: 4px solid #1e90ff;
+        box-shadow: 0 0 25px rgba(30, 144, 255, 0.7), inset 0 0 25px rgba(30, 144, 255, 0.4);
+        animation: ocean-wave 2.8s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.flame-frame {
+        border: 4px solid #ff6348;
+        box-shadow: 0 0 30px rgba(255, 99, 72, 0.8), inset 0 0 30px rgba(255, 99, 72, 0.4);
+        animation: flame-flicker 1.8s ease-in-out infinite alternate;
+    }
+
+    .avatar-frame-wrapper.shadow-frame {
+        border: 4px solid #2f3542;
+        box-shadow: 0 0 20px rgba(47, 53, 66, 0.9), inset 0 0 20px rgba(47, 53, 66, 0.5);
+        animation: shadow-pulse 2.5s ease-in-out infinite;
+    }
+
+    .circle-avatar, .circle-default-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .circle-default-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 32px;
+    }
+
+    .circle-game-pin {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .circle-host-badge {
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+        color: white;
+        padding: 4px;
+        border-radius: 50%;
+        font-size: 14px;
+        font-weight: bold;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .player-username {
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: center;
+        max-width: 100px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 0.25rem;
+    }
+
+    .player-tooltip {
+        position: absolute;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 1001;
+    }
+
+    .player-avatar-circle:hover .player-tooltip {
+        opacity: 1;
+    }
+
+    .no-players-message {
+        text-align: center;
+        padding: 1rem;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+    }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+        .player-avatars-container {
+            flex-direction: column;
+        }
+        
+        .circle-avatar, .circle-default-avatar {
+            width: 70px;
+            height: 70px;
+            font-size: 28px;
+        }
+
+        .circle-game-pin, .circle-host-badge {
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+        }
+
+        .player-tooltip {
+            bottom: 80px;
+        }
+
+        .player-username {
+            font-size: 0.8rem;
+            max-width: 90px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .circle-avatar, .circle-default-avatar {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+        .circle-game-pin, .circle-host-badge {
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+        }
+
+        .player-tooltip {
+            bottom: 70px;
+        }
+
+        .player-username {
+            font-size: 0.75rem;
+            max-width: 80px;
+        }
+    }
+
+    .start-game-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 2rem;
+    }
+
+    .waiting-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 2rem;
+    }
+
+    .game-pin-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 2rem;
+    }
+
+    .players-section {
+        margin-top: 2rem;
+    }
+
+    .player-avatars-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2.5rem;
+        justify-content: center;
+    }
+
+    .player-avatar-circle {
+        position: relative;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .player-avatar-circle:hover {
+        transform: translateY(-3px) scale(1.05);
+    }
+
+    .avatar-container {
+        position: relative;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Frame Animations */
+    @keyframes cosmic-glow {
+        0% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.6); }
+        25% { box-shadow: 0 0 20px rgba(78, 205, 196, 0.6); }
+        50% { box-shadow: 0 0 20px rgba(69, 183, 209, 0.6); }
+        75% { box-shadow: 0 0 20px rgba(150, 206, 180, 0.6); }
+        100% { box-shadow: 0 0 20px rgba(254, 202, 87, 0.6); }
+    }
+
+    @keyframes dragon-pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 71, 87, 0.6); }
+        50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 71, 87, 0.8); }
+    }
+
+    @keyframes crystal-sparkle {
+        0%, 100% { box-shadow: 0 0 25px rgba(55, 66, 250, 0.7); }
+        50% { box-shadow: 0 0 35px rgba(55, 66, 250, 0.9), 0 0 50px rgba(55, 66, 250, 0.5); }
+    }
+
+    @keyframes neon-flicker {
+        0% { box-shadow: 0 0 30px rgba(46, 213, 115, 0.8); }
+        100% { box-shadow: 0 0 40px rgba(46, 213, 115, 1), 0 0 60px rgba(46, 213, 115, 0.6); }
+    }
+
+    @keyframes royal-shine {
+        0% { box-shadow: 0 0 20px rgba(255, 165, 2, 0.6); }
+        50% { box-shadow: 0 0 30px rgba(255, 165, 2, 0.8), 0 0 45px rgba(255, 215, 0, 0.4); }
+        100% { box-shadow: 0 0 20px rgba(255, 165, 2, 0.6); }
+    }
+
+    @keyframes ocean-wave {
+        0%, 100% { box-shadow: 0 0 25px rgba(30, 144, 255, 0.7); }
+        50% { box-shadow: 0 0 35px rgba(30, 144, 255, 0.9), 0 0 50px rgba(0, 191, 255, 0.5); }
+    }
+
+    @keyframes flame-flicker {
+        0% { box-shadow: 0 0 30px rgba(255, 99, 72, 0.8); }
+        100% { box-shadow: 0 0 40px rgba(255, 99, 72, 1), 0 0 60px rgba(255, 69, 0, 0.6); }
+    }
+
+    @keyframes shadow-pulse {
+        0%, 100% { box-shadow: 0 0 20px rgba(47, 53, 66, 0.9); }
+        50% { box-shadow: 0 0 30px rgba(47, 53, 66, 1), 0 0 45px rgba(0, 0, 0, 0.7); }
+    }
+
+    /* Avatar Frame Wrapper Styles */
+    .avatar-frame-wrapper {
+        position: relative;
+        display: inline-block;
+        border-radius: 50%;
+        padding: 5px;
+        background: transparent;
+    }
+
+    /* Frame CSS Classes */
+    .avatar-frame-wrapper.cosmic-frame {
+        border: 4px solid #ff6b6b;
+        box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+        animation: cosmic-glow 3s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.dragon-frame {
+        border: 4px solid #ff4757;
+        box-shadow: 0 0 20px rgba(255, 71, 87, 0.6);
+        animation: dragon-pulse 2s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.crystal-frame {
+        border: 4px solid #3742fa;
+        box-shadow: 0 0 25px rgba(55, 66, 250, 0.7);
+        animation: crystal-sparkle 2.5s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.neon-frame {
+        border: 4px solid #2ed573;
+        box-shadow: 0 0 30px rgba(46, 213, 115, 0.8);
+        animation: neon-flicker 1.5s ease-in-out infinite alternate;
+    }
+
+    .avatar-frame-wrapper.royal-frame {
+        border: 4px solid #ffa502;
+        box-shadow: 0 0 20px rgba(255, 165, 2, 0.6);
+        animation: royal-shine 3s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.ocean-frame {
+        border: 4px solid #1e90ff;
+        box-shadow: 0 0 25px rgba(30, 144, 255, 0.7);
+        animation: ocean-wave 2.5s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper.flame-frame {
+        border: 4px solid #ff6348;
+        box-shadow: 0 0 30px rgba(255, 99, 72, 0.8);
+        animation: flame-flicker 1.5s ease-in-out infinite alternate;
+    }
+
+    .avatar-frame-wrapper.shadow-frame {
+        border: 4px solid #2f3542;
+        box-shadow: 0 0 20px rgba(47, 53, 66, 0.9);
+        animation: shadow-pulse 2s ease-in-out infinite;
+    }
 </style>
 
 <div id="countdown-overlay">
@@ -95,47 +633,80 @@
 
 <div class="container my-5">
     <div class="lobby-container text-white shadow-lg">
-        <div class="row align-items-center">
-            <!-- Left Column: Game Info -->
-            <div class="col-lg-7 text-center text-lg-start mb-4 mb-lg-0">
-                <h1 class="display-4 fw-bold">{% trans "Game Lobby" %}</h1>
-                <p class="lead fs-4">{% trans "Quiz" %}: {{ game.quiz.title }}</p>
-                <hr class="border-light my-4">
-                <h2 class="h4">{% trans "Share this code with your friends!" %}</h2>
-                <div class="d-flex justify-content-center justify-content-lg-start align-items-center mt-3">
-                    <div class="game-code-display me-3">{{ game.code }}</div>
-                    <button class="btn btn-light btn-lg" id="copy-code-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy to clipboard">
-                        <i class="fas fa-copy"></i>
-                    </button>
+        <div class="row align-items-start">
+            <!-- Left Column: Start Game Button & Players -->
+            <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
+                <h1 class="display-4 fw-bold mb-4">{% trans "Game Lobby" %}</h1>
+                <p class="lead fs-4 mb-4">{% trans "Quiz" %}: {{ game.quiz.title }}</p>
+                
+                {% if is_host %}
+                    <div class="start-game-card p-4 mb-4">
+                        <h3 class="mb-3">{% trans "Ready to Start?" %}</h3>
+                        <p class="mb-4">{% trans "Click the button below when all players have joined" %}</p>
+                        <button class="btn btn-success btn-lg w-100 start-game-btn" id="start-game-btn">
+                            <i class="fas fa-play me-2"></i>{% trans "Start Game" %}
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="waiting-card p-4 mb-4">
+                        <h3 class="mb-3">{% trans "Waiting for Host" %}</h3>
+                        <p class="mb-0"><i class="fas fa-hourglass-start me-2"></i>{% trans "The host will start the game soon..." %}</p>
+                    </div>
+                {% endif %}
+                
+                <div class="players-section">
+                    <div class="player-avatars-container" id="player-list">
+                        {% for player in players %}
+                            <div class="player-avatar-circle" id="player-{{ player.id }}">
+                                <div class="avatar-container">
+                                    <div class="player-tooltip">{{ player.user.username }}</div>
+                                    {% if player.user.profile.avatar %}
+                                        <div class="avatar-frame-wrapper{% if player.user.profile.selected_frame %} {{ player.user.profile.selected_frame.css_class }}{% endif %}">
+                                            <img src="{{ player.user.profile.avatar.url }}" alt="{{ player.user.username }}" class="circle-avatar">
+                                        </div>
+                                    {% else %}
+                                        <div class="avatar-frame-wrapper{% if player.user.profile.selected_frame %} {{ player.user.profile.selected_frame.css_class }}{% endif %}">
+                                            <div class="circle-default-avatar">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    <div class="circle-game-pin">{{ forloop.counter }}</div>
+                                    {% if player.is_host %}
+                                        <div class="circle-host-badge">
+                                            <i class="fas fa-crown"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="player-username">{{ player.user.username }}</div>
+                            </div>
+                        {% empty %}
+                            <div class="no-players-message">
+                                <i class="fas fa-users fa-2x mb-2"></i>
+                                <p>{% trans "Waiting for players to join..." %}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
-            <!-- Right Column: Players & Start Button -->
-            <div class="col-lg-5">
-                <div class="player-list-card p-4">
-                    <h3 class="mb-3">{% trans "Players" %} (<span id="player-count">{{ players|length }}</span>)</h3>
-                    <ul class="list-group" id="player-list" style="max-height: 200px; overflow-y: auto;">
-                        {% for player in players %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center" id="player-{{ player.id }}">
-                                <span><i class="fas fa-user me-2"></i>{{ player.user.username }}</span>
-                                {% if player.is_host %}
-                                    <span class="badge host-badge">{% trans "Host" %}</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                    <div class="d-grid mt-4">
-                        {% if is_host %}
-                            <button class="btn btn-success btn-lg" id="start-game-btn"><i class="fas fa-rocket me-2"></i>{% trans "Start Game" %}</button>
-                        {% else %}
-                            <p class="text-center mb-0"><i class="fas fa-hourglass-start me-2"></i>{% trans "Waiting for the host to start..." %}</p>
-                        {% endif %}
+            <!-- Right Column: Game PIN -->
+            <div class="col-lg-6">
+                <div class="game-pin-card p-4 text-center">
+                    <h3 class="mb-3">{% trans "Share this code with your friends!" %}</h3>
+                    <div class="d-flex justify-content-center align-items-center">
+                        <div class="game-code-display me-3">{{ game.code }}</div>
+                        <button class="btn btn-light btn-lg" id="copy-code-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
+                    <p class="mt-3 mb-0 text-muted">{% trans "Players" %}: <span id="player-count">{{ players|length }}</span></p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -170,24 +741,73 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function updatePlayerList(players) {
+        const playerList = document.getElementById('player-list');
+        const playerCount = document.getElementById('player-count');
+        
         playerList.innerHTML = '';
-        players.forEach(player => {
-            const newPlayer = document.createElement('li');
-            newPlayer.className = 'list-group-item d-flex justify-content-between align-items-center';
+        players.forEach((player, index) => {
+            const newPlayer = document.createElement('div');
+            newPlayer.className = 'player-avatar-circle';
             newPlayer.id = `player-${player.id}`;
-            
-            const playerName = document.createElement('span');
-            playerName.innerHTML = `<i class="fas fa-user me-2"></i>${player.username}`;
-            newPlayer.appendChild(playerName);
+
+            const avatarContainer = document.createElement('div');
+            avatarContainer.className = 'avatar-container';
+
+            const playerTooltip = document.createElement('div');
+            playerTooltip.className = 'player-tooltip';
+            playerTooltip.textContent = player.user.username;
+            avatarContainer.appendChild(playerTooltip);
+
+            if (player.user.profile.avatar && player.user.profile.avatar.url) {
+                const frameWrapper = document.createElement('div');
+                frameWrapper.className = 'avatar-frame-wrapper';
+                if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
+                    frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
+                }
+                
+                const playerAvatar = document.createElement('img');
+                playerAvatar.src = player.user.profile.avatar.url;
+                playerAvatar.alt = player.user.username;
+                playerAvatar.className = 'circle-avatar';
+                
+                frameWrapper.appendChild(playerAvatar);
+                avatarContainer.appendChild(frameWrapper);
+            } else {
+                const frameWrapper = document.createElement('div');
+                frameWrapper.className = 'avatar-frame-wrapper';
+                if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
+                    frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
+                }
+                
+                const defaultAvatar = document.createElement('div');
+                defaultAvatar.className = 'circle-default-avatar';
+                defaultAvatar.innerHTML = '<i class="fas fa-user"></i>';
+                
+                frameWrapper.appendChild(defaultAvatar);
+                avatarContainer.appendChild(frameWrapper);
+            }
+
+            const gamePin = document.createElement('div');
+            gamePin.className = 'circle-game-pin';
+            gamePin.textContent = index + 1;
+            avatarContainer.appendChild(gamePin);
 
             if (player.is_host) {
-                const hostBadge = document.createElement('span');
-                hostBadge.className = 'badge host-badge';
-                hostBadge.textContent = '{% trans "Host" %}';
-                newPlayer.appendChild(hostBadge);
+                const hostBadge = document.createElement('div');
+                hostBadge.className = 'circle-host-badge';
+                hostBadge.innerHTML = '<i class="fas fa-crown"></i>';
+                avatarContainer.appendChild(hostBadge);
             }
+
+            const username = document.createElement('div');
+            username.className = 'player-username';
+            username.textContent = player.user.username;
+            newPlayer.appendChild(avatarContainer);
+            newPlayer.appendChild(username);
+
             playerList.appendChild(newPlayer);
         });
+
         playerCount.textContent = players.length;
     }
 
@@ -206,20 +826,68 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data.type === 'lobby_state') {
             updatePlayerList(data.players);
         } else if (data.type === 'player_joined') {
-            const newPlayer = document.createElement('li');
-            newPlayer.className = 'list-group-item d-flex justify-content-between align-items-center';
+            const playerList = document.getElementById('player-list');
+            const playerCount = document.getElementById('player-count');
+            
+            const newPlayer = document.createElement('div');
+            newPlayer.className = 'player-avatar-circle';
             newPlayer.id = `player-${data.player.id}`;
 
-            const playerName = document.createElement('span');
-            playerName.innerHTML = `<i class="fas fa-user me-2"></i>${data.player.username}`;
-            newPlayer.appendChild(playerName);
+            const avatarContainer = document.createElement('div');
+            avatarContainer.className = 'avatar-container';
+
+            const playerTooltip = document.createElement('div');
+            playerTooltip.className = 'player-tooltip';
+            playerTooltip.textContent = data.player.user.username;
+            avatarContainer.appendChild(playerTooltip);
+
+            if (data.player.user.profile.avatar && data.player.user.profile.avatar.url) {
+                const frameWrapper = document.createElement('div');
+                frameWrapper.className = 'avatar-frame-wrapper';
+                if (data.player.user.profile.selected_frame && data.player.user.profile.selected_frame.css_class) {
+                    frameWrapper.classList.add(data.player.user.profile.selected_frame.css_class);
+                }
+                
+                const playerAvatar = document.createElement('img');
+                playerAvatar.src = data.player.user.profile.avatar.url;
+                playerAvatar.alt = data.player.user.username;
+                playerAvatar.className = 'circle-avatar';
+                
+                frameWrapper.appendChild(playerAvatar);
+                avatarContainer.appendChild(frameWrapper);
+            } else {
+                const frameWrapper = document.createElement('div');
+                frameWrapper.className = 'avatar-frame-wrapper';
+                if (data.player.user.profile.selected_frame && data.player.user.profile.selected_frame.css_class) {
+                    frameWrapper.classList.add(data.player.user.profile.selected_frame.css_class);
+                }
+                
+                const defaultAvatar = document.createElement('div');
+                defaultAvatar.className = 'circle-default-avatar';
+                defaultAvatar.innerHTML = '<i class="fas fa-user"></i>';
+                
+                frameWrapper.appendChild(defaultAvatar);
+                avatarContainer.appendChild(frameWrapper);
+            }
+
+            const gamePin = document.createElement('div');
+            gamePin.className = 'circle-game-pin';
+            gamePin.textContent = playerList.children.length + 1;
+            avatarContainer.appendChild(gamePin);
 
             if (data.player.is_host) {
-                const hostBadge = document.createElement('span');
-                hostBadge.className = 'badge host-badge';
-                hostBadge.textContent = '{% trans "Host" %}';
-                newPlayer.appendChild(hostBadge);
+                const hostBadge = document.createElement('div');
+                hostBadge.className = 'circle-host-badge';
+                hostBadge.innerHTML = '<i class="fas fa-crown"></i>';
+                avatarContainer.appendChild(hostBadge);
             }
+
+            const username = document.createElement('div');
+            username.className = 'player-username';
+            username.textContent = data.player.user.username;
+            newPlayer.appendChild(avatarContainer);
+            newPlayer.appendChild(username);
+
             playerList.appendChild(newPlayer);
             playerCount.textContent = playerList.children.length;
 

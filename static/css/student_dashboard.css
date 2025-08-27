@@ -1712,3 +1712,115 @@
 .dashboard-container.dark-theme .achievement-date {
     color: white !important;
 }
+
+/* New Frame Styles */
+.cosmic-frame {
+    border: 4px solid transparent;
+    background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #667eea) border-box;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.6), 
+                0 0 40px rgba(118, 75, 162, 0.4),
+                inset 0 0 20px rgba(240, 147, 251, 0.3);
+    animation: cosmicGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes cosmicGlow {
+    0% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.6), 0 0 40px rgba(118, 75, 162, 0.4); }
+    100% { box-shadow: 0 0 30px rgba(240, 147, 251, 0.8), 0 0 60px rgba(102, 126, 234, 0.6); }
+}
+
+.dragon-frame {
+    border: 4px solid #d4af37;
+    border-radius: 50%;
+    box-shadow: 0 0 25px rgba(255, 69, 0, 0.8),
+                0 0 50px rgba(255, 140, 0, 0.6),
+                inset 0 0 15px rgba(212, 175, 55, 0.4);
+    animation: dragonFlame 2s ease-in-out infinite alternate;
+}
+
+@keyframes dragonFlame {
+    0% { box-shadow: 0 0 25px rgba(255, 69, 0, 0.8), 0 0 50px rgba(255, 140, 0, 0.6); }
+    100% { box-shadow: 0 0 35px rgba(255, 0, 0, 1), 0 0 70px rgba(255, 69, 0, 0.8); }
+}
+
+.crystal-frame {
+    border: 4px solid #e0e0e0;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(224, 224, 224, 0.8),
+                0 0 40px rgba(255, 255, 255, 0.6),
+                inset 0 0 10px rgba(224, 224, 224, 0.5);
+    animation: crystalShimmer 2.5s ease-in-out infinite;
+}
+
+@keyframes crystalShimmer {
+    0%, 100% { box-shadow: 0 0 20px rgba(224, 224, 224, 0.8), 0 0 40px rgba(255, 255, 255, 0.6); }
+    50% { box-shadow: 0 0 30px rgba(255, 255, 255, 1), 0 0 60px rgba(224, 224, 224, 0.8); }
+}
+
+.neon-frame {
+    border: 4px solid #00ff41;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.8),
+                0 0 40px rgba(0, 255, 65, 0.6),
+                inset 0 0 10px rgba(0, 255, 65, 0.3);
+    animation: neonPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes neonPulse {
+    0% { box-shadow: 0 0 20px rgba(0, 255, 65, 0.8), 0 0 40px rgba(0, 255, 65, 0.6); }
+    100% { box-shadow: 0 0 30px rgba(0, 255, 65, 1), 0 0 60px rgba(0, 255, 65, 0.8); }
+}
+
+.royal-frame {
+    border: 4px solid #8b0000;
+    border-radius: 50%;
+    box-shadow: 0 0 25px rgba(139, 0, 0, 0.8),
+                0 0 50px rgba(255, 215, 0, 0.6),
+                inset 0 0 15px rgba(139, 0, 0, 0.4);
+    background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1));
+}
+
+.ocean-frame {
+    border: 4px solid #006994;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(0, 105, 148, 0.8),
+                0 0 40px rgba(0, 191, 255, 0.6),
+                inset 0 0 10px rgba(0, 105, 148, 0.3);
+    animation: oceanWave 3s ease-in-out infinite;
+}
+
+@keyframes oceanWave {
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 105, 148, 0.8), 0 0 40px rgba(0, 191, 255, 0.6); }
+    50% { box-shadow: 0 0 30px rgba(0, 191, 255, 1), 0 0 60px rgba(0, 105, 148, 0.8); }
+}
+
+.flame-frame {
+    border: 4px solid #ff4500;
+    border-radius: 50%;
+    box-shadow: 0 0 25px rgba(255, 69, 0, 0.8),
+                0 0 50px rgba(255, 165, 0, 0.6),
+                inset 0 0 15px rgba(255, 69, 0, 0.4);
+    animation: flameFlicker 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes flameFlicker {
+    0% { box-shadow: 0 0 25px rgba(255, 69, 0, 0.8), 0 0 50px rgba(255, 165, 0, 0.6); }
+    25% { box-shadow: 0 0 30px rgba(255, 0, 0, 1), 0 0 60px rgba(255, 69, 0, 0.8); }
+    50% { box-shadow: 0 0 35px rgba(255, 165, 0, 1), 0 0 70px rgba(255, 69, 0, 0.9); }
+    75% { box-shadow: 0 0 28px rgba(255, 69, 0, 0.9), 0 0 55px rgba(255, 165, 0, 0.7); }
+    100% { box-shadow: 0 0 32px rgba(255, 0, 0, 0.95), 0 0 65px rgba(255, 69, 0, 0.85); }
+}
+
+.shadow-frame {
+    border: 4px solid #2c2c2c;
+    border-radius: 50%;
+    box-shadow: 0 0 25px rgba(44, 44, 44, 0.9),
+                0 0 50px rgba(0, 0, 0, 0.8),
+                inset 0 0 15px rgba(44, 44, 44, 0.6);
+    animation: shadowPulse 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes shadowPulse {
+    0% { box-shadow: 0 0 25px rgba(44, 44, 44, 0.9), 0 0 50px rgba(0, 0, 0, 0.8); }
+    100% { box-shadow: 0 0 35px rgba(0, 0, 0, 1), 0 0 70px rgba(44, 44, 44, 0.9); }
+}

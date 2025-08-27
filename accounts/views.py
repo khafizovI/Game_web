@@ -17,6 +17,9 @@ from datetime import timedelta
 from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 import random
+from django.views.decorators.http import require_http_methods
+import json
+import logging
 
 
 def ajax_login_required(view_func):
@@ -678,14 +681,11 @@ def complete_daily_task(request, task_id):
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'}, status=500)
 
 
+@require_http_methods(["POST"])
 def submit_rating(request):
     """Submit user rating for the platform"""
     
-    # Only allow POST requests
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': 'POST method required'}, status=405)
-    
-    # Check if user is a student
+    # Check if user is authenticated
     if not request.user.is_authenticated:
         return JsonResponse({'success': False, 'message': 'Authentication required'}, status=401)
     
@@ -698,7 +698,17 @@ def submit_rating(request):
         return JsonResponse({'success': False, 'message': 'Access denied - students only'}, status=403)
     
     try:
-        rating = int(request.POST.get('rating', 0))
+        # Try to get rating from POST data or JSON body
+        rating = None
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                rating = int(data.get('rating', 0))
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({'success': False, 'message': 'Invalid JSON data'}, status=400)
+        else:
+            rating = int(request.POST.get('rating', 0))
+        
         if rating < 1 or rating > 5:
             return JsonResponse({'success': False, 'message': 'Rating must be between 1 and 5'}, status=400)
         
@@ -708,9 +718,12 @@ def submit_rating(request):
         profile.save()
         
         return JsonResponse({'success': True, 'message': 'Rating submitted successfully!'})
-    except (ValueError, TypeError):
-        return JsonResponse({'success': False, 'message': 'Invalid rating value'}, status=400)
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'message': f'Invalid rating value: {str(e)}'}, status=400)
     except Exception as e:
+        # Log the error for debugging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in submit_rating: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'}, status=500)
 
 

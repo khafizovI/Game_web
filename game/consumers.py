@@ -1,5 +1,5 @@
-import json
 import asyncio
+import json
 import logging
 import random
 import time
@@ -568,18 +568,34 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_all_players_in_game(self):
         game = Game.objects.get(code=self.room_code)
-        players = GamePlayer.objects.filter(game=game).select_related('user')
+        players = GamePlayer.objects.filter(game=game).select_related('user', 'user__profile', 'user__profile__selected_frame')
         player_list = []
         for p in players:
-            # Temporarily disabled for debugging
+            # Get avatar URL if exists
             avatar_url = None
+            if hasattr(p.user, 'profile') and p.user.profile.avatar:
+                avatar_url = p.user.profile.avatar.url
+
+            # Get selected frame CSS class if exists
+            selected_frame_css = None
+            if hasattr(p.user, 'profile') and p.user.profile.selected_frame:
+                selected_frame_css = p.user.profile.selected_frame.css_class
 
             player_list.append({
                 'id': p.id, 
                 'username': p.user.username,
                 'score': p.score,
-                'is_host': game.host == p.user, 
-                'avatar_url': avatar_url
+                'is_host': game.host == p.user,
+                'user': {
+                    'username': p.user.username,
+                    'profile': {
+                        'avatar': {'url': avatar_url} if avatar_url else None,
+                        'selected_frame': {'css_class': selected_frame_css} if selected_frame_css else None,
+                        'total_points': p.user.profile.total_points if hasattr(p.user, 'profile') else 0,
+                        'games_played': p.user.profile.games_played if hasattr(p.user, 'profile') else 0,
+                        'level': p.user.profile.level if hasattr(p.user, 'profile') else 1
+                    }
+                }
             })
         return player_list
 
@@ -675,12 +691,32 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_player_data_as_dict(self, player):
         game = Game.objects.get(code=self.room_code)
+        
+        # Get avatar URL if exists
+        avatar_url = None
+        if hasattr(player.user, 'profile') and player.user.profile.avatar:
+            avatar_url = player.user.profile.avatar.url
+
+        # Get selected frame CSS class if exists
+        selected_frame_css = None
+        if hasattr(player.user, 'profile') and player.user.profile.selected_frame:
+            selected_frame_css = player.user.profile.selected_frame.css_class
+        
         return {
             'id': player.id,
             'username': player.user.username,
             'score': player.score,
             'is_host': game.host == player.user,
-            'avatar_url': None  # Placeholder
+            'user': {
+                'username': player.user.username,
+                'profile': {
+                    'avatar': {'url': avatar_url} if avatar_url else None,
+                    'selected_frame': {'css_class': selected_frame_css} if selected_frame_css else None,
+                    'total_points': player.user.profile.total_points if hasattr(player.user, 'profile') else 0,
+                    'games_played': player.user.profile.games_played if hasattr(player.user, 'profile') else 0,
+                    'level': player.user.profile.level if hasattr(player.user, 'profile') else 1
+                }
+            }
         }
 
     @database_sync_to_async
@@ -701,9 +737,3 @@ class GameConsumer(AsyncWebsocketConsumer):
             return GamePlayer.objects.get(id=player_id)
         except GamePlayer.DoesNotExist:
             return None
-
-    @database_sync_to_async
-    def get_teacher_channel(self):
-        game = Game.objects.get(code=self.room_code)
-        teacher_player = GamePlayer.objects.get(game=game, user=game.host)
-        return self.player_channels.get(teacher_player.id)

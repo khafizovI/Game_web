@@ -50,7 +50,7 @@ def host_game(request, quiz_id):
 def lobby(request, game_code):
     """View for the game lobby, where players wait for the host to start the game."""
     game = get_object_or_404(Game, code=game_code)
-    players = GamePlayer.objects.filter(game=game)
+    players = GamePlayer.objects.filter(game=game).select_related('user', 'user__profile', 'user__profile__selected_frame')
     is_host = (request.user.id == game.host.id)
 
     context = {

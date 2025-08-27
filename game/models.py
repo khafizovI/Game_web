@@ -33,6 +33,10 @@ class GamePlayer(models.Model):
 
     def __str__(self):
         return f"{self.user.username} in game {self.game.code}"
+    
+    @property
+    def is_host(self):
+        return self.game.host == self.user
 
 class PlayerAnswer(models.Model):
     player = models.ForeignKey(GamePlayer, on_delete=models.CASCADE, related_name='answers')
