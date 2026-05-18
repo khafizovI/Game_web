@@ -11,8 +11,8 @@
             <div class="col-lg-4">
                 <div class="profile-sidebar">
                     <div class="profile-user-pic text-center">
-                        {% if profile.avatar %}
-                            <img src="{{ profile.avatar.url }}" alt="Avatar" class="avatar-img rounded-circle shadow-sm">
+                        {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="Avatar" class="avatar-img rounded-circle shadow-sm">
                         {% else %}
                             <img src="{% static 'images/default-avatar.png' %}" alt="Avatar" class="avatar-img rounded-circle shadow-sm">
                         {% endif %}
@@ -81,7 +81,7 @@
                                         <div class="col-md-6 mb-4">
                                             <div class="card quiz-card h-100">
                                                 <div class="card-body">
-                                                    <h5 class="card-title">{{ quiz.title }}</h5>
+                                                    <h5 class="card-title" data-no-translate>{{ quiz.title }}</h5>
                                                     <p class="card-subtitle mb-2 text-muted small">{% trans "Created:" %} {{ quiz.created_at|date:"M d, Y" }}</p>
                                                     <p class="card-text">{{ quiz.description|truncatechars:100 }}</p>
                                                 </div>
@@ -128,7 +128,7 @@
                                             {% for game in hosted_games %}
                                                 <tr>
                                                     <td><span class="badge bg-light text-dark">{{ game.code }}</span></td>
-                                                    <td>{{ game.quiz.title }}</td>
+                                                    <td data-no-translate>{{ game.quiz.title }}</td>
                                                     <td>{{ game.created_at|date:"M d, Y" }}</td>
                                                     <td>{{ game.players.count }}</td>
                                                     <td>
@@ -173,7 +173,7 @@
                                         <tbody>
                                             {% for player in played_games %}
                                                 <tr>
-                                                    <td>{{ player.game.quiz.title }}</td>
+                                                    <td data-no-translate>{{ player.game.quiz.title }}</td>
                                                     <td>{{ player.game.host.username }}</td>
                                                     <td>{{ player.joined_at|date:"M d, Y" }}</td>
                                                     <td>{{ player.score }}</td>
@@ -192,7 +192,7 @@
                                 </div>
                             {% else %}
                                 <div class="alert alert-light text-center">
-                                    <p class="mb-0">{% trans "You haven't played any games yet." %} <a href="{% url 'game:join' %}">{% trans "Join a game now!" %}</a></p>
+                                    <p class="mb-0">{% trans "You haven't played any games yet." %}</p>
                                 </div>
                             {% endif %}
                         </div>

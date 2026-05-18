@@ -19,8 +19,8 @@
                         <div class="text-center mb-4">
                             <div class="avatar-upload">
                                 <div class="avatar-preview">
-                                    {% if user.profile.avatar %}
-                                        <div id="imagePreview" style="background-image: url({{ user.profile.avatar.url }});"></div>
+                                    {% if user.profile.avatar_url %}
+                                        <div id="imagePreview" style="background-image: url({{ user.profile.avatar_url }});"></div>
                                     {% else %}
                                         <div id="imagePreview" style="background-image: url({% static 'images/default-avatar.png' %});"></div>
                                     {% endif %}

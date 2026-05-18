@@ -8,6 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
+
+def env_list(name, default=''):
+    return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -16,11 +20,17 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-vr3g#ql0h!g3yp+zs#^
 
 # Groq API Token
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'false').lower() == 'true'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,testserver')
+CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+USE_X_FORWARDED_HOST = os.getenv('DJANGO_USE_X_FORWARDED_HOST', 'true').lower() == 'true'
+
+if os.getenv('DJANGO_TRUST_X_FORWARDED_PROTO', 'true').lower() == 'true':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
@@ -53,6 +63,8 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'quizgame.middleware.UiTranslationMiddleware',
+    'quizgame.middleware.MethodNotAllowedPageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -77,6 +89,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.i18n',  # For language support
+                'quizgame.context_processors.app_i18n',
             ],
         },
     },
@@ -118,6 +131,8 @@ LANGUAGE_CODE = 'en'
 # Available languages
 LANGUAGES = [
     ('en', 'English'),
+    ('uz', "O'zbekcha"),
+    ('ru', 'Русский'),
 ]
 
 # Locale paths where translation files will be stored
@@ -168,22 +183,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Authentication settings
 LOGIN_REDIRECT_URL = 'accounts:profile'
 LOGOUT_REDIRECT_URL = 'home'
+CSRF_FAILURE_VIEW = 'quizgame.views.csrf_failure'
 
 # Crispy Forms
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 # Email Configuration
-# For development, use console backend to see emails in terminal
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@quizgame.com')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
+EMAIL_CONFIGURED = all([
+    EMAIL_HOST_USER,
+    EMAIL_HOST_PASSWORD,
+    EMAIL_HOST_USER != 'your-email@gmail.com',
+    EMAIL_HOST_PASSWORD != 'your-app-password-here',
+])
 
-# For production with Gmail SMTP (requires App Password):
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-# EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-# DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER', 'noreply@quizgame.com')
+if EMAIL_CONFIGURED:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Jazzmin Admin Theme Configuration
 JAZZMIN_SETTINGS = {
@@ -209,7 +232,7 @@ JAZZMIN_SETTINGS = {
     "site_logo_classes": "img-circle",
 
     # Relative path to a favicon for your site, will default to site_logo if absent (ideally 32x32 px)
-    "site_icon": None,
+    "site_icon": "images/favicon.ico",
 
     # Welcome text on the login screen
     "welcome_sign": "Welcome to QuizBattle Admin",

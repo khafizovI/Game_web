@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const translate = window.t || ((key) => key);
+    const langPrefix = (window.appI18n && window.appI18n.langPrefix) || '/en/';
+
     // Handle equip button clicks in the collection section
     const equipButtons = document.querySelectorAll('.equip-btn');
     const equipThemeButtons = document.querySelectorAll('.equip-theme-btn');
@@ -27,12 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = getCsrfToken();
         
         if (!csrfToken) {
-            showNotification('Security token not found. Please refresh the page.', 'error');
+            showNotification(translate('Security token not found. Please refresh the page.'), 'error');
             button.disabled = false;
             return;
         }
         
-        fetch(`/en/accounts/shop/equip-frame/${itemId}/`, {
+        fetch(`${langPrefix}accounts/shop/equip-frame/${itemId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -56,16 +59,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Update UI to show equipped state
                 updateEquippedState(itemId);
-                showNotification('Frame equipped successfully!', 'success');
+                showNotification(translate('Frame equipped successfully!'), 'success');
             } else {
-                showNotification(data.message || 'Failed to equip frame', 'error');
+                showNotification(data.message || translate('Failed to equip frame'), 'error');
                 // Restore button
                 button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Fetch error:', error);
-            showNotification('An error occurred while equipping frame', 'error');
+            showNotification(translate('An error occurred while equipping frame'), 'error');
             // Restore button
             button.disabled = false;
         });
@@ -81,17 +84,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!csrfToken) {
             console.log('CSRF Token found:', 'No');
             console.log('Item ID:', itemId);
-            console.log('Making POST request to:', `/en/accounts/shop/equip-theme/${itemId}/`);
-            showNotification('Security token not found. Please refresh the page.', 'error');
+            console.log('Making POST request to:', `${langPrefix}accounts/shop/equip-theme/${itemId}/`);
+            showNotification(translate('Security token not found. Please refresh the page.'), 'error');
             button.disabled = false;
             return;
         }
         
         console.log('CSRF Token found:', 'Yes');
         console.log('Item ID:', itemId);
-        console.log('Making POST request to:', `/en/accounts/shop/equip-theme/${itemId}/`);
+        console.log('Making POST request to:', `${langPrefix}accounts/shop/equip-theme/${itemId}/`);
         
-        fetch(`/en/accounts/shop/equip-theme/${itemId}/`, {
+        fetch(`${langPrefix}accounts/shop/equip-theme/${itemId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -114,20 +117,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             console.log('Response data:', data);
             if (data.success) {
-                showNotification('Theme equipped successfully!', 'success');
+                showNotification(translate('Theme equipped successfully!'), 'success');
                 // Reload page to show updated theme state
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
             } else {
-                showNotification(data.message || 'Failed to equip theme', 'error');
+                showNotification(data.message || translate('Failed to equip theme'), 'error');
                 // Restore button
                 button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Fetch error:', error);
-            showNotification('An error occurred while equipping theme', 'error');
+            showNotification(translate('An error occurred while equipping theme'), 'error');
             // Restore button
             button.disabled = false;
         });
@@ -180,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const equipBtn = document.createElement('button');
             equipBtn.className = 'btn btn-sm btn-primary equip-btn';
             equipBtn.setAttribute('data-item-id', badgeItemId || '');
-            equipBtn.textContent = 'Equip';
+            equipBtn.textContent = translate('Equip');
             parent.appendChild(equipBtn);
             
             // Add event listener to new button
@@ -200,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const equippedBadge = document.createElement('span');
             equippedBadge.className = 'equipped-badge';
             equippedBadge.setAttribute('data-item-id', itemId); // Store the item ID
-            equippedBadge.textContent = 'Equipped';
+            equippedBadge.textContent = translate('Equipped');
             parent.appendChild(equippedBadge);
         }
         
@@ -230,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const equipBtn = document.createElement('button');
                 equipBtn.className = 'btn btn-sm btn-primary equip-theme-btn';
                 equipBtn.setAttribute('data-item-id', currentItemId);
-                equipBtn.textContent = 'Equip';
+                equipBtn.textContent = translate('Equip');
                 collectionItemInfo.appendChild(equipBtn);
                 
                 // Add event listener to new button
@@ -251,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const equippedBadge = document.createElement('span');
             equippedBadge.className = 'equipped-badge';
             equippedBadge.setAttribute('data-item-id', itemId);
-            equippedBadge.textContent = 'Equipped';
+            equippedBadge.textContent = translate('Equipped');
             parent.appendChild(equippedBadge);
         }
     }
@@ -344,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (submitRatingBtn) {
             submitRatingBtn.addEventListener('click', function() {
                 if (selectedRating === 0) {
-                    showNotification('Please select a rating first.', 'error');
+                    showNotification(translate('Please select a rating first.'), 'error');
                     return;
                 }
                 
@@ -357,15 +360,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const csrfToken = getCsrfToken();
         
         if (!csrfToken) {
-            showNotification('Security token not found. Please refresh the page.', 'error');
+            showNotification(translate('Security token not found. Please refresh the page.'), 'error');
             return;
         }
         
         // Disable submit button to prevent double submission
         submitRatingBtn.disabled = true;
-        submitRatingBtn.textContent = 'Submitting...';
-        
-        fetch('/en/accounts/submit-rating/', {
+        submitRatingBtn.textContent = translate('Submitting...');
+
+        fetch(`${langPrefix}accounts/submit-rating/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -380,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification('Thank you for your rating!', 'success');
+                showNotification(translate('Thank you for your rating!'), 'success');
                 
                 // Hide the entire rating section after successful submission
                 const ratingSection = document.querySelector('.dashboard-section:has(.rating-container)');
@@ -392,16 +395,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 500);
                 }
             } else {
-                showNotification(data.message || 'Failed to submit rating.', 'error');
+                showNotification(data.message || translate('Failed to submit rating.'), 'error');
                 submitRatingBtn.disabled = false;
-                submitRatingBtn.textContent = 'Submit Rating';
+                submitRatingBtn.textContent = translate('Submit Rating');
             }
         })
         .catch(error => {
             console.error('Error submitting rating:', error);
-            showNotification('An error occurred while submitting your rating.', 'error');
+            showNotification(translate('An error occurred while submitting your rating.'), 'error');
             submitRatingBtn.disabled = false;
-            submitRatingBtn.textContent = 'Submit Rating';
+            submitRatingBtn.textContent = translate('Submit Rating');
         });
     }
 });

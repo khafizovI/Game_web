@@ -22,6 +22,11 @@ from django.views.generic import TemplateView
 from django.conf.urls.i18n import i18n_patterns
 from . import views
 
+handler400 = 'quizgame.views.bad_request'
+handler403 = 'quizgame.views.permission_denied'
+handler404 = 'quizgame.views.page_not_found'
+handler500 = 'quizgame.views.server_error'
+
 # Non-translated URLs
 urlpatterns = [
     # Use our custom language switcher instead of Django's built-in one

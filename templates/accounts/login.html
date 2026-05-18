@@ -24,15 +24,29 @@
                     {% if next %}
                         <input type="hidden" name="next" value="{{ next }}">
                     {% endif %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                     
                     <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
-                        <label for="username">{% trans "Username" %}</label>
+                        {{ form.username }}
+                        <label for="{{ form.username.id_for_label }}">{% trans "Username" %}</label>
+                        {% for error in form.username.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
                     </div>
                     
                     <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-                        <label for="password">{% trans "Password" %}</label>
+                        {{ form.password }}
+                        <label for="{{ form.password.id_for_label }}">{% trans "Password" %}</label>
+                        {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
                     </div>
                     
                     <div class="mb-4">
@@ -70,4 +84,18 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+    }
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+    }
+</style>
 {% endblock %}

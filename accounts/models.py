@@ -1,9 +1,11 @@
-from django.db import models
-from django.contrib.auth.models import User
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 import random
 import string
+import base64
+
+from django.contrib.auth.models import User
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from datetime import datetime, timedelta
 from django.utils import timezone
 
@@ -25,6 +27,9 @@ class Profile(models.Model):
     level = models.IntegerField(default=1)  # Current level
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    avatar_data = models.BinaryField(blank=True, null=True)
+    avatar_content_type = models.CharField(max_length=100, blank=True)
+    avatar_filename = models.CharField(max_length=255, blank=True)
     email_verified = models.BooleanField(default=False)
     selected_frame = models.ForeignKey('ShopItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='users_using')
     selected_theme = models.ForeignKey('ShopItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='users_using_theme')
@@ -78,6 +83,37 @@ class Profile(models.Model):
     def get_level(self):
         """Calculate user level based on XP (for backward compatibility)"""
         return self.level
+
+    def set_avatar_upload(self, uploaded_file):
+        """Persist avatar bytes in the database instead of the media filesystem."""
+        if not uploaded_file:
+            return
+
+        content_type = getattr(uploaded_file, "content_type", "") or ""
+        if not content_type.startswith("image/"):
+            raise ValueError("Avatar upload must be an image.")
+
+        self.avatar_data = uploaded_file.read()
+        self.avatar_content_type = content_type
+        self.avatar_filename = getattr(uploaded_file, "name", "") or ""
+
+        if self.avatar:
+            self.avatar.delete(save=False)
+        self.avatar = None
+
+    @property
+    def avatar_url(self):
+        if self.avatar_data and self.avatar_content_type:
+            encoded_bytes = base64.b64encode(self.avatar_data).decode("ascii")
+            return f"data:{self.avatar_content_type};base64,{encoded_bytes}"
+
+        if self.avatar:
+            try:
+                return self.avatar.url
+            except (ValueError, OSError):
+                return None
+
+        return None
 
 
 class ShopItem(models.Model):

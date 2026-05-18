@@ -19,7 +19,7 @@
                         <i class="fas fa-shopping-cart me-3"></i>
                         {% trans "Student Shop" %}
                     </h1>
-                    <p class="shop-subtitle">{% trans "Customize your profile with amazing cosmetic items!" %}</p>
+                    <p class="shop-subtitle">{% trans "Choose an animated avatar border for the game lobby." %}</p>
                 </div>
                 <div class="col-lg-4">
                     <div class="coin-balance">
@@ -39,35 +39,42 @@
     <!-- Shop Content -->
     <div class="shop-content">
         <div class="container">
-            <!-- Shop Navigation -->
-            <div class="shop-nav">
-                <button class="shop-tab active" data-tab="frames">
-                    <i class="fas fa-border-style"></i>
-                    {% trans "Profile Frames" %}
-                </button>
-                <button class="shop-tab" data-tab="badges">
-                    <i class="fas fa-medal"></i>
-                    {% trans "Badges" %}
-                </button>
-                <button class="shop-tab" data-tab="themes">
-                    <i class="fas fa-palette"></i>
-                    {% trans "Themes" %}
-                </button>
+            <div class="equipped-frame-panel">
+                <div class="equipped-frame-copy">
+                    <p class="equipped-frame-label">{% trans "Current lobby avatar" %}</p>
+                    <h3 id="equipped-frame-name">
+                        {% if profile.selected_frame %}
+                            {{ profile.selected_frame.name }}
+                        {% else %}
+                            {% trans "No frame equipped" %}
+                        {% endif %}
+                    </h3>
+                </div>
+                <div class="equipped-frame-visual">
+                    <div id="equipped-frame-preview" class="frame-preview equipped-frame-preview{% if profile.selected_frame %} {{ profile.selected_frame.css_class }}{% endif %}">
+                        {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="Preview">
+                        {% else %}
+                            <div class="default-avatar-preview">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
-            <!-- Profile Frames Section -->
             <div class="shop-section active" id="frames-section">
-                <div class="section-header">
+                <div class="section-header mb-4">
                     <h2>{% trans "Profile Frames" %}</h2>
-                    <p>{% trans "Stand out in game lobbies with these amazing frames!" %}</p>
+                    <p>{% trans "Stand out in game lobbies with animated avatar borders. These cosmetics are visible in the lobby only." %}</p>
                 </div>
                 <div class="items-grid">
                     {% for frame in frames %}
-                        <div class="shop-item">
+                        <div class="shop-item{% if profile.selected_frame and profile.selected_frame.id == frame.id %} selected-frame-card{% endif %}" data-frame-card="{{ frame.id }}">
                             <div class="item-preview">
                                 <div class="frame-preview {{ frame.css_class }}">
-                                    {% if profile.avatar %}
-                                        <img src="{{ profile.avatar.url }}" alt="Preview">
+                                    {% if profile.avatar_url %}
+                                        <img src="{{ profile.avatar_url }}" alt="Preview">
                                     {% else %}
                                         <div class="default-avatar-preview">
                                             <i class="fas fa-user"></i>
@@ -76,8 +83,10 @@
                                 </div>
                             </div>
                             <div class="item-info">
+                                <div class="frame-availability">{% trans "Lobby only" %}</div>
                                 <h3>{{ frame.name }}</h3>
                                 <p>{{ frame.description }}</p>
+                                <div class="frame-flavor">{% trans "Animated border for your lobby avatar slot." %}</div>
                                 <div class="item-price">
                                     <i class="fas fa-coins"></i>
                                     <span>{{ frame.price }}</span>
@@ -95,7 +104,7 @@
                                         </button>
                                     {% endif %}
                                 {% else %}
-                                    <button class="btn btn-outline-primary purchase-btn" data-item-id="{{ frame.id }}" data-price="{{ frame.price }}">
+                                    <button class="btn btn-outline-primary purchase-btn" data-item-id="{{ frame.id }}" data-price="{{ frame.price }}" data-item-type="{{ frame.item_type }}">
                                         <i class="fas fa-shopping-cart"></i> {% trans "Buy" %}
                                     </button>
                                 {% endif %}
@@ -105,100 +114,6 @@
                         <div class="empty-section">
                             <i class="fas fa-border-style"></i>
                             <p>{% trans "No frames available yet. Check back soon!" %}</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Badges Section -->
-            <div class="shop-section" id="badges-section">
-                <div class="section-header">
-                    <h2>{% trans "Achievement Badges" %}</h2>
-                    <p>{% trans "Show off your accomplishments with these exclusive badges!" %}</p>
-                </div>
-                <div class="items-grid">
-                    {% for badge in badges %}
-                        <div class="shop-item">
-                            <div class="item-preview">
-                                <div class="badge-preview">
-                                    {% if badge.image %}
-                                        <img src="{{ badge.image.url }}" alt="{{ badge.name }}">
-                                    {% else %}
-                                        <i class="fas fa-medal"></i>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="item-info">
-                                <h3>{{ badge.name }}</h3>
-                                <p>{{ badge.description }}</p>
-                                <div class="item-price">
-                                    <i class="fas fa-coins"></i>
-                                    <span>{{ badge.price }}</span>
-                                </div>
-                            </div>
-                            <div class="item-actions">
-                                {% if badge.id in user_purchases %}
-                                    <button class="btn btn-success" disabled>
-                                        <i class="fas fa-check"></i> {% trans "Owned" %}
-                                    </button>
-                                {% else %}
-                                    <button class="btn btn-outline-primary purchase-btn" data-item-id="{{ badge.id }}" data-price="{{ badge.price }}">
-                                        <i class="fas fa-shopping-cart"></i> {% trans "Buy" %}
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% empty %}
-                        <div class="empty-section">
-                            <i class="fas fa-medal"></i>
-                            <p>{% trans "No badges available yet. Check back soon!" %}</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Themes Section -->
-            <div class="shop-section" id="themes-section">
-                <div class="section-header">
-                    <h2>{% trans "Dashboard Themes" %}</h2>
-                    <p>{% trans "Personalize your dashboard with these beautiful themes!" %}</p>
-                </div>
-                <div class="items-grid">
-                    {% for theme in themes %}
-                        <div class="shop-item">
-                            <div class="item-preview">
-                                <div class="theme-preview">
-                                    {% if theme.image %}
-                                        <img src="{{ theme.image.url }}" alt="{{ theme.name }}">
-                                    {% else %}
-                                        <i class="fas fa-palette"></i>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="item-info">
-                                <h3>{{ theme.name }}</h3>
-                                <p>{{ theme.description }}</p>
-                                <div class="item-price">
-                                    <i class="fas fa-coins"></i>
-                                    <span>{{ theme.price }}</span>
-                                </div>
-                            </div>
-                            <div class="item-actions">
-                                {% if theme.id in user_purchases %}
-                                    <button class="btn btn-success" disabled>
-                                        <i class="fas fa-check"></i> {% trans "Owned" %}
-                                    </button>
-                                {% else %}
-                                    <button class="btn btn-outline-primary purchase-btn" data-item-id="{{ theme.id }}" data-price="{{ theme.price }}">
-                                        <i class="fas fa-shopping-cart"></i> {% trans "Buy" %}
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% empty %}
-                        <div class="empty-section">
-                            <i class="fas fa-palette"></i>
-                            <p>{% trans "No themes available yet. Check back soon!" %}</p>
                         </div>
                     {% endfor %}
                 </div>

@@ -212,7 +212,7 @@
                         {% for player in players %}
                             <div class="player-card" id="player-{{ player.username }}">
                                 <div class="player-avatar">
-                                    <img src="{% if player.user.profile.avatar %}{{ player.user.profile.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" alt="{{ player.username }}">
+                                    <img src="{% if player.user.profile.avatar_url %}{{ player.user.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" alt="{{ player.username }}">
                                 </div>
                                 <span class="player-name">{{ player.username }}</span>
                             </div>

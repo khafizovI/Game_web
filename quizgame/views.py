@@ -6,7 +6,9 @@ from django.contrib.auth.models import User
 from django.utils import translation
 from django.conf import settings
 from django.http import HttpResponseRedirect, JsonResponse
+from django.db.utils import OperationalError, ProgrammingError
 from django.db.models import Count, Avg
+from .translation_utils import normalize_language_code, switch_language_url
 import logging
 
 # Setup logger
@@ -27,16 +29,26 @@ def home(request):
         
         return response
     
-    # Get the 3 most recent public quizzes
-    quizzes = Quiz.objects.filter(is_public=True).order_by('-created_at')[:3]
-    
-    # Calculate real statistics
-    stats = {
-        'active_players': User.objects.filter(is_active=True).count(),
-        'quiz_questions': Question.objects.count(),
-        'games_played': Game.objects.filter(is_completed=True).count(),
-        'user_rating': 4.8  # You can calculate this from actual ratings if you have a rating system
-    }
+    try:
+        # Get the 3 most recent public quizzes
+        quizzes = Quiz.objects.filter(is_public=True).order_by('-created_at')[:3]
+
+        # Calculate real statistics
+        stats = {
+            'active_players': User.objects.filter(is_active=True).count(),
+            'quiz_questions': Question.objects.count(),
+            'games_played': Game.objects.filter(is_completed=True).count(),
+            'user_rating': 4.8,  # Replace with a real aggregate when ratings are modeled separately.
+        }
+    except (OperationalError, ProgrammingError):
+        # Allow the homepage to render before the first migrate has been run.
+        quizzes = Quiz.objects.none()
+        stats = {
+            'active_players': 0,
+            'quiz_questions': 0,
+            'games_played': 0,
+            'user_rating': 4.8,
+        }
     
     context = {
         'quizzes': quizzes,
@@ -50,7 +62,7 @@ def set_language(request):
     Custom view to handle language switching
     """
     if request.method == 'POST':
-        language = request.POST.get('language', None)
+        language = normalize_language_code(request.POST.get('language', None))
         next_url = request.POST.get('next', '/')
         
         logger.info(f"Language change requested: {language}, Next URL: {next_url}")
@@ -63,7 +75,7 @@ def set_language(request):
             request.session[settings.LANGUAGE_SESSION_KEY] = language
             
             # Create response with redirect
-            response = HttpResponseRedirect(next_url)
+            response = HttpResponseRedirect(switch_language_url(next_url, language))
             
             # Set language cookie
             response.set_cookie(
@@ -80,3 +92,23 @@ def set_language(request):
 
 def def_chrome_devtools_json(request):
     return JsonResponse({})
+
+
+def bad_request(request, exception):
+    return render(request, '400.html', status=400)
+
+
+def permission_denied(request, exception):
+    return render(request, '403.html', status=403)
+
+
+def csrf_failure(request, reason=""):
+    return render(request, '403.html', status=403)
+
+
+def page_not_found(request, exception):
+    return render(request, '404.html', status=404)
+
+
+def server_error(request):
+    return render(request, '500.html', status=500)

@@ -17,7 +17,7 @@
                         {% csrf_token %}
                         
                         <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="title" name="title" value="{{ quiz.title }}" placeholder="{% trans 'Quiz Title' %}" required>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ quiz.title }}" placeholder="{% trans 'Quiz Title' %}" data-no-translate required>
                             <label for="title">{% trans "Quiz Title" %}</label>
                         </div>
                         

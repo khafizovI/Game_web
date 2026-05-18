@@ -1,118 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Game - QuizBattle</title>
-    <style>
-        body {
-            background: linear-gradient(135deg, #7f53ac, #6577cb);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+{% extends 'base/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Join Game - QuizBattle" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .join-page {
+        min-height: calc(100vh - 160px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 28px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .join-page::before,
+    .join-page::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(10px);
+        opacity: 0.42;
+    }
+
+    .join-page::before {
+        width: 260px;
+        height: 260px;
+        top: -70px;
+        left: -70px;
+        background: rgba(240, 147, 251, 0.42);
+    }
+
+    .join-page::after {
+        width: 220px;
+        height: 220px;
+        right: -60px;
+        bottom: -60px;
+        background: rgba(78, 205, 196, 0.34);
+    }
+
+    .join-box {
+        width: min(100%, 420px);
+        padding: 2rem;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        box-shadow: 0 24px 50px rgba(44, 62, 80, 0.18);
+        position: relative;
+        z-index: 1;
+    }
+
+    .join-label {
+        margin: 0 0 0.85rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #475569;
+        text-align: center;
+    }
+
+    .join-field-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .join-text-input {
+        width: 100%;
+        min-height: 56px;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #f8fafc;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .join-text-input:focus {
+        outline: none;
+        border-color: rgba(20, 184, 166, 0.42);
+        box-shadow: 0 0 0 0.28rem rgba(20, 184, 166, 0.12);
+    }
+
+    .join-helper {
+        margin: -0.35rem 0 0;
+        text-align: center;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    .join-pin-input {
+        width: 100%;
+        min-height: 70px;
+        padding: 1rem 1.2rem;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #f8fafc;
+        color: #0f172a;
+        text-align: center;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        font-weight: 800;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+    }
+
+    .join-pin-input:focus {
+        outline: none;
+        border-color: rgba(20, 184, 166, 0.42);
+        box-shadow: 0 0 0 0.28rem rgba(20, 184, 166, 0.12);
+    }
+
+    .join-pin-input::placeholder {
+        color: #94a3b8;
+        letter-spacing: 0.12em;
+        font-size: 1rem;
+    }
+
+    .join-submit {
+        width: 100%;
+        margin-top: 1rem;
+        min-height: 52px;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 800;
+        box-shadow: 0 16px 28px rgba(102, 126, 234, 0.24);
+    }
+
+    @media (max-width: 575.98px) {
+        .join-page {
+            min-height: auto;
+            padding: 2rem 0;
         }
-        .join-container {
-            background: white;
-            padding: 40px 50px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 100%;
-            max-width: 400px;
+
+        .join-box {
+            padding: 1.25rem;
+            border-radius: 22px;
         }
-        .join-container h1 {
-            font-size: 2rem;
-            margin-bottom: 30px;
-            color: #333;
+
+        .join-pin-input {
+            min-height: 64px;
+            letter-spacing: 0.18em;
         }
-        .join-container input {
-            width: 100%;
-            padding: 18px;
-            margin-bottom: 25px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 1.8rem;
-            letter-spacing: 0.5rem;
-            font-weight: bold;
-            box-sizing: border-box;
-            text-transform: uppercase;
-        }
-        .join-container input::placeholder {
-            font-weight: normal;
-            letter-spacing: normal;
-            text-transform: none;
-        }
-        .join-container button {
-            width: 100%;
-            padding: 18px;
-            border: none;
-            border-radius: 8px;
-            background-color: #8a2be2;
-            color: white;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        .join-container button:hover {
-            background-color: #7324b8;
-        }
-        .messages {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            width: 90%;
-            max-width: 400px;
-        }
-        .alert {
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid transparent;
-            border-radius: .25rem;
-            color: #fff;
-            background-color: #f44336; /* Red for errors */
-            text-align: center;
-        }
-        .alert-success {
-            background-color: #4CAF50;
-        }
-    </style>
-</head>
-<body>
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}" role="alert">
-            {{ message }}
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="join-page">
+    <div class="container d-flex justify-content-center">
+        <div class="join-box">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="join-field-stack">
+                    <div>
+                        <p class="join-label">{% trans "Enter code" %}</p>
+                        <input id="game-code-input" class="join-pin-input" type="text" name="game_code" placeholder="ABC123" maxlength="6" autofocus required>
+                    </div>
+                    <div>
+                        <p class="join-label">{% trans "Your name" %}</p>
+                        <input
+                            class="join-text-input"
+                            type="text"
+                            name="display_name"
+                            value="{{ initial_display_name }}"
+                            maxlength="40"
+                            placeholder="{% trans 'Enter your name' %}"
+                            {% if not user.is_authenticated %}required{% endif %}
+                        >
+                        {% if user.is_authenticated %}
+                        <p class="join-helper">{% trans "Logged-in players join with their account name." %}</p>
+                        {% else %}
+                        <p class="join-helper">{% trans "Students can join without login or registration." %}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <button type="submit" class="join-submit">{% trans "Join" %}</button>
+            </form>
         </div>
-        {% endfor %}
     </div>
-    {% endif %}
+</section>
+{% endblock %}
 
-    <div class="join-container">
-        <h1>QuizBattle</h1>
-        <form method="POST">
-            {% csrf_token %}
-            <input type="text" name="game_code" placeholder="GAME PIN" maxlength="6" autofocus required>
-            <button type="submit">Enter</button>
-        </form>
-    </div>
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const codeInput = document.getElementById('game-code-input');
+        if (!codeInput) {
+            return;
+        }
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const codeInput = document.querySelector('input[name="game_code"]');
-            if (codeInput) {
-                codeInput.addEventListener('input', function() {
-                    this.value = this.value.toUpperCase();
-                });
-            }
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
         });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

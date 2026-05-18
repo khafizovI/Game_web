@@ -3,12 +3,64 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils.crypto import get_random_string
+from django.utils.translation import gettext as _
 from quiz.models import Quiz, Question, Answer
 from .models import Game, GamePlayer, PlayerAnswer
 from accounts.views import award_game_points, check_achievements
+from quizgame.translation_utils import translate_text_for_request
 import json
 
 # Create your views here.
+
+
+def _guest_player_session_key(game_code):
+    return f"guest_player_{game_code}"
+
+
+def _clean_display_name(raw_value):
+    return " ".join((raw_value or "").split())[:40]
+
+
+def _get_authenticated_player(game, user):
+    if not user.is_authenticated:
+        return None
+
+    if user.profile.is_teacher() and user.id != game.host_id:
+        return None
+
+    player, _ = GamePlayer.objects.get_or_create(
+        game=game,
+        user=user,
+        defaults={"display_name": user.username},
+    )
+    if not player.display_name.strip():
+        player.display_name = user.username
+        player.save(update_fields=["display_name"])
+    return player
+
+
+def _get_guest_player(request, game):
+    player_id = request.session.get(_guest_player_session_key(game.code))
+    if not player_id:
+        return None
+
+    return (
+        GamePlayer.objects.select_related("game", "game__host")
+        .filter(id=player_id, game=game, user__isnull=True)
+        .first()
+    )
+
+
+def _get_request_player(request, game):
+    if request.user.is_authenticated:
+        return _get_authenticated_player(game, request.user)
+    return _get_guest_player(request, game)
+
+
+def _remember_guest_player(request, game_code, player):
+    request.session[_guest_player_session_key(game_code)] = player.id
+    request.session["guest_player_name"] = player.name
+    request.session.modified = True
 
 @login_required
 def host_game(request, quiz_id):
@@ -46,53 +98,99 @@ def host_game(request, quiz_id):
     # Redirect to the game lobby
     return redirect('game:lobby', game_code=code)
 
-@login_required
 def lobby(request, game_code):
     """View for the game lobby, where players wait for the host to start the game."""
     game = get_object_or_404(Game, code=game_code)
-    players = GamePlayer.objects.filter(game=game).select_related('user', 'user__profile', 'user__profile__selected_frame')
-    is_host = (request.user.id == game.host.id)
+    current_player = _get_request_player(request, game)
+    if not current_player:
+        messages.error(
+            request,
+            translate_text_for_request(request, 'Join the game first to enter the lobby.'),
+        )
+        return redirect('game:join')
+
+    players = (
+        GamePlayer.objects.filter(game=game)
+        .select_related('user', 'user__profile', 'user__profile__selected_frame')
+        .order_by('joined_at')
+    )
+    is_host = bool(request.user.is_authenticated and request.user.id == game.host.id)
 
     context = {
         'game': game,
         'players': players,
         'is_host': is_host,
+        'player': current_player,
     }
     return render(request, 'game/lobby.html', context)
 
-@login_required
 def join_game(request):
     """View for joining a game using a game code"""
+    if request.user.is_authenticated and request.user.profile.is_teacher():
+        messages.warning(request, translate_text_for_request(request, 'Teachers can only host games.'))
+        return redirect('quiz:browse')
+
     if request.method == 'POST':
-        game_code = request.POST.get('game_code')
+        game_code = (request.POST.get('game_code') or '').strip().upper()
+        display_name = _clean_display_name(request.POST.get('display_name'))
+
+        if not game_code:
+            messages.error(
+                request,
+                translate_text_for_request(request, 'Please enter a valid game code.'),
+            )
+            return redirect('game:join')
+
         try:
             game = Game.objects.get(code=game_code)
-            # Add the player to the game if they are not already in it
-            GamePlayer.objects.get_or_create(
-                game=game,
-                user=request.user
-            )
+
+            if request.user.is_authenticated:
+                _get_authenticated_player(game, request.user)
+            else:
+                if len(display_name) < 2:
+                    messages.error(
+                        request,
+                        translate_text_for_request(request, 'Please enter your name before joining.'),
+                    )
+                    return redirect('game:join')
+
+                guest_player = _get_guest_player(request, game)
+                if guest_player:
+                    if guest_player.display_name != display_name:
+                        guest_player.display_name = display_name
+                        guest_player.save(update_fields=['display_name'])
+                else:
+                    guest_player = GamePlayer.objects.create(
+                        game=game,
+                        display_name=display_name,
+                    )
+                _remember_guest_player(request, game.code, guest_player)
+
             return redirect('game:lobby', game_code=game.code)
         except Game.DoesNotExist:
-            messages.error(request, _('Game with code %(code)s not found.') % {'code': game_code})
+            messages.error(
+                request,
+                translate_text_for_request(request, 'Game with code {code} not found.', code=game_code),
+            )
             return redirect('game:join')
-    return render(request, 'game/join.html')
+    initial_display_name = (
+        request.user.username
+        if request.user.is_authenticated
+        else request.session.get('guest_player_name', '')
+    )
+    return render(request, 'game/join.html', {'initial_display_name': initial_display_name})
 
-@login_required
 def play_game(request, game_code):
     """View for playing a game"""
     game = get_object_or_404(Game, code=game_code)
-    
-    # Check if the game is completed
-    if game.is_completed:
-        return redirect('game:results', game_code=game_code)
-    
-    # Get or create player
-    player, created = GamePlayer.objects.get_or_create(
-        game=game,
-        user=request.user
-    )
-    
+    player = _get_request_player(request, game)
+    if not player:
+        messages.error(
+            request,
+            translate_text_for_request(request, 'Join the game first to start playing.'),
+        )
+        return redirect('game:join')
+
     context = {
         'game': game,
         'player': player,
@@ -102,54 +200,5 @@ def play_game(request, game_code):
 
 @login_required
 def game_results(request, game_code):
-    """View for seeing game results"""
-    game = get_object_or_404(Game, code=game_code)
-
-    # Mark game as completed if not already
-    if not game.is_completed:
-        game.is_completed = True
-        game.save()
-        
-        # Award points to all student players
-        student_players = GamePlayer.objects.filter(
-            game=game, 
-            user__profile__role='student'
-        )
-        
-        for player in student_players:
-            # Award points and coins based on performance
-            award_game_points(player.user, player.score, game.quiz.questions.count())
-            # Check for new achievements
-            check_achievements(player.user)
-
-    # Get all players sorted by score
-    players = GamePlayer.objects.filter(game=game).order_by('-score')
-
-    # Calculate player ranks
-    for i, player in enumerate(players):
-        player.rank = i + 1
-
-    # Get the current player's participation object
-    current_player = players.filter(user=request.user).first()
-
-    # Get all questions for the quiz, prefetching the possible answers
-    questions = game.quiz.questions.prefetch_related('answers').order_by('order')
-
-    # Get the player's answers and map them to the questions
-    if current_player:
-        player_answers_qs = PlayerAnswer.objects.filter(player=current_player)
-        player_answers_map = {pa.question_id: pa.answer_id for pa in player_answers_qs}
-
-        # Attach the player's selected answer ID to each question object
-        for question in questions:
-            question.selected_answer_id = player_answers_map.get(question.id)
-
-    context = {
-        'game': game,
-        'quiz': game.quiz,
-        'players': players,
-        'is_host': game.host == request.user,
-        'player': current_player,
-        'questions': questions,  # Add questions for the review section
-    }
-    return render(request, 'game/results.html', context)
+    """Legacy results URL now points to the in-game final leaderboard."""
+    return redirect('game:play', game_code=game_code)

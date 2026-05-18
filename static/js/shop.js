@@ -1,5 +1,7 @@
 // Shop JavaScript functionality
 document.addEventListener('DOMContentLoaded', function() {
+    const translate = window.t || ((key) => key);
+
     // Tab switching functionality
     const shopTabs = document.querySelectorAll('.shop-tab');
     const shopSections = document.querySelectorAll('.shop-section');
@@ -24,11 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmPurchaseBtn = document.getElementById('confirm-purchase');
     let currentItemId = null;
     let currentItemPrice = null;
+    let currentItemType = null;
     
     purchaseButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             currentItemId = this.dataset.itemId;
             currentItemPrice = parseInt(this.dataset.price);
+            currentItemType = this.dataset.itemType || null;
             
             const currentCoins = parseInt(document.getElementById('coin-balance').textContent);
             const remainingBalance = currentCoins - currentItemPrice;
@@ -41,11 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (remainingBalance < 0) {
                 document.getElementById('remaining-balance').style.color = '#ff6b6b';
                 confirmPurchaseBtn.disabled = true;
-                confirmPurchaseBtn.textContent = 'Insufficient Coins';
+                confirmPurchaseBtn.textContent = translate('Insufficient Coins');
             } else {
                 document.getElementById('remaining-balance').style.color = '#6c757d';
                 confirmPurchaseBtn.disabled = false;
-                confirmPurchaseBtn.textContent = 'Purchase';
+                confirmPurchaseBtn.textContent = translate('Purchase');
             }
             
             purchaseModal.show();
@@ -61,6 +65,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Equip functionality
     const equipButtons = document.querySelectorAll('.equip-btn');
+    const equippedFramePreview = document.getElementById('equipped-frame-preview');
+    const equippedFrameName = document.getElementById('equipped-frame-name');
+    const knownFrameClasses = [
+        'cosmic-frame',
+        'dragon-frame',
+        'crystal-frame',
+        'neon-frame',
+        'royal-frame',
+        'ocean-frame',
+        'flame-frame',
+        'shadow-frame',
+        'mythic-frame',
+        'starlight-frame',
+        'tempest-frame',
+        'obsidian-frame'
+    ];
     
     equipButtons.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -94,9 +114,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update the button to show "Owned" or "Equip"
                 const purchaseBtn = document.querySelector(`[data-item-id="${itemId}"]`);
                 if (purchaseBtn) {
-                    if (data.item_type === 'frame') {
+                    if ((data.item_type || currentItemType) === 'frame') {
                         purchaseBtn.className = 'btn btn-primary equip-btn';
-                        purchaseBtn.innerHTML = '<i class="fas fa-hand-paper"></i> Equip';
+                        purchaseBtn.innerHTML = `<i class="fas fa-hand-paper"></i> ${translate('Equip')}`;
                         purchaseBtn.dataset.itemId = itemId;
                         
                         // Add event listener for equip functionality
@@ -105,23 +125,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     } else {
                         purchaseBtn.className = 'btn btn-success';
-                        purchaseBtn.innerHTML = '<i class="fas fa-check"></i> Owned';
+                        purchaseBtn.innerHTML = `<i class="fas fa-check"></i> ${translate('Owned')}`;
                         purchaseBtn.disabled = true;
                     }
                 }
                 
                 // Show success message
-                showNotification('Item purchased successfully!', 'success');
+                showNotification(translate('Item purchased successfully!'), 'success');
                 
                 // Close modal
                 purchaseModal.hide();
             } else {
-                showNotification(data.message || 'Purchase failed. Please try again.', 'error');
+                showNotification(data.message || translate('Purchase failed. Please try again.'), 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showNotification('An error occurred. Please try again.', 'error');
+            showNotification(translate('An error occurred. Please try again.'), 'error');
         });
     }
     
@@ -147,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update all equip buttons
                 document.querySelectorAll('.equip-btn').forEach(btn => {
                     btn.className = 'btn btn-primary equip-btn';
-                    btn.innerHTML = '<i class="fas fa-hand-paper"></i> Equip';
+                    btn.innerHTML = `<i class="fas fa-hand-paper"></i> ${translate('Equip')}`;
                     btn.disabled = false;
                 });
                 
@@ -155,18 +175,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const equippedBtn = document.querySelector(`[data-item-id="${itemId}"]`);
                 if (equippedBtn) {
                     equippedBtn.className = 'btn btn-success';
-                    equippedBtn.innerHTML = '<i class="fas fa-check"></i> Equipped';
+                    equippedBtn.innerHTML = `<i class="fas fa-check"></i> ${translate('Equipped')}`;
                     equippedBtn.disabled = true;
                 }
+
+                document.querySelectorAll('[data-frame-card]').forEach(card => {
+                    card.classList.remove('selected-frame-card');
+                });
+                const selectedCard = document.querySelector(`[data-frame-card="${itemId}"]`);
+                if (selectedCard) {
+                    selectedCard.classList.add('selected-frame-card');
+                }
+
+                if (equippedFramePreview && data.css_class) {
+                    equippedFramePreview.classList.remove(...knownFrameClasses);
+                    equippedFramePreview.classList.add(data.css_class);
+                }
+
+                if (equippedFrameName && data.item_name) {
+                    equippedFrameName.textContent = data.item_name;
+                }
                 
-                showNotification('Frame equipped successfully!', 'success');
+                showNotification(translate('Frame equipped successfully!'), 'success');
             } else {
-                showNotification(data.message || 'Failed to equip frame. Please try again.', 'error');
+                showNotification(data.message || translate('Failed to equip frame'), 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showNotification('An error occurred. Please try again.', 'error');
+            showNotification(translate('An error occurred. Please try again.'), 'error');
         });
     }
     

@@ -43,7 +43,7 @@
                     <tr>
                         <td>
                             <a href="{% url 'quiz:detail' quiz.id %}" class="fw-bold text-decoration-none">
-                                {{ quiz.title }}
+                                <span data-no-translate>{{ quiz.title }}</span>
                             </a>
                             <small class="d-block text-muted">{{ quiz.description|truncatechars:50 }}</small>
                         </td>

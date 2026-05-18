@@ -1,4 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const loadingOverlay = document.getElementById('site-loading');
+
+    function hideLoadingOverlay() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('is-hidden');
+            loadingOverlay.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    function showLoadingOverlay() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('is-hidden');
+            loadingOverlay.setAttribute('aria-busy', 'true');
+        }
+    }
+
     // Function to get CSRF token from cookies
     function getCSRFToken() {
         const name = 'csrftoken=';
@@ -43,4 +59,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         toast.show();
     });
+
+    document.addEventListener('click', function(event) {
+        const link = event.target.closest('a[href]');
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+        if (
+            !href ||
+            href.startsWith('#') ||
+            href.startsWith('javascript:') ||
+            link.hasAttribute('download') ||
+            link.getAttribute('target') === '_blank' ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            event.button !== 0
+        ) {
+            return;
+        }
+
+        showLoadingOverlay();
+    }, true);
+
+    document.addEventListener('submit', function() {
+        showLoadingOverlay();
+    }, true);
+
+    window.addEventListener('pageshow', hideLoadingOverlay);
+    hideLoadingOverlay();
 });

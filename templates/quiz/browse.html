@@ -213,7 +213,7 @@
                             </span>
                         </div>
                         
-                        <h3 class="quiz-title">{{ quiz.title }}</h3>
+                        <h3 class="quiz-title" data-no-translate>{{ quiz.title }}</h3>
                         
                         {% if quiz.description %}
                             <p class="quiz-description">
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let visibleCount = 0;
         
         quizItems.forEach(item => {
-            const title = item.dataset.title;
+            const title = (item.querySelector('.quiz-title')?.textContent || '').toLowerCase();
             const description = item.dataset.description;
             const creator = item.dataset.creator;
             

@@ -12,8 +12,8 @@
             <div class="welcome-header">
                 <div class="welcome-content">
                     <div class="welcome-avatar">
-                        {% if user.profile.avatar %}
-                            <img src="{{ user.profile.avatar.url }}" class="avatar-image" alt="Profile Avatar">
+                        {% if user.profile.avatar_url %}
+                            <img src="{{ user.profile.avatar_url }}" class="avatar-image" alt="Profile Avatar">
                         {% else %}
                             <div class="avatar-placeholder teacher">
                                 <i class="fas fa-chalkboard-teacher"></i>
@@ -185,8 +185,8 @@
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-md-4 text-center">
-                    {% if user.profile.avatar %}
-                        <img src="{{ user.profile.avatar.url }}" class="rounded-circle" alt="Profile Avatar" style="width: 100px; height: 100px; object-fit: cover;">
+                    {% if user.profile.avatar_url %}
+                        <img src="{{ user.profile.avatar_url }}" class="rounded-circle" alt="Profile Avatar" style="width: 100px; height: 100px; object-fit: cover;">
                     {% else %}
                          <div class="avatar-placeholder student" style="width: 100px; height: 100px; border-radius: 50%; background-color: #d1e7dd; color: #198754; display: inline-flex; align-items: center; justify-content: center;">
                             <i class="fas fa-user-graduate fa-3x"></i>

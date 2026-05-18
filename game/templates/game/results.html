@@ -116,7 +116,7 @@
         {% with second=players|slice:"1:2"|first %}
         {% if second %}
         <div class="podium-place second">
-            <img src="{% if second.user.profile.avatar %}{{ second.user.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="podium-avatar" alt="{{ second.username }}">
+            <img src="{% if second.user.profile.avatar_url %}{{ second.user.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" class="podium-avatar" alt="{{ second.username }}">
             <h4 class="fw-bold">{{ second.username }}</h4>
             <p class="fs-5">{{ second.score }} {% trans "pts" %}</p>
             <div class="podium-rank">2</div>
@@ -128,7 +128,7 @@
         {% if first %}
         <div class="podium-place first">
             <i class="fas fa-crown fa-2x" style="color: #ffc107;"></i>
-            <img src="{% if first.user.profile.avatar %}{{ first.user.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="podium-avatar" alt="{{ first.username }}">
+            <img src="{% if first.user.profile.avatar_url %}{{ first.user.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" class="podium-avatar" alt="{{ first.username }}">
             <h4 class="fw-bold">{{ first.username }}</h4>
             <p class="fs-5">{{ first.score }} {% trans "pts" %}</p>
             <div class="podium-rank">1</div>
@@ -139,7 +139,7 @@
         {% with third=players|slice:"2:3"|first %}
         {% if third %}
         <div class="podium-place third">
-            <img src="{% if third.user.profile.avatar %}{{ third.user.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="podium-avatar" alt="{{ third.username }}">
+            <img src="{% if third.user.profile.avatar_url %}{{ third.user.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" class="podium-avatar" alt="{{ third.username }}">
             <h4 class="fw-bold">{{ third.username }}</h4>
             <p class="fs-5">{{ third.score }} {% trans "pts" %}</p>
             <div class="podium-rank">3</div>

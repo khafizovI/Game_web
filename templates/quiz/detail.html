@@ -8,10 +8,10 @@
     <!-- Hero Section -->
     <div class="quiz-hero-section text-white text-center py-5">
         <div class="container">
-            <h1 class="display-4 fw-bold">{{ quiz.title }}</h1>
+            <h1 class="display-4 fw-bold" data-no-translate>{{ quiz.title }}</h1>
             <p class="lead mt-3 mb-4">{{ quiz.description|default:"No description provided." }}</p>
             <div class="d-flex justify-content-center align-items-center">
-                <img src="{% if quiz.created_by.profile.avatar %}{{ quiz.created_by.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;" alt="{{ quiz.created_by.username }}">
+                <img src="{% if quiz.created_by.profile.avatar_url %}{{ quiz.created_by.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;" alt="{{ quiz.created_by.username }}">
                 <span>{% trans "Created by" %} <strong>{{ quiz.created_by.username }}</strong> &bull; {{ quiz.created_at|date:"F j, Y" }}</span>
             </div>
         </div>
@@ -84,7 +84,7 @@
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <span class="leaderboard-rank me-3">#{{ forloop.counter }}</span>
-                                        <img src="{% if entry.player.profile.avatar %}{{ entry.player.profile.avatar.url }}{% else %}{% static 'images/default_avatar.svg' %}{% endif %}" class="rounded-circle me-3" style="width: 35px; height: 35px; object-fit: cover;" alt="{{ entry.player.username }}">
+                                        <img src="{% if entry.player.profile.avatar_url %}{{ entry.player.profile.avatar_url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}" class="rounded-circle me-3" style="width: 35px; height: 35px; object-fit: cover;" alt="{{ entry.player.username }}">
                                         <span>{{ entry.player.username }}</span>
                                     </div>
                                     <span class="badge bg-primary rounded-pill">{{ entry.score }} {% trans 'pts' %}</span>

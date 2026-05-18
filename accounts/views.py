@@ -5,8 +5,8 @@ from django.contrib.auth.models import User
 from .models import Profile, EmailVerification, ShopItem, UserPurchase, Achievement, UserAchievement, DailyTask, UserDailyTask
 from quiz.models import Quiz
 from game.models import Game, GamePlayer, PlayerAnswer
-from .forms import CustomUserCreationForm, LoginForm, EmailVerificationForm
-from django.contrib.auth import authenticate, login
+from .forms import CustomUserCreationForm, LoginForm, EmailVerificationForm, append_css_class
+from django.contrib.auth import authenticate, login, logout
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
@@ -18,8 +18,68 @@ from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 import random
 from django.views.decorators.http import require_http_methods
+from django.utils.translation import gettext as _
 import json
 import logging
+from quizgame.translation_utils import translate_text, translate_text_for_request
+
+
+DEFAULT_DAILY_TASKS = [
+    {
+        'name': 'Game Starter',
+        'description': 'Play 1 game today',
+        'task_type': 'play_games',
+        'target_value': 1,
+        'reward_coins': 10,
+        'reward_points': 25,
+        'icon': 'fas fa-gamepad',
+    },
+    {
+        'name': 'Game Marathon',
+        'description': 'Play 3 games today',
+        'task_type': 'play_games',
+        'target_value': 3,
+        'reward_coins': 25,
+        'reward_points': 60,
+        'icon': 'fas fa-fire',
+    },
+    {
+        'name': 'Sharp Mind',
+        'description': 'Answer 5 questions correctly',
+        'task_type': 'answer_correctly',
+        'target_value': 5,
+        'reward_coins': 20,
+        'reward_points': 50,
+        'icon': 'fas fa-brain',
+    },
+    {
+        'name': 'Perfect Run',
+        'description': 'Answer 10 questions correctly',
+        'task_type': 'answer_correctly',
+        'target_value': 10,
+        'reward_coins': 35,
+        'reward_points': 85,
+        'icon': 'fas fa-bullseye',
+    },
+    {
+        'name': 'Point Collector',
+        'description': 'Earn 10 points from games',
+        'task_type': 'earn_points',
+        'target_value': 10,
+        'reward_coins': 15,
+        'reward_points': 35,
+        'icon': 'fas fa-star',
+    },
+    {
+        'name': 'Quiz Finisher',
+        'description': 'Finish 2 full games today',
+        'task_type': 'complete_quiz',
+        'target_value': 2,
+        'reward_coins': 30,
+        'reward_points': 75,
+        'icon': 'fas fa-flag-checkered',
+    },
+]
 
 
 def ajax_login_required(view_func):
@@ -55,14 +115,32 @@ def register(request):
             profile.role = role
             profile.save()
 
-            # Generate and send verification code
-            verification = EmailVerification.generate_code(user)
-            send_verification_email(user, verification.code)
+            try:
+                verification = EmailVerification.generate_code(user)
+                send_verification_email(user, verification.code, request.LANGUAGE_CODE)
+            except Exception:
+                messages.error(
+                    request,
+                    translate_text_for_request(
+                        request,
+                        "We could not send the verification email right now. Please try again later."
+                    ),
+                )
+                user.delete()
+                return render(request, 'accounts/register.html', {'form': form})
 
             # Store user ID in session for verification
             request.session['pending_user_id'] = user.id
             
-            messages.info(request, f'Welcome, {username}! Please check your email ({email}) for a verification code.')
+            messages.info(
+                request,
+                translate_text_for_request(
+                    request,
+                    "Welcome, {username}! Please check your email ({email}) for a verification code.",
+                    username=username,
+                    email=email,
+                ),
+            )
             return redirect('accounts:verify_email')
         # If form is not valid, it will be rendered again with errors and preserved data
     else:
@@ -70,31 +148,26 @@ def register(request):
     return render(request, 'accounts/register.html', {'form': form})
 
 
-def send_verification_email(user, code):
-    # For development: Just print the verification code to console
-    print(f"=== EMAIL VERIFICATION CODE FOR {user.username} ===")
-    print(f"Verification Code: {code}")
-    print(f"Email: {user.email}")
-    print("=" * 50)
-    
-    # Uncomment the code below to actually send emails in production
-    """
-    subject = 'Verify Your Email - Quiz Game'
-    message = f'''
-    Hi {user.username},
+def send_verification_email(user, code, language_code='en'):
+    subject = translate_text('Verify Your Email - Quiz Game', language_code)
+    message = "\n".join([
+        translate_text('Hi {username},', language_code, username=user.username),
+        "",
+        translate_text(
+            'Welcome to Quiz Game! Please use the following verification code to complete your registration:',
+            language_code,
+        ),
+        "",
+        translate_text('Verification Code: {code}', language_code, code=code),
+        "",
+        translate_text('This code will expire in 10 minutes.', language_code),
+        "",
+        translate_text("If you didn't create an account, please ignore this email.", language_code),
+        "",
+        translate_text('Best regards,', language_code),
+        translate_text('Quiz Game Team', language_code),
+    ])
 
-    Welcome to Quiz Game! Please use the following verification code to complete your registration:
-
-    Verification Code: {code}
-
-    This code will expire in 10 minutes.
-
-    If you didn't create an account, please ignore this email.
-
-    Best regards,
-    Quiz Game Team
-    '''
-    
     try:
         send_mail(
             subject,
@@ -103,29 +176,37 @@ def send_verification_email(user, code):
             [user.email],
             fail_silently=False,
         )
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-    """
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to send verification email to %s", user.email)
+        raise
 
 
 def verify_email(request):
     user_id = request.session.get('pending_user_id')
     if not user_id:
-        messages.error(request, 'No pending registration found.')
+        messages.error(request, translate_text_for_request(request, 'No pending registration found.'))
         return redirect('accounts:register')
     
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        messages.error(request, 'Invalid registration session.')
+        messages.error(request, translate_text_for_request(request, 'Invalid registration session.'))
         return redirect('accounts:register')
     
     if request.method == 'POST':
         if 'resend_code' in request.POST:
-            # Resend verification code
-            verification = EmailVerification.generate_code(user)
-            send_verification_email(user, verification.code)
-            messages.success(request, 'New verification code sent to your email.')
+            try:
+                verification = EmailVerification.generate_code(user)
+                send_verification_email(user, verification.code, request.LANGUAGE_CODE)
+                messages.success(request, translate_text_for_request(request, 'New verification code sent to your email.'))
+            except Exception:
+                messages.error(
+                    request,
+                    translate_text_for_request(
+                        request,
+                        'We could not send the verification email right now. Please try again later.'
+                    ),
+                )
             return render(request, 'accounts/verify_email.html', {'user': user})
         
         form = EmailVerificationForm(user=user, data=request.POST)
@@ -153,12 +234,19 @@ def verify_email(request):
                     # Clear session
                     del request.session['pending_user_id']
                     
-                    messages.success(request, f'Email verified successfully! Welcome, {user.username}!')
+                    messages.success(
+                        request,
+                        translate_text_for_request(
+                            request,
+                            'Email verified successfully! Welcome, {username}!',
+                            username=user.username,
+                        ),
+                    )
                     return redirect('home')
                 else:
-                    form.add_error('code', 'Verification code has expired. Please request a new one.')
+                    form.add_error('code', _('Verification code has expired. Please request a new one.'))
             except EmailVerification.DoesNotExist:
-                form.add_error('code', 'Invalid verification code.')
+                form.add_error('code', _('Invalid verification code.'))
         # If form is not valid, it will be rendered again with errors
     else:
         form = EmailVerificationForm(user=user)
@@ -181,12 +269,30 @@ def login_view(request):
             if user is not None:
                 # Check if email is verified
                 if hasattr(user, 'profile') and not user.profile.email_verified:
-                    # Generate new verification code and redirect to verification
-                    verification = EmailVerification.generate_code(user)
-                    send_verification_email(user, verification.code)
-                    request.session['pending_user_id'] = user.id
-                    messages.warning(request, 'Please verify your email before logging in. A new verification code has been sent.')
-                    return redirect('accounts:verify_email')
+                    try:
+                        verification = EmailVerification.generate_code(user)
+                        send_verification_email(user, verification.code, request.LANGUAGE_CODE)
+                        request.session['pending_user_id'] = user.id
+                        messages.warning(
+                            request,
+                            translate_text_for_request(
+                                request,
+                                'Please verify your email before logging in. A new verification code has been sent.'
+                            ),
+                        )
+                        return redirect('accounts:verify_email')
+                    except Exception:
+                        messages.error(
+                            request,
+                            translate_text_for_request(
+                                request,
+                                'We could not send the verification email right now. Please try again later.'
+                            ),
+                        )
+                        return render(request, 'accounts/login.html', {
+                            'form': form,
+                            'next': request.POST.get('next') or request.GET.get('next', '')
+                        })
                 
                 login(request, user)
                 next_page = request.POST.get('next')
@@ -195,7 +301,9 @@ def login_view(request):
                 return redirect('home')
             else:
                 # This error is for invalid username/password
-                form.add_error(None, 'Invalid username or password.')
+                form.add_error(None, _('Invalid username or password.'))
+                append_css_class(form.fields['username'].widget, 'is-invalid')
+                append_css_class(form.fields['password'].widget, 'is-invalid')
         # If form is not valid, it will be rendered again with errors and preserved data
     else:
         # For GET requests, create a new, empty form
@@ -204,8 +312,18 @@ def login_view(request):
     # For GET requests or failed POST requests, render the page with the form object
     return render(request, 'accounts/login.html', {
         'form': form,
-        'next': request.GET.get('next', '')
+        'next': request.POST.get('next') or request.GET.get('next', '')
     })
+
+
+@require_http_methods(["GET", "POST"])
+def logout_view(request):
+    logout(request)
+    messages.info(
+        request,
+        translate_text_for_request(request, 'You have been logged out successfully.'),
+    )
+    return redirect('home')
 
 
 def edit_profile(request):
@@ -230,7 +348,11 @@ def edit_profile(request):
             profile.role = role
 
         if 'avatar' in request.FILES:
-            profile.avatar = request.FILES['avatar']
+            try:
+                profile.set_avatar_upload(request.FILES['avatar'])
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect('accounts:edit_profile')
 
         profile.save()
 
@@ -269,7 +391,7 @@ def profile(request):
     # Count unique students taught
     students_taught = 0
     latest_activity = None
-    if profile.is_teacher:
+    if profile.is_teacher():
         # Get all players from teacher's hosted games
         hosted_game_ids = Game.objects.filter(host=user).values_list('id', flat=True)
         students_taught = GamePlayer.objects.filter(game_id__in=hosted_game_ids).values('user').distinct().count()
@@ -307,7 +429,7 @@ def hosted_history(request):
     if not request.user.is_authenticated:
         return JsonResponse({'success': False, 'message': 'Authentication required'}, status=401)
     
-    if not request.user.profile.is_teacher:
+    if not request.user.profile.is_teacher():
         return redirect('home')
 
     # Get completed games with detailed information
@@ -408,7 +530,11 @@ def student_dashboard(request):
         
         # Handle avatar upload
         if 'avatar' in request.FILES:
-            profile.avatar = request.FILES['avatar']
+            try:
+                profile.set_avatar_upload(request.FILES['avatar'])
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect('accounts:student_dashboard')
         
         profile.save()
         messages.success(request, "Profile updated successfully!")
@@ -479,10 +605,8 @@ def shop(request):
     
     profile = request.user.profile
     
-    # Get all shop items
+    # Only lobby avatar frames are shown in the student shop
     frames = ShopItem.objects.filter(item_type='frame', is_active=True)
-    badges = ShopItem.objects.filter(item_type='badge', is_active=True)
-    themes = ShopItem.objects.filter(item_type='theme', is_active=True)
     
     # Get user's purchases
     user_purchases = UserPurchase.objects.filter(user=request.user).values_list('item_id', flat=True)
@@ -490,8 +614,6 @@ def shop(request):
     context = {
         'profile': profile,
         'frames': frames,
-        'badges': badges,
-        'themes': themes,
         'user_purchases': user_purchases,
     }
     
@@ -532,8 +654,14 @@ def purchase_item(request, item_id):
     
     return JsonResponse({
         'success': True, 
-        'message': f"Successfully purchased {item.name}!",
-        'new_coin_balance': profile.coins
+        'message': translate_text_for_request(
+            request,
+            'Successfully purchased {item_name}!',
+            item_name=item.name,
+        ),
+        'new_coin_balance': profile.coins,
+        'item_type': item.item_type,
+        'item_name': item.name,
     })
 
 
@@ -566,9 +694,14 @@ def equip_frame(request, item_id):
         
         return JsonResponse({
             'success': True, 
-            'message': f"Equipped {item.name}!",
+            'message': translate_text_for_request(
+                request,
+                'Equipped {item_name}!',
+                item_name=item.name,
+            ),
             'item_id': item_id,
-            'item_name': item.name
+            'item_name': item.name,
+            'css_class': item.css_class,
         })
         
     except ShopItem.DoesNotExist:
@@ -606,7 +739,11 @@ def equip_theme(request, item_id):
         
         return JsonResponse({
             'success': True, 
-            'message': f"Equipped {item.name}!",
+            'message': translate_text_for_request(
+                request,
+                'Equipped {item_name}!',
+                item_name=item.name,
+            ),
             'item_id': item_id,
             'item_name': item.name,
             'css_class': item.css_class
@@ -670,7 +807,12 @@ def complete_daily_task(request, task_id):
         if completed:
             return JsonResponse({
                 'success': True, 
-                'message': f'Task completed! Earned {user_task.task.reward_coins} coins and {user_task.task.reward_points} points!',
+                'message': translate_text_for_request(
+                    request,
+                    'Task completed! Earned {coins} coins and {points} points!',
+                    coins=user_task.task.reward_coins,
+                    points=user_task.task.reward_points,
+                ),
                 'coins_earned': user_task.task.reward_coins,
                 'points_earned': user_task.task.reward_points
             })
@@ -757,13 +899,23 @@ def check_achievements(user):
             profile.save()
 
 
-def award_game_points(user, score, total_possible_score):
-    """Award points to user based on game performance"""
+def ensure_default_daily_tasks():
+    """Create a baseline set of daily tasks when the table is empty or incomplete."""
+    existing_names = set(DailyTask.objects.values_list('name', flat=True))
+
+    for task_data in DEFAULT_DAILY_TASKS:
+        if task_data['name'] in existing_names:
+            continue
+
+        DailyTask.objects.create(**task_data)
+
+
+def award_game_points(user, correct_answers, total_questions):
+    """Award points and coins to a student after a game."""
     profile = user.profile
-    
-    # Calculate points (1-10 based on performance)
-    if total_possible_score > 0:
-        percentage = (score / total_possible_score) * 100
+
+    if total_questions > 0:
+        percentage = (correct_answers / total_questions) * 100
         if percentage >= 90:
             points = 10
         elif percentage >= 80:
@@ -774,25 +926,39 @@ def award_game_points(user, score, total_possible_score):
             points = 4
         elif percentage >= 50:
             points = 3
-        else:
+        elif correct_answers > 0:
             points = max(1, int(percentage / 20))  # Minimum 1 point
+        else:
+            points = 0
     else:
-        points = 1
-    
-    # Award points and coins
+        points = 0
+
+    coins_earned = min(correct_answers, 10) if correct_answers > 0 else 0
+
     profile.total_points += points
-    profile.coins += points // 2  # Half the points as coins
+    profile.coins += coins_earned
     profile.games_played += 1
     profile.save()
-    
-    # Check for new achievements
+
+    update_task_progress(user, 'play_games', 1)
+    update_task_progress(user, 'complete_quiz', 1)
+    if points > 0:
+        update_task_progress(user, 'earn_points', points)
+    if correct_answers > 0:
+        update_task_progress(user, 'answer_correctly', correct_answers)
+
     check_achievements(user)
-    
-    return points
+
+    return {
+        'points_earned': points,
+        'coins_earned': coins_earned,
+        'correct_answers': correct_answers,
+    }
 
 
 def get_or_create_daily_tasks(user):
     """Get or create daily tasks for a user for today"""
+    ensure_default_daily_tasks()
     today = timezone.now().date()
     
     # Check if user already has tasks for today

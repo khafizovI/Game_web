@@ -24,11 +24,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmPurchaseBtn = document.getElementById('confirm-purchase');
     let currentItemId = null;
     let currentItemPrice = null;
+    let currentItemType = null;
     
     purchaseButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             currentItemId = this.dataset.itemId;
             currentItemPrice = parseInt(this.dataset.price);
+            currentItemType = this.dataset.itemType || null;
             
             const currentCoins = parseInt(document.getElementById('coin-balance').textContent);
             const remainingBalance = currentCoins - currentItemPrice;
@@ -61,6 +63,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Equip functionality
     const equipButtons = document.querySelectorAll('.equip-btn');
+    const equippedFramePreview = document.getElementById('equipped-frame-preview');
+    const equippedFrameName = document.getElementById('equipped-frame-name');
+    const knownFrameClasses = [
+        'cosmic-frame',
+        'dragon-frame',
+        'crystal-frame',
+        'neon-frame',
+        'royal-frame',
+        'ocean-frame',
+        'flame-frame',
+        'shadow-frame',
+        'mythic-frame',
+        'starlight-frame',
+        'tempest-frame',
+        'obsidian-frame'
+    ];
     
     equipButtons.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -94,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update the button to show "Owned" or "Equip"
                 const purchaseBtn = document.querySelector(`[data-item-id="${itemId}"]`);
                 if (purchaseBtn) {
-                    if (data.item_type === 'frame') {
+                    if ((data.item_type || currentItemType) === 'frame') {
                         purchaseBtn.className = 'btn btn-primary equip-btn';
                         purchaseBtn.innerHTML = '<i class="fas fa-hand-paper"></i> Equip';
                         purchaseBtn.dataset.itemId = itemId;
@@ -157,6 +175,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     equippedBtn.className = 'btn btn-success';
                     equippedBtn.innerHTML = '<i class="fas fa-check"></i> Equipped';
                     equippedBtn.disabled = true;
+                }
+
+                document.querySelectorAll('[data-frame-card]').forEach(card => {
+                    card.classList.remove('selected-frame-card');
+                });
+                const selectedCard = document.querySelector(`[data-frame-card="${itemId}"]`);
+                if (selectedCard) {
+                    selectedCard.classList.add('selected-frame-card');
+                }
+
+                if (equippedFramePreview && data.css_class) {
+                    equippedFramePreview.classList.remove(...knownFrameClasses);
+                    equippedFramePreview.classList.add(data.css_class);
+                }
+
+                if (equippedFrameName && data.item_name) {
+                    equippedFrameName.textContent = data.item_name;
                 }
                 
                 showNotification('Frame equipped successfully!', 'success');

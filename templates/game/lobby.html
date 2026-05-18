@@ -61,9 +61,11 @@
 
     .lobby-container {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        padding: 2rem;
+        border-radius: 28px;
+        padding: clamp(1.25rem, 3vw, 2rem);
         color: white;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .player-list-card {
@@ -72,13 +74,15 @@
     }
 
     .game-code-display {
-        font-size: 4rem;
+        font-size: clamp(2.4rem, 8vw, 4rem);
         font-weight: bold;
-        letter-spacing: 0.5rem;
+        letter-spacing: clamp(0.18rem, 1vw, 0.5rem);
         background: rgba(0, 0, 0, 0.2);
-        padding: 1rem 2rem;
-        border-radius: 10px;
+        padding: 1rem 1.5rem;
+        border-radius: 18px;
         text-align: center;
+        min-width: 0;
+        word-break: break-word;
     }
 
     .list-group-item {
@@ -239,6 +243,10 @@
 
     .player-avatar-circle:hover {
         transform: translateY(-3px) scale(1.05);
+    }
+
+    .player-avatar-circle.kickable-player {
+        cursor: pointer;
     }
 
     .avatar-container {
@@ -413,6 +421,13 @@
         z-index: 1001;
     }
 
+    .kick-hint {
+        margin-top: 0.35rem;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.82);
+        text-align: center;
+    }
+
     .player-avatar-circle:hover .player-tooltip {
         opacity: 1;
     }
@@ -426,14 +441,29 @@
 
     /* Mobile responsive styles */
     @media (max-width: 768px) {
+        #countdown-number {
+            font-size: 8rem;
+        }
+
+        .lobby-container {
+            border-radius: 24px;
+        }
+
         .player-avatars-container {
             flex-direction: column;
+            gap: 1.5rem;
         }
         
         .circle-avatar, .circle-default-avatar {
             width: 70px;
             height: 70px;
             font-size: 28px;
+        }
+
+        .avatar-frame-wrapper[class*='-frame'] {
+            width: 84px;
+            height: 84px;
+            padding: 6px;
         }
 
         .circle-game-pin, .circle-host-badge {
@@ -450,13 +480,50 @@
             font-size: 0.8rem;
             max-width: 90px;
         }
+
+        .game-pin-stack {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch !important;
+        }
+
+        .game-pin-stack .btn {
+            width: 100%;
+        }
+
+        .game-pin-stack .game-code-display {
+            margin-right: 0 !important;
+        }
     }
 
     @media (max-width: 576px) {
+        #countdown-number {
+            font-size: 5.5rem;
+        }
+
+        .container.my-5.lobby-shell {
+            margin-top: 1rem !important;
+            margin-bottom: 1rem !important;
+        }
+
+        .lobby-container .display-4 {
+            font-size: 2rem;
+        }
+
+        .lobby-container .lead {
+            font-size: 1rem !important;
+        }
+
         .circle-avatar, .circle-default-avatar {
             width: 60px;
             height: 60px;
             font-size: 24px;
+        }
+
+        .avatar-frame-wrapper[class*='-frame'] {
+            width: 72px;
+            height: 72px;
+            padding: 5px;
         }
 
         .circle-game-pin, .circle-host-badge {
@@ -473,24 +540,28 @@
             font-size: 0.75rem;
             max-width: 80px;
         }
+
+        .player-avatars-container {
+            gap: 1rem;
+        }
     }
 
     .start-game-card {
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 2rem;
+        border-radius: 20px;
+        padding: clamp(1.25rem, 3vw, 2rem);
     }
 
     .waiting-card {
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 2rem;
+        border-radius: 20px;
+        padding: clamp(1.25rem, 3vw, 2rem);
     }
 
     .game-pin-card {
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 2rem;
+        border-radius: 20px;
+        padding: clamp(1.25rem, 3vw, 2rem);
     }
 
     .players-section {
@@ -625,19 +696,393 @@
         box-shadow: 0 0 20px rgba(47, 53, 66, 0.9);
         animation: shadow-pulse 2s ease-in-out infinite;
     }
+
+    /* Premium lobby-only frame overrides */
+    .avatar-frame-wrapper[class*='-frame'] {
+        --frame-gradient: conic-gradient(from 180deg, #14b8a6, #f97316, #14b8a6);
+        --frame-glow: rgba(20, 184, 166, 0.38);
+        --frame-inner: rgba(15, 23, 42, 0.22);
+        --frame-sheen: rgba(255, 255, 255, 0.72);
+        width: 94px;
+        height: 94px;
+        padding: 7px;
+        border: none;
+        border-radius: 50%;
+        overflow: visible;
+        isolation: isolate;
+        background:
+            radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.34), transparent 32%),
+            radial-gradient(circle at 76% 74%, rgba(255, 255, 255, 0.12), transparent 28%),
+            var(--frame-gradient);
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.16),
+            0 16px 32px var(--frame-glow),
+            0 0 34px var(--frame-glow);
+        animation: premium-frame-float 4s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper[class*='-frame']::before,
+    .avatar-frame-wrapper[class*='-frame']::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .avatar-frame-wrapper[class*='-frame']::before {
+        inset: -6px;
+        background: var(--frame-gradient);
+        filter: blur(14px);
+        opacity: 0.42;
+        z-index: 0;
+        animation: premium-frame-halo 2.8s ease-in-out infinite;
+    }
+
+    .avatar-frame-wrapper[class*='-frame']::after {
+        inset: 6px;
+        background:
+            radial-gradient(circle at 30% 24%, var(--frame-sheen), transparent 22%),
+            radial-gradient(circle at 74% 74%, rgba(255, 255, 255, 0.18), transparent 22%),
+            radial-gradient(circle, transparent 64%, var(--frame-inner) 65%, transparent 74%);
+        z-index: 1;
+        animation: premium-frame-spin 6s linear infinite;
+    }
+
+    .avatar-frame-wrapper[class*='-frame'] .circle-avatar,
+    .avatar-frame-wrapper[class*='-frame'] .circle-default-avatar {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        z-index: 2;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.24);
+    }
+
+    .avatar-frame-wrapper.cosmic-frame {
+        --frame-gradient: conic-gradient(from 180deg, #9b5cff, #31d0ff, #ffd166, #9b5cff);
+        --frame-glow: rgba(110, 86, 255, 0.44);
+        --frame-inner: rgba(69, 33, 120, 0.42);
+    }
+
+    .avatar-frame-wrapper.dragon-frame {
+        --frame-gradient: conic-gradient(from 180deg, #ffe07a, #ff7a18, #d90429, #ffe07a);
+        --frame-glow: rgba(255, 106, 0, 0.46);
+        --frame-inner: rgba(116, 24, 12, 0.42);
+    }
+
+    .avatar-frame-wrapper.crystal-frame {
+        --frame-gradient: conic-gradient(from 180deg, #ffffff, #9be7ff, #8ea8ff, #ffffff);
+        --frame-glow: rgba(141, 197, 255, 0.44);
+        --frame-inner: rgba(94, 121, 179, 0.3);
+    }
+
+    .avatar-frame-wrapper.neon-frame {
+        --frame-gradient: conic-gradient(from 180deg, #39ffb6, #00ffa3, #8bff5a, #39ffb6);
+        --frame-glow: rgba(57, 255, 182, 0.48);
+        --frame-inner: rgba(5, 80, 57, 0.36);
+    }
+
+    .avatar-frame-wrapper.royal-frame {
+        --frame-gradient: conic-gradient(from 180deg, #5b2a86, #9d4edd, #ffd166, #5b2a86);
+        --frame-glow: rgba(157, 78, 221, 0.44);
+        --frame-inner: rgba(64, 21, 97, 0.44);
+    }
+
+    .avatar-frame-wrapper.ocean-frame {
+        --frame-gradient: conic-gradient(from 180deg, #35d0ff, #1565ff, #8cf0ff, #35d0ff);
+        --frame-glow: rgba(53, 208, 255, 0.42);
+        --frame-inner: rgba(14, 70, 125, 0.38);
+    }
+
+    .avatar-frame-wrapper.flame-frame {
+        --frame-gradient: conic-gradient(from 180deg, #ffb703, #fb5607, #d90429, #ffb703);
+        --frame-glow: rgba(251, 86, 7, 0.48);
+        --frame-inner: rgba(108, 24, 8, 0.44);
+    }
+
+    .avatar-frame-wrapper.shadow-frame {
+        --frame-gradient: conic-gradient(from 180deg, #111827, #334155, #64748b, #111827);
+        --frame-glow: rgba(51, 65, 85, 0.48);
+        --frame-inner: rgba(15, 23, 42, 0.6);
+    }
+
+    .avatar-frame-wrapper.mythic-frame {
+        --frame-gradient: conic-gradient(from 180deg, #ff5ec4, #7c3aed, #facc15, #ff5ec4);
+        --frame-glow: rgba(168, 85, 247, 0.5);
+        --frame-inner: rgba(76, 29, 149, 0.46);
+    }
+
+    .avatar-frame-wrapper.starlight-frame {
+        --frame-gradient: conic-gradient(from 180deg, #fef08a, #ffffff, #7dd3fc, #fef08a);
+        --frame-glow: rgba(253, 224, 71, 0.44);
+        --frame-inner: rgba(103, 137, 180, 0.3);
+    }
+
+    .avatar-frame-wrapper.tempest-frame {
+        --frame-gradient: conic-gradient(from 180deg, #22d3ee, #2563eb, #c084fc, #22d3ee);
+        --frame-glow: rgba(37, 99, 235, 0.46);
+        --frame-inner: rgba(30, 64, 175, 0.4);
+    }
+
+    .avatar-frame-wrapper.obsidian-frame {
+        --frame-gradient: conic-gradient(from 180deg, #111827, #4c1d95, #ec4899, #111827);
+        --frame-glow: rgba(76, 29, 149, 0.5);
+        --frame-inner: rgba(17, 24, 39, 0.62);
+    }
+
+    @keyframes premium-frame-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+    }
+
+    @keyframes premium-frame-halo {
+        0%, 100% { opacity: 0.32; transform: scale(0.98); }
+        50% { opacity: 0.6; transform: scale(1.05); }
+    }
+
+    @keyframes premium-frame-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Unified dashboard/shop-style lobby theme */
+    html, body {
+        min-height: 100%;
+    }
+
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: #2c3e50 !important;
+    }
+
+    .site-footer {
+        display: none !important;
+    }
+
+    .lobby-shell {
+        position: relative;
+    }
+
+    .lobby-shell::before,
+    .lobby-shell::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(12px);
+        opacity: 0.35;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .lobby-shell::before {
+        width: 240px;
+        height: 240px;
+        top: -50px;
+        left: -40px;
+        background: rgba(240, 147, 251, 0.45);
+    }
+
+    .lobby-shell::after {
+        width: 220px;
+        height: 220px;
+        right: -40px;
+        bottom: 0;
+        background: rgba(78, 205, 196, 0.35);
+    }
+
+    .lobby-container {
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.94) !important;
+        color: #2c3e50 !important;
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow: 0 28px 60px rgba(44, 62, 80, 0.18) !important;
+    }
+
+    .lobby-container h1,
+    .lobby-container h3,
+    .lobby-container p,
+    .lobby-container .lead,
+    .player-username {
+        color: #2c3e50 !important;
+    }
+
+    .lobby-container .text-muted {
+        color: #6c757d !important;
+    }
+
+    .start-game-card,
+    .waiting-card,
+    .game-pin-card {
+        background: rgba(102, 126, 234, 0.08) !important;
+        border: 1px solid rgba(102, 126, 234, 0.12);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    .game-code-display {
+        color: #ffffff !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        box-shadow: 0 16px 28px rgba(102, 126, 234, 0.22);
+    }
+
+    .start-game-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        box-shadow: 0 16px 30px rgba(102, 126, 234, 0.24) !important;
+    }
+
+    .start-game-btn:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+    }
+
+    .player-tooltip {
+        background: rgba(44, 62, 80, 0.92) !important;
+    }
+
+    .no-players-message,
+    .no-players-message p {
+        color: #6c757d !important;
+    }
+
+    #copy-code-btn {
+        border: none;
+        color: #667eea;
+        box-shadow: 0 12px 24px rgba(44, 62, 80, 0.12);
+    }
+
+    /* Final high-visibility frame overrides */
+    .avatar-container {
+        overflow: visible;
+    }
+
+    .circle-game-pin,
+    .circle-host-badge {
+        z-index: 6;
+    }
+
+    .avatar-frame-wrapper[class*='-frame'] {
+        width: 94px !important;
+        height: 94px !important;
+        padding: 6px !important;
+        box-sizing: border-box;
+        overflow: visible !important;
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.24),
+            0 18px 36px var(--frame-glow),
+            0 0 52px var(--frame-glow) !important;
+    }
+
+    .avatar-frame-wrapper[class*='-frame']::before {
+        inset: -10px !important;
+        filter: blur(18px) !important;
+        opacity: 0.66 !important;
+    }
+
+    .avatar-frame-wrapper[class*='-frame']::after {
+        inset: 6px !important;
+        background:
+            radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.94), transparent 17%),
+            radial-gradient(circle at 78% 76%, rgba(255, 255, 255, 0.24), transparent 17%),
+            radial-gradient(circle, transparent 55%, rgba(255, 255, 255, 0.18) 56%, rgba(255, 255, 255, 0.18) 60%, transparent 61%),
+            radial-gradient(circle, transparent 66%, var(--frame-inner) 67%, transparent 75%) !important;
+    }
+
+    .avatar-frame-wrapper[class*='-frame'] .circle-avatar,
+    .avatar-frame-wrapper[class*='-frame'] .circle-default-avatar {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0;
+        border: 2px solid rgba(255, 255, 255, 0.88) !important;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22) !important;
+    }
+
+    .avatar-frame-wrapper.mythic-frame,
+    .avatar-frame-wrapper.starlight-frame,
+    .avatar-frame-wrapper.tempest-frame,
+    .avatar-frame-wrapper.cosmic-frame {
+        animation-duration: 3.1s !important;
+    }
+
+    .avatar-frame-wrapper.dragon-frame,
+    .avatar-frame-wrapper.flame-frame,
+    .avatar-frame-wrapper.obsidian-frame,
+    .avatar-frame-wrapper.shadow-frame {
+        animation-duration: 2.3s !important;
+    }
+
+    .avatar-frame-wrapper.mythic-frame {
+        animation-name: lobby-mythic-pulse !important;
+    }
+
+    .avatar-frame-wrapper.starlight-frame {
+        animation-name: lobby-starlight-drift !important;
+    }
+
+    .avatar-frame-wrapper.tempest-frame {
+        animation-name: lobby-tempest-surge !important;
+    }
+
+    .avatar-frame-wrapper.obsidian-frame {
+        animation-name: lobby-obsidian-breath !important;
+    }
+
+    @keyframes lobby-mythic-pulse {
+        0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 0 0 2px rgba(255,255,255,0.24), 0 18px 36px rgba(168, 85, 247, 0.45), 0 0 52px rgba(168, 85, 247, 0.45); }
+        50% { transform: translateY(-5px) scale(1.05); box-shadow: 0 0 0 2px rgba(255,255,255,0.3), 0 24px 42px rgba(250, 204, 21, 0.36), 0 0 62px rgba(168, 85, 247, 0.58); }
+    }
+
+    @keyframes lobby-starlight-drift {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-5px) rotate(3deg); }
+    }
+
+    @keyframes lobby-tempest-surge {
+        0%, 100% { transform: translateY(0) scale(1); }
+        30% { transform: translateY(-3px) scale(1.03) rotate(-2deg); }
+        60% { transform: translateY(-6px) scale(1.06) rotate(2deg); }
+    }
+
+    @keyframes lobby-obsidian-breath {
+        0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 0 0 2px rgba(255,255,255,0.2), 0 18px 36px rgba(76, 29, 149, 0.42), 0 0 44px rgba(17, 24, 39, 0.5); }
+        50% { transform: translateY(-4px) scale(1.02); box-shadow: 0 0 0 2px rgba(255,255,255,0.28), 0 22px 42px rgba(236, 72, 153, 0.2), 0 0 62px rgba(76, 29, 149, 0.56); }
+    }
+
+    @media (max-width: 768px) {
+        .avatar-frame-wrapper[class*='-frame'] {
+            width: 84px !important;
+            height: 84px !important;
+            padding: 5px !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .avatar-frame-wrapper[class*='-frame'] {
+            width: 72px !important;
+            height: 72px !important;
+            padding: 4px !important;
+        }
+
+        .avatar-frame-wrapper[class*='-frame'] .circle-avatar,
+        .avatar-frame-wrapper[class*='-frame'] .circle-default-avatar {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    }
 </style>
 
 <div id="countdown-overlay">
     <div id="countdown-number"></div>
 </div>
+<audio id="lobby-music" preload="auto" loop>
+    <source src="{% static 'music/lobby_music.mp3' %}" type="audio/mpeg">
+</audio>
 
-<div class="container my-5">
+<div class="container my-5 lobby-shell">
     <div class="lobby-container text-white shadow-lg">
         <div class="row align-items-start">
             <!-- Left Column: Start Game Button & Players -->
             <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
                 <h1 class="display-4 fw-bold mb-4">{% trans "Game Lobby" %}</h1>
-                <p class="lead fs-4 mb-4">{% trans "Quiz" %}: {{ game.quiz.title }}</p>
+                <p class="lead fs-4 mb-4">{% trans "Quiz" %}: <span data-no-translate>{{ game.quiz.title }}</span></p>
                 
                 {% if is_host %}
                     <div class="start-game-card p-4 mb-4">
@@ -657,15 +1102,20 @@
                 <div class="players-section">
                     <div class="player-avatars-container" id="player-list">
                         {% for player in players %}
-                            <div class="player-avatar-circle" id="player-{{ player.id }}">
+                            <div
+                                class="player-avatar-circle{% if is_host and not player.is_host %} kickable-player{% endif %}"
+                                id="player-{{ player.id }}"
+                                data-player-id="{{ player.id }}"
+                                data-username="{{ player.name }}"
+                            >
                                 <div class="avatar-container">
-                                    <div class="player-tooltip">{{ player.user.username }}</div>
-                                    {% if player.user.profile.avatar %}
-                                        <div class="avatar-frame-wrapper{% if player.user.profile.selected_frame %} {{ player.user.profile.selected_frame.css_class }}{% endif %}">
-                                            <img src="{{ player.user.profile.avatar.url }}" alt="{{ player.user.username }}" class="circle-avatar">
+                                    <div class="player-tooltip">{{ player.name }}</div>
+                                    {% if player.avatar_url %}
+                                        <div class="avatar-frame-wrapper{% if player.selected_frame_css_class %} {{ player.selected_frame_css_class }}{% endif %}">
+                                            <img src="{{ player.avatar_url }}" alt="{{ player.name }}" class="circle-avatar">
                                         </div>
                                     {% else %}
-                                        <div class="avatar-frame-wrapper{% if player.user.profile.selected_frame %} {{ player.user.profile.selected_frame.css_class }}{% endif %}">
+                                        <div class="avatar-frame-wrapper{% if player.selected_frame_css_class %} {{ player.selected_frame_css_class }}{% endif %}">
                                             <div class="circle-default-avatar">
                                                 <i class="fas fa-user"></i>
                                             </div>
@@ -678,7 +1128,10 @@
                                         </div>
                                     {% endif %}
                                 </div>
-                                <div class="player-username">{{ player.user.username }}</div>
+                                <div class="player-username">{{ player.name }}</div>
+                                {% if is_host and not player.is_host %}
+                                <div class="kick-hint">{% trans "Click to kick" %}</div>
+                                {% endif %}
                             </div>
                         {% empty %}
                             <div class="no-players-message">
@@ -694,7 +1147,7 @@
             <div class="col-lg-6">
                 <div class="game-pin-card p-4 text-center">
                     <h3 class="mb-3">{% trans "Share this code with your friends!" %}</h3>
-                    <div class="d-flex justify-content-center align-items-center">
+                    <div class="d-flex justify-content-center align-items-center game-pin-stack">
                         <div class="game-code-display me-3">{{ game.code }}</div>
                         <button class="btn btn-light btn-lg" id="copy-code-btn" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy to clipboard">
                             <i class="fas fa-copy"></i>
@@ -712,6 +1165,10 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const translate = window.t || ((key) => key);
+    const MUSIC_TIME_STORAGE_KEY = 'gameweb:music:time';
+    const MUSIC_ACTIVE_STORAGE_KEY = 'gameweb:music:active';
+
     // Initialize Bootstrap tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -720,6 +1177,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const roomCode = '{{ game.code }}';
     const isHost = {{ is_host|yesno:"true,false" }};
+    const joinUrl = "{% url 'game:join' %}";
+    const playUrl = "{% url 'game:play' game.code %}";
+    let isRedirectingAfterKick = false;
 
     const playerList = document.getElementById('player-list');
     const playerCount = document.getElementById('player-count');
@@ -727,6 +1187,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const copyButton = document.getElementById('copy-code-btn');
     const countdownOverlay = document.getElementById('countdown-overlay');
     const countdownNumber = document.getElementById('countdown-number');
+    const lobbyMusic = document.getElementById('lobby-music');
+
+    function playLobbyMusic() {
+        if (!lobbyMusic) {
+            return;
+        }
+        lobbyMusic.volume = 0.45;
+        const savedTime = parseFloat(window.sessionStorage.getItem(MUSIC_TIME_STORAGE_KEY) || '0');
+        if (!Number.isNaN(savedTime) && savedTime > 0 && Math.abs(lobbyMusic.currentTime - savedTime) > 1) {
+            lobbyMusic.currentTime = savedTime;
+        }
+        lobbyMusic.play().catch(() => {});
+        window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'true');
+    }
+
+    function stopLobbyMusic(resetTime = true) {
+        if (!lobbyMusic) {
+            return;
+        }
+        window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, String(lobbyMusic.currentTime || 0));
+        lobbyMusic.pause();
+        if (resetTime) {
+            lobbyMusic.currentTime = 0;
+            window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, '0');
+            window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'false');
+        }
+    }
+
+    ['click', 'touchstart', 'keydown'].forEach((eventName) => {
+        document.addEventListener(eventName, playLobbyMusic, { passive: true });
+    });
+
+    playLobbyMusic();
+    window.addEventListener('beforeunload', () => stopLobbyMusic(false));
 
     copyButton.addEventListener('click', () => {
         navigator.clipboard.writeText(roomCode).then(() => {
@@ -740,75 +1234,113 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    function refreshPlayerPins() {
+        Array.from(playerList.querySelectorAll('.player-avatar-circle')).forEach((item, index) => {
+            const pin = item.querySelector('.circle-game-pin');
+            if (pin) {
+                pin.textContent = index + 1;
+            }
+        });
+        playerCount.textContent = playerList.querySelectorAll('.player-avatar-circle').length;
+    }
+
+    function createPlayerCard(player, index) {
+        const newPlayer = document.createElement('div');
+        newPlayer.className = 'player-avatar-circle';
+        if (isHost && !player.is_host) {
+            newPlayer.classList.add('kickable-player');
+        }
+        newPlayer.id = `player-${player.id}`;
+        newPlayer.dataset.playerId = player.id;
+        newPlayer.dataset.username = player.user.username;
+
+        const avatarContainer = document.createElement('div');
+        avatarContainer.className = 'avatar-container';
+
+        const playerTooltip = document.createElement('div');
+        playerTooltip.className = 'player-tooltip';
+        playerTooltip.textContent = player.user.username;
+        avatarContainer.appendChild(playerTooltip);
+
+        const frameWrapper = document.createElement('div');
+        frameWrapper.className = 'avatar-frame-wrapper';
+        if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
+            frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
+        }
+
+        if (player.user.profile.avatar && player.user.profile.avatar.url) {
+            const playerAvatar = document.createElement('img');
+            playerAvatar.src = player.user.profile.avatar.url;
+            playerAvatar.alt = player.user.username;
+            playerAvatar.className = 'circle-avatar';
+            frameWrapper.appendChild(playerAvatar);
+        } else {
+            const defaultAvatar = document.createElement('div');
+            defaultAvatar.className = 'circle-default-avatar';
+            defaultAvatar.innerHTML = '<i class="fas fa-user"></i>';
+            frameWrapper.appendChild(defaultAvatar);
+        }
+        avatarContainer.appendChild(frameWrapper);
+
+        const gamePin = document.createElement('div');
+        gamePin.className = 'circle-game-pin';
+        gamePin.textContent = index + 1;
+        avatarContainer.appendChild(gamePin);
+
+        if (player.is_host) {
+            const hostBadge = document.createElement('div');
+            hostBadge.className = 'circle-host-badge';
+            hostBadge.innerHTML = '<i class="fas fa-crown"></i>';
+            avatarContainer.appendChild(hostBadge);
+        }
+
+        const username = document.createElement('div');
+        username.className = 'player-username';
+        username.textContent = player.user.username;
+        newPlayer.appendChild(avatarContainer);
+        newPlayer.appendChild(username);
+
+        if (isHost && !player.is_host) {
+            const kickHint = document.createElement('div');
+            kickHint.className = 'kick-hint';
+            kickHint.textContent = translate('Click to kick');
+            newPlayer.appendChild(kickHint);
+        }
+
+        return newPlayer;
+    }
+
+    function requestKickPlayer(playerId, username) {
+        if (!isHost || !playerId) {
+            return;
+        }
+
+        if (!confirm(translate('Are you sure you want to remove {username}?').replace('{username}', username))) {
+            return;
+        }
+
+        socket.send(JSON.stringify({
+            type: 'kick_player',
+            player_id: Number(playerId)
+        }));
+    }
+
+    if (isHost && playerList) {
+        playerList.addEventListener('click', (event) => {
+            const playerCard = event.target.closest('.player-avatar-circle.kickable-player');
+            if (!playerCard) {
+                return;
+            }
+            requestKickPlayer(playerCard.dataset.playerId, playerCard.dataset.username || 'Player');
+        });
+    }
+
     function updatePlayerList(players) {
-        const playerList = document.getElementById('player-list');
-        const playerCount = document.getElementById('player-count');
-        
         playerList.innerHTML = '';
         players.forEach((player, index) => {
-            const newPlayer = document.createElement('div');
-            newPlayer.className = 'player-avatar-circle';
-            newPlayer.id = `player-${player.id}`;
-
-            const avatarContainer = document.createElement('div');
-            avatarContainer.className = 'avatar-container';
-
-            const playerTooltip = document.createElement('div');
-            playerTooltip.className = 'player-tooltip';
-            playerTooltip.textContent = player.user.username;
-            avatarContainer.appendChild(playerTooltip);
-
-            if (player.user.profile.avatar && player.user.profile.avatar.url) {
-                const frameWrapper = document.createElement('div');
-                frameWrapper.className = 'avatar-frame-wrapper';
-                if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
-                    frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
-                }
-                
-                const playerAvatar = document.createElement('img');
-                playerAvatar.src = player.user.profile.avatar.url;
-                playerAvatar.alt = player.user.username;
-                playerAvatar.className = 'circle-avatar';
-                
-                frameWrapper.appendChild(playerAvatar);
-                avatarContainer.appendChild(frameWrapper);
-            } else {
-                const frameWrapper = document.createElement('div');
-                frameWrapper.className = 'avatar-frame-wrapper';
-                if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
-                    frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
-                }
-                
-                const defaultAvatar = document.createElement('div');
-                defaultAvatar.className = 'circle-default-avatar';
-                defaultAvatar.innerHTML = '<i class="fas fa-user"></i>';
-                
-                frameWrapper.appendChild(defaultAvatar);
-                avatarContainer.appendChild(frameWrapper);
-            }
-
-            const gamePin = document.createElement('div');
-            gamePin.className = 'circle-game-pin';
-            gamePin.textContent = index + 1;
-            avatarContainer.appendChild(gamePin);
-
-            if (player.is_host) {
-                const hostBadge = document.createElement('div');
-                hostBadge.className = 'circle-host-badge';
-                hostBadge.innerHTML = '<i class="fas fa-crown"></i>';
-                avatarContainer.appendChild(hostBadge);
-            }
-
-            const username = document.createElement('div');
-            username.className = 'player-username';
-            username.textContent = player.user.username;
-            newPlayer.appendChild(avatarContainer);
-            newPlayer.appendChild(username);
-
-            playerList.appendChild(newPlayer);
+            playerList.appendChild(createPlayerCard(player, index));
         });
-
-        playerCount.textContent = players.length;
+        refreshPlayerPins();
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -826,77 +1358,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data.type === 'lobby_state') {
             updatePlayerList(data.players);
         } else if (data.type === 'player_joined') {
-            const playerList = document.getElementById('player-list');
-            const playerCount = document.getElementById('player-count');
-            
-            const newPlayer = document.createElement('div');
-            newPlayer.className = 'player-avatar-circle';
-            newPlayer.id = `player-${data.player.id}`;
-
-            const avatarContainer = document.createElement('div');
-            avatarContainer.className = 'avatar-container';
-
-            const playerTooltip = document.createElement('div');
-            playerTooltip.className = 'player-tooltip';
-            playerTooltip.textContent = data.player.user.username;
-            avatarContainer.appendChild(playerTooltip);
-
-            if (data.player.user.profile.avatar && data.player.user.profile.avatar.url) {
-                const frameWrapper = document.createElement('div');
-                frameWrapper.className = 'avatar-frame-wrapper';
-                if (data.player.user.profile.selected_frame && data.player.user.profile.selected_frame.css_class) {
-                    frameWrapper.classList.add(data.player.user.profile.selected_frame.css_class);
-                }
-                
-                const playerAvatar = document.createElement('img');
-                playerAvatar.src = data.player.user.profile.avatar.url;
-                playerAvatar.alt = data.player.user.username;
-                playerAvatar.className = 'circle-avatar';
-                
-                frameWrapper.appendChild(playerAvatar);
-                avatarContainer.appendChild(frameWrapper);
-            } else {
-                const frameWrapper = document.createElement('div');
-                frameWrapper.className = 'avatar-frame-wrapper';
-                if (data.player.user.profile.selected_frame && data.player.user.profile.selected_frame.css_class) {
-                    frameWrapper.classList.add(data.player.user.profile.selected_frame.css_class);
-                }
-                
-                const defaultAvatar = document.createElement('div');
-                defaultAvatar.className = 'circle-default-avatar';
-                defaultAvatar.innerHTML = '<i class="fas fa-user"></i>';
-                
-                frameWrapper.appendChild(defaultAvatar);
-                avatarContainer.appendChild(frameWrapper);
-            }
-
-            const gamePin = document.createElement('div');
-            gamePin.className = 'circle-game-pin';
-            gamePin.textContent = playerList.children.length + 1;
-            avatarContainer.appendChild(gamePin);
-
-            if (data.player.is_host) {
-                const hostBadge = document.createElement('div');
-                hostBadge.className = 'circle-host-badge';
-                hostBadge.innerHTML = '<i class="fas fa-crown"></i>';
-                avatarContainer.appendChild(hostBadge);
-            }
-
-            const username = document.createElement('div');
-            username.className = 'player-username';
-            username.textContent = data.player.user.username;
-            newPlayer.appendChild(avatarContainer);
-            newPlayer.appendChild(username);
-
-            playerList.appendChild(newPlayer);
-            playerCount.textContent = playerList.children.length;
-
+            playerList.appendChild(createPlayerCard(data.player, playerList.querySelectorAll('.player-avatar-circle').length));
+            refreshPlayerPins();
         } else if (data.type === 'player_left') {
             const playerElement = document.getElementById(`player-${data.player.id}`);
             if (playerElement) {
                 playerElement.remove();
-                playerCount.textContent = playerList.children.length;
+                refreshPlayerPins();
             }
+        } else if (data.type === 'kicked_from_game') {
+            isRedirectingAfterKick = true;
+            stopLobbyMusic(false);
+            alert(data.message || translate('The teacher removed you from the game.'));
+            window.location.href = joinUrl;
         } else if (data.type === 'game_starting') {
             const countdownOverlay = document.getElementById('countdown-overlay');
             const countdownNumber = document.getElementById('countdown-number');
@@ -916,7 +1390,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         countdownNumber.textContent = "{% trans 'Go!' %}";
                         countdownNumber.classList.add('show');
                         setTimeout(() => {
-                            window.location.href = `/game/play/${roomCode}/`;
+                            stopLobbyMusic(false);
+                            window.location.href = playUrl;
                         }, 1000);
                     }
                 }, 1000); // Number is visible for 1s
@@ -924,16 +1399,20 @@ document.addEventListener('DOMContentLoaded', function () {
             showNumber();
         } else if (data.type === 'game_started') {
             // This handles re-connecting players
-            window.location.href = `/game/play/${roomCode}/`;
+            stopLobbyMusic(false);
+            window.location.href = playUrl;
         }
     };
 
     socket.onclose = function (e) {
         console.error('Game socket closed unexpectedly');
+        if (isRedirectingAfterKick) {
+            return;
+        }
         // Optional: Add a more user-friendly notification here
         const toastBody = document.querySelector('.toast-body');
         if(toastBody) {
-            toastBody.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Connection to the lobby was lost. Please refresh.';
+            toastBody.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${translate('Connection to the lobby was lost. Please refresh.')}`;
             const toast = new bootstrap.Toast(document.querySelector('.toast'));
             toast.show();
         }

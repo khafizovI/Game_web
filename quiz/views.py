@@ -9,21 +9,18 @@ import json
 import re
 from quizgame.moderation import check_and_flag_content, is_ip_blocked
 
-# Import AI libraries
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-
 from .utils.ai_quiz_generator import generate_quiz_from_topic
 from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
+from quizgame.translation_utils import translate_text_for_request
 
 # Quiz Management Views
 @login_required
 def browse_quizzes(request):
     """View for browsing all quizzes - Teachers only"""
     # Redirect students to join game page
-    if not request.user.profile.is_teacher:
+    if not request.user.profile.is_teacher():
         return redirect('game:join')
     
     # Get search query if provided
@@ -163,7 +160,10 @@ def create_quiz(request):
                 return redirect('quiz:edit', quiz_id=quiz.id)
 
             except Exception as e:
-                messages.error(request, f"Could not generate quiz: {e}")
+                messages.error(
+                    request,
+                    translate_text_for_request(request, "Could not generate quiz: {error}", error=str(e)),
+                )
                 return render(request, 'quiz/create.html')
 
         # This branch handles manual quiz creation (no questions added)

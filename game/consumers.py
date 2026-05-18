@@ -6,734 +6,945 @@ import time
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from game.models import Game, GamePlayer, Question, Answer, PlayerAnswer
-from accounts.models import Profile
-from quiz.models import Quiz, Question, Answer
-import random
+from django.db import transaction
+from django.db.models import Count, Q
+
+from game.models import Game, GamePlayer, PlayerAnswer
+from quiz.models import Answer, Question
 
 logger = logging.getLogger(__name__)
 
+
 class GameConsumer(AsyncWebsocketConsumer):
-    player_channels = {}
-    current_question_context = {}
+    room_states = {}
+
+    @classmethod
+    def get_room_state(cls, room_code):
+        return cls.room_states.setdefault(
+            room_code,
+            {
+                "phase": "lobby",
+                "player_channels": {},
+                "teacher_channel": None,
+                "loop_task": None,
+                "host_disconnect_task": None,
+                "current_question_context": {},
+                "last_results": None,
+            },
+        )
+
+    @classmethod
+    def clear_room_task(cls, room_code, task_name, task):
+        state = cls.room_states.get(room_code)
+        if state and state.get(task_name) is task:
+            state[task_name] = None
+
+    @staticmethod
+    def guest_session_key(room_code):
+        return f"guest_player_{room_code}"
 
     async def connect(self):
-        self.room_code = self.scope['url_route']['kwargs']['room_code']
-        self.game_group_name = f'game_{self.room_code}'
-        self.user = self.scope['user']
+        self.room_code = self.scope["url_route"]["kwargs"]["room_code"]
+        self.game_group_name = f"game_{self.room_code}"
+        self.user = self.scope["user"]
+        self.session = self.scope.get("session")
+        self.room_state = self.get_room_state(self.room_code)
+        self.player = None
+        self.player_id = None
+
+        await self.channel_layer.group_add(self.game_group_name, self.channel_name)
+        await self.accept()
 
         try:
-            # Add player to the group first to ensure they receive all broadcasts.
-            await self.channel_layer.group_add(
-                self.game_group_name,
-                self.channel_name
-            )
-            await self.accept()
-
-            # Handle unauthenticated users as guests
-            if not self.user.is_authenticated:
-                all_players = await self.get_all_players_in_game()
-                await self.send(text_data=json.dumps({
-                    'type': 'lobby_state',
-                    'players': all_players,
-                    'is_guest': True
-                }))
-                return
-
-            # Add the user to the game and get updated player list.
             game, player = await self.get_or_create_player()
-            if not player:
-                await self.send(text_data=json.dumps({
-                    'type': 'error',
-                    'message': "Could not identify player."
-                }))
-                await self.close()
+            if not game or not player:
+                await self.send_json(
+                    {
+                        "type": "error",
+                        "message": "Join the game first before opening the lobby or play screen.",
+                    }
+                )
+                await self.close(code=4004)
                 return
 
             self.player = player
+            self.player_id = player.id
+            self.room_state["player_channels"][self.player_id] = self.channel_name
 
-            # Prepare player data in a sync-safe way before sending
-            player_data = await self.get_player_data_as_dict(player)
+            await self.send_lobby_state()
 
-            # Send current lobby state to the new player
-            all_players = await self.get_all_players_in_game()
-            await self.send(text_data=json.dumps({
-                'type': 'lobby_state',
-                'players': all_players
-            }))
-
-            # Notify other players that a new player has joined
+            player_data = await self.get_player_data_as_dict(player.id)
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
-                    'type': 'player_joined',
-                    'player': player_data,
-                    'sender_channel_name': self.channel_name
-                }
+                    "type": "player_joined",
+                    "player": player_data,
+                    "sender_channel_name": self.channel_name,
+                },
             )
 
-            # If game is active, send the current question
-            game = await self.get_game()
-            if game.is_active and not game.is_completed:
-                current_question = await self.get_current_question(re_send=True)
-                if current_question:
-                    await self.send(text_data=json.dumps({
-                        'type': 'show_question',
-                        'question_id': current_question['id'],
-                        'question_text': current_question['question_text'],
-                        'answers': current_question['answers'],
-                        'time_limit': current_question['time_limit'],
-                        'current_question': current_question['current_question'],
-                        'total_questions': current_question['total_questions']
-                    }))
+            if game.is_completed:
+                await self.send_game_over_message()
+            elif game.is_active:
+                await self.send_json({"type": "game_started"})
 
-        except Exception as e:
-            logger.error(f"Error in GameConsumer connect for game {self.room_code}: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(
+                "Error in GameConsumer.connect for room %s: %s",
+                self.room_code,
+                exc,
+                exc_info=True,
+            )
             await self.close(code=4000)
 
     async def disconnect(self, close_code):
-        player_left_data = await self.remove_player_from_game(self.user)
+        try:
+            if self.player_id and self.room_state["player_channels"].get(self.player_id) == self.channel_name:
+                self.room_state["player_channels"].pop(self.player_id, None)
 
-        if player_left_data:
-            # Notify the group that a player has left
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'player_left',
-                    'player': player_left_data,
-                    'sender_channel_name': self.channel_name
-                }
+            if self.room_state.get("teacher_channel") == self.channel_name:
+                self.room_state["teacher_channel"] = None
+
+            game_state = await self.get_game_state()
+            if game_state and game_state["is_active"] and not game_state["is_completed"]:
+                game = await self.get_game()
+                if game and self.player and self.player.is_host:
+                    host_disconnect_task = self.room_state.get("host_disconnect_task")
+                    if not host_disconnect_task or host_disconnect_task.done():
+                        host_disconnect_task = asyncio.create_task(
+                            self.handle_host_disconnect_after_grace_period()
+                        )
+                        self.room_state["host_disconnect_task"] = host_disconnect_task
+                        host_disconnect_task.add_done_callback(
+                            lambda task, room_code=self.room_code: self.clear_room_task(
+                                room_code, "host_disconnect_task", task
+                            )
+                        )
+
+                await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+                return
+
+            if self.player_id:
+                player_left_data = await self.remove_player_from_game(self.player_id)
+                if player_left_data:
+                    await self.channel_layer.group_send(
+                        self.game_group_name,
+                        {
+                            "type": "player_left",
+                            "player": player_left_data,
+                            "sender_channel_name": self.channel_name,
+                        },
+                    )
+
+            await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+        except Exception as exc:
+            logger.error(
+                "Error in GameConsumer.disconnect for room %s: %s",
+                self.room_code,
+                exc,
+                exc_info=True,
             )
-
-            # If the host (teacher) disconnects, end the game and kick all students
-            if player_left_data.get('was_host'):
-                await self.handle_host_disconnect()
-
-        await self.channel_layer.group_discard(
-            self.game_group_name,
-            self.channel_name
-        )
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        message_type = data.get('type')
-
-        if message_type == 'start_game' and await self.is_user_host():
-            await self.start_game()
-        elif message_type == 'player_ready':
-            await self.player_ready()
-        elif message_type == 'submit_answer':
-            await self.submit_answer(data)
-        elif message_type == 'next_question' and await self.is_user_host():
-            await self.proceed_to_next_question()
-
-    async def start_game(self):
-        # Set the game to active and broadcast the starting event.
-        # The host's 'player_ready' message on the next screen will trigger the first question.
-        await self.set_game_active(True)
-        await self.channel_layer.group_send(self.game_group_name, {
-            'type': 'broadcast_game_starting'
-        })
-
-    async def player_ready(self):
-        """
-        Handles a player connecting to the play screen.
-        If the user is the host and the game is just beginning,
-        this triggers the first question for everyone.
-        """
-        game = await self.get_game()
-        # The host sending 'player_ready' for the first question kicks off the game.
-        if game.is_active and self.user.id == game.host_id and game.current_question_number == 0:
-            self.player_id = await self.get_player_id()
-            if self.player_id not in self.player_channels:
-                self.player_channels[self.player_id] = self.channel_name
-
-            # If this is the first player to be ready, start the game loop
-            if len(self.player_channels) == 1:
-                asyncio.create_task(self.game_loop())
-
-    async def submit_answer(self, data):
-        """Handles answer submission from a player."""
-        answer_id = data['answer_id']
-        time_taken = time.time() - self.current_question_context.get('start_time', 0)
-        time_limit = self.current_question_context.get('time_limit', 10)
-        question_id = self.current_question_context.get('question_id')
-
-        if not question_id:
-            return # Ignore submission if no question is active
-
-        is_correct, score_to_add = await self.calculate_score(answer_id, time_taken, time_limit)
-        await self.save_player_answer(self.player, question_id, answer_id, is_correct, score_to_add)
-
-        # Send immediate feedback to the student
-        correct_answer = await self.get_correct_answer(question_id)
-        await self.send(text_data=json.dumps({
-            'type': 'immediate_feedback',
-            'is_correct': is_correct,
-            'correct_answer_id': correct_answer.id if correct_answer else None,
-            'score_earned': score_to_add,
-            'selected_answer_id': answer_id
-        }))
-
-    async def game_loop(self):
-        """The main loop that controls the game flow."""
-        while True:
-            question_data = await self.get_current_question()
-            if not question_data:
-                await self.end_game()
-                break
-
-            # Store question context for scoring
-            self.current_question_context = {
-                'start_time': time.time(),
-                'time_limit': question_data['time_limit'],
-                'question_id': question_data['id']
-            }
-
-            # Send the question to all players
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'show_question',
-                    'question_data': question_data
-                }
-            )
-
-            # Wait for the question's time limit
-            await asyncio.sleep(question_data['time_limit'])
-
-            # Get and send feedback to students, and leaderboard to teacher
-            feedback_data = await self.get_feedback_data(self.current_question_context['question_id'])
-            
-            # Send feedback to students
-            for player_id, channel_name in self.player_channels.items():
-                player_result = next((p for p in feedback_data['player_results'] if p['id'] == player_id), None)
-                
-                if not player_result:
-                    player_result = {
-                        'id': player_id,
-                        'username': 'Unknown',
-                        'score': 0,
-                        'is_correct': False,
-                        'score_earned': 0,
-                        'answered': False
-                    }
-
-                await self.channel_layer.send(
-                    channel_name,
-                    {
-                        'type': 'send_feedback_to_client',
-                        'correct_answer_id': feedback_data['correct_answer_id'],
-                        'player_result': player_result,
-                        'player_results': feedback_data['player_results']
-                    }
-                )
-            
-            # Send leaderboard to teacher
-            teacher_channel = await self.get_teacher_channel()
-            if teacher_channel:
-                await self.channel_layer.send(teacher_channel, {
-                    'type': 'send_teacher_leaderboard',
-                    'player_results': feedback_data['player_results'],
-                    'current_question': await self.get_current_question_number(),
-                    'total_questions': await self.get_total_questions()
-                })
-            
-            # Wait for teacher to click "Next" - the loop will continue when proceed_to_next_question is called
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
             return
 
-    async def send_teacher_leaderboard(self, event):
-        """Sends leaderboard data to the teacher."""
-        await self.send(text_data=json.dumps({
-            'type': 'teacher_leaderboard',
-            'player_results': event['player_results'],
-            'current_question': event['current_question'],
-            'total_questions': event['total_questions']
-        }))
+        message_type = data.get("type")
+
+        if message_type == "start_game" and await self.is_user_host():
+            await self.start_game()
+        elif message_type == "player_ready":
+            await self.player_ready()
+        elif message_type == "submit_answer":
+            await self.submit_answer(data)
+        elif message_type == "next_question" and await self.is_user_host():
+            await self.proceed_to_next_question()
+        elif message_type == "end_game" and await self.is_user_host():
+            await self.end_game()
+        elif message_type == "kick_player" and await self.is_user_host():
+            player_id = data.get("player_id")
+            if player_id:
+                await self.kick_player(player_id)
+
+    async def send_json(self, payload):
+        await self.send(text_data=json.dumps(payload))
+
+    async def send_lobby_state(self):
+        players = await self.get_all_players_in_game()
+        await self.send_json({"type": "lobby_state", "players": players})
+
+    async def start_game(self):
+        game = await self.get_game()
+        if not game or game.is_completed:
+            return
+
+        await self.mark_game_started()
+        self.room_state["phase"] = "countdown"
+        self.room_state["current_question_context"] = {}
+        self.room_state["last_results"] = None
+
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {"type": "broadcast_game_starting"},
+        )
+
+    async def player_ready(self):
+        game = await self.get_game()
+        if not game or not self.player_id:
+            return
+
+        self.room_state["player_channels"][self.player_id] = self.channel_name
+
+        if await self.is_user_host():
+            self.room_state["teacher_channel"] = self.channel_name
+            host_disconnect_task = self.room_state.get("host_disconnect_task")
+            if host_disconnect_task and not host_disconnect_task.done():
+                host_disconnect_task.cancel()
+                self.room_state["host_disconnect_task"] = None
+
+        if game.is_completed:
+            await self.send_game_over_message()
+            return
+
+        if not game.is_active:
+            return
+
+        if self.room_state["phase"] == "question":
+            await self.send_current_question_to_self()
+            return
+
+        if self.room_state["phase"] == "results":
+            await self.send_current_results_to_self()
+            return
+
+        if await self.is_user_host() and game.current_question_number == 0:
+            await self.launch_question_round()
+
+    async def submit_answer(self, data):
+        if not self.player_id or await self.is_user_host():
+            return
+
+        if self.room_state.get("phase") != "question":
+            return
+
+        answer_id = data.get("answer_id")
+        question_context = self.room_state.get("current_question_context", {})
+        question_id = question_context.get("question_id")
+        if not answer_id or not question_id:
+            return
+
+        time_taken = time.time() - question_context.get("start_time", 0)
+        time_limit = question_context.get("time_limit", 10)
+
+        is_correct, score_to_add = await self.calculate_score(answer_id, time_taken, time_limit)
+        saved, total_score = await self.save_player_answer(
+            self.player_id,
+            question_id,
+            answer_id,
+            is_correct,
+            score_to_add,
+        )
+        if not saved:
+            return
+
+        correct_answer = await self.get_correct_answer(question_id)
+        await self.send_json(
+            {
+                "type": "immediate_feedback",
+                "is_correct": is_correct,
+                "correct_answer_id": correct_answer.id if correct_answer else None,
+                "score_earned": score_to_add,
+                "selected_answer_id": answer_id,
+                "total_score": total_score,
+            }
+        )
 
     async def proceed_to_next_question(self):
-        game = await self.get_game()
-        if game.is_active and not game.is_completed:
-            await self.increment_question_number()
-            # Continue the game loop by calling it again
-            await self.game_loop()
+        if self.room_state.get("phase") != "results":
+            return
+        await self.launch_question_round()
+
+    async def launch_question_round(self):
+        loop_task = self.room_state.get("loop_task")
+        if loop_task and not loop_task.done():
+            return
+
+        loop_task = asyncio.create_task(self.run_question_round())
+        self.room_state["loop_task"] = loop_task
+        loop_task.add_done_callback(
+            lambda task, room_code=self.room_code: self.clear_room_task(room_code, "loop_task", task)
+        )
+
+    async def run_question_round(self):
+        try:
+            question_data = await self.get_next_question_data()
+            if not question_data:
+                await self.end_game()
+                return
+
+            self.room_state["phase"] = "question"
+            self.room_state["last_results"] = None
+            self.room_state["current_question_context"] = {
+                "question_id": question_data["question_id"],
+                "question_text": question_data["question_text"],
+                "answers": question_data["answers"],
+                "time_limit": question_data["time_limit"],
+                "start_time": time.time(),
+                "current_question": question_data["current_question"],
+                "total_questions": question_data["total_questions"],
+            }
+
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {"type": "show_question_event", "question_data": question_data},
+            )
+
+            await asyncio.sleep(question_data["time_limit"])
+            await self.finish_question_round()
+        except asyncio.CancelledError:
+            return
+
+    async def finish_question_round(self):
+        question_context = self.room_state.get("current_question_context", {})
+        question_id = question_context.get("question_id")
+        if not question_id:
+            return
+
+        feedback_data = await self.get_feedback_data(question_id)
+        teacher_player_id = await self.get_teacher_player_id()
+        results_payload = {
+            "correct_answer_id": feedback_data["correct_answer_id"],
+            "player_results": feedback_data["player_results"],
+            "current_question": question_context.get("current_question", 0),
+            "total_questions": question_context.get("total_questions", 0),
+        }
+
+        self.room_state["phase"] = "results"
+        self.room_state["last_results"] = results_payload
+
+        for player_id, channel_name in list(self.room_state["player_channels"].items()):
+            if teacher_player_id and player_id == teacher_player_id:
+                continue
+
+            player_result = next(
+                (item for item in feedback_data["player_results"] if item["id"] == player_id),
+                {
+                    "id": player_id,
+                    "username": "Unknown",
+                    "score": 0,
+                    "is_correct": False,
+                    "score_earned": 0,
+                    "answered": False,
+                    "selected_answer_id": None,
+                },
+            )
+
+            await self.channel_layer.send(
+                channel_name,
+                {
+                    "type": "send_feedback_to_client",
+                    "correct_answer_id": feedback_data["correct_answer_id"],
+                    "player_result": player_result,
+                    "player_results": feedback_data["player_results"],
+                },
+            )
+
+        teacher_channel = self.room_state.get("teacher_channel")
+        if teacher_channel:
+            await self.channel_layer.send(
+                teacher_channel,
+                {
+                    "type": "send_teacher_leaderboard",
+                    "player_results": feedback_data["player_results"],
+                    "current_question": question_context.get("current_question", 0),
+                    "total_questions": question_context.get("total_questions", 0),
+                },
+            )
 
     async def end_game(self):
-        game = await self.get_game()
-        if game:
-            game.is_completed = True
-            await self.save_game(game)
+        self.cancel_round_loop()
+        await self.set_game_completed()
+        await self.process_game_rewards()
+        self.room_state["phase"] = "completed"
+        self.room_state["current_question_context"] = {}
+        self.room_state["last_results"] = None
+        self.room_state["host_disconnect_task"] = None
 
-            final_scores = await self.get_final_scores()
+        scores = await self.get_final_scores()
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {"type": "game_over_event", "scores": scores},
+        )
+
+    async def kick_player(self, player_id):
+        try:
+            target_player_id = int(player_id)
+        except (TypeError, ValueError):
+            return
+
+        kicked_player = await self.remove_player_by_id(target_player_id)
+        if not kicked_player:
+            return
+
+        target_channel = self.room_state["player_channels"].pop(target_player_id, None)
+        if target_channel and target_channel != self.channel_name:
+            await self.channel_layer.send(
+                target_channel,
+                {
+                    "type": "kicked_from_game",
+                    "message": "Teacher sizni o'yindan chiqardi.",
+                },
+            )
+
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {
+                "type": "player_left",
+                "player": kicked_player,
+            },
+        )
+
+    async def send_current_question_to_self(self):
+        payload = await self.get_current_question_for_resend()
+        if payload:
+            await self.send_json(payload)
+
+    async def send_current_results_to_self(self):
+        results = self.room_state.get("last_results")
+        if not results:
+            return
+
+        if await self.is_user_host():
+            await self.send_json(
+                {
+                    "type": "teacher_leaderboard",
+                    "player_results": results["player_results"],
+                    "current_question": results["current_question"],
+                    "total_questions": results["total_questions"],
+                }
+            )
+            return
+
+        player_result = next(
+            (item for item in results["player_results"] if item["id"] == self.player_id),
+            {
+                "id": self.player_id,
+                "username": self.player.name if self.player else "Guest",
+                "score": 0,
+                "is_correct": False,
+                "score_earned": 0,
+                "answered": False,
+                "selected_answer_id": None,
+            },
+        )
+        await self.send_json(
+            {
+                "type": "show_feedback",
+                "correct_answer_id": results["correct_answer_id"],
+                "player_result": player_result,
+                "player_results": results["player_results"],
+            }
+        )
+
+    async def send_game_over_message(self):
+        scores = await self.get_final_scores()
+        await self.send_json({"type": "game_over", "scores": scores})
+
+    async def handle_host_disconnect_after_grace_period(self):
+        try:
+            await asyncio.sleep(5)
+        except asyncio.CancelledError:
+            return
+
+        if not self.room_state.get("teacher_channel"):
+            await self.handle_host_disconnect()
+
+    async def handle_host_disconnect(self):
+        try:
+            self.cancel_round_loop()
+            await self.set_game_completed()
+            await self.process_game_rewards()
+            self.room_state["phase"] = "completed"
+            self.room_state["current_question_context"] = {}
+            self.room_state["last_results"] = None
+
+            scores = await self.get_final_scores()
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
-                    'type': 'game_over',
-                    'scores': final_scores
-                }
+                    "type": "host_disconnected",
+                    "message": "The teacher left the game. The session has ended.",
+                    "scores": scores,
+                },
+            )
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {"type": "game_over_event", "scores": scores},
+            )
+        except Exception as exc:
+            logger.error(
+                "Error handling host disconnect for room %s: %s",
+                self.room_code,
+                exc,
+                exc_info=True,
             )
 
     async def broadcast_game_starting(self, event):
-        # This method is called on each consumer when the group receives a message with type 'broadcast_game_starting'
-        await self.send(text_data=json.dumps({
-            'type': 'game_starting'
-        }))
-
-    async def broadcast_question(self, event):
-        question_data = event['question_data']
-        await self.send(text_data=json.dumps({
-            'type': 'show_question',
-            'question_id': question_data['id'],
-            'question_text': question_data['question_text'],
-            'answers': question_data['answers'],
-            'time_limit': question_data['time_limit'],
-            'current_question': question_data['current_question'],
-            'total_questions': question_data['total_questions'],
-        }))
-
-    async def broadcast_results(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'question_results',
-            **event['results']
-        }))
-
-    async def broadcast_game_end(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'game_ended',
-            'scores': event['scores']
-        }))
+        await self.send_json({"type": "game_starting"})
 
     async def player_joined(self, event):
-        # Only send to other clients
-        if self.channel_name != event.get('sender_channel_name'):
-            await self.send(text_data=json.dumps({
-                'type': 'player_joined',
-                'player': event['player']
-            }))
+        if self.channel_name == event.get("sender_channel_name"):
+            return
+        await self.send_json({"type": "player_joined", "player": event["player"]})
 
     async def player_left(self, event):
-        if self.channel_name != event.get('sender_channel_name'):
-            await self.send(text_data=json.dumps({
-                'type': 'player_left',
-                'player': event['player']
-            }))
+        if self.channel_name == event.get("sender_channel_name"):
+            return
+        await self.send_json({"type": "player_left", "player": event["player"]})
+
+    async def show_question_event(self, event):
+        await self.send_json(
+            {
+                "type": "show_question",
+                "question_id": event["question_data"]["question_id"],
+                "question_text": event["question_data"]["question_text"],
+                "answers": event["question_data"]["answers"],
+                "time_limit": event["question_data"]["time_limit"],
+                "current_question": event["question_data"]["current_question"],
+                "total_questions": event["question_data"]["total_questions"],
+            }
+        )
 
     async def send_feedback_to_client(self, event):
-        """Sends feedback data to a specific client."""
-        await self.send(text_data=json.dumps({
-            'type': 'show_feedback',
-            'correct_answer_id': event['correct_answer_id'],
-            'player_result': event['player_result'],
-            'player_results': event['player_results']
-        }))
+        await self.send_json(
+            {
+                "type": "show_feedback",
+                "correct_answer_id": event["correct_answer_id"],
+                "player_result": event["player_result"],
+                "player_results": event["player_results"],
+            }
+        )
 
-    async def game_over(self, event):
-        """Sends the final game results to the client."""
-        await self.send(text_data=json.dumps({
-            'type': 'game_over',
-            'scores': event['scores']
-        }))
+    async def send_teacher_leaderboard(self, event):
+        await self.send_json(
+            {
+                "type": "teacher_leaderboard",
+                "player_results": event["player_results"],
+                "current_question": event["current_question"],
+                "total_questions": event["total_questions"],
+            }
+        )
 
-    async def show_question(self, event):
-        """Sends question data to the client after being broadcast to the group."""
-        question_data = event['question_data']
-        await self.send(text_data=json.dumps({
-            'type': 'show_question',
-            'question_id': question_data['id'],
-            'question_text': question_data['question_text'],
-            'answers': question_data['answers'],
-            'time_limit': question_data['time_limit'],
-            'current_question': question_data['current_question'],
-            'total_questions': question_data['total_questions'],
-        }))
-
-    async def handle_host_disconnect(self):
-        """Handle teacher disconnection by ending the game and kicking all students."""
-        try:
-            # Mark the game as completed
-            await self.set_game_completed()
-            
-            # Get final scores for the game summary
-            final_scores = await self.get_final_scores()
-            
-            # Notify all remaining players that the game has ended due to host disconnect
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'host_disconnected',
-                    'message': 'The teacher has left the game. The test has been ended.',
-                    'scores': final_scores
-                }
-            )
-            
-            # Send final game results to all players
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_over',
-                    'scores': final_scores,
-                    'reason': 'host_disconnect'
-                }
-            )
-            
-        except Exception as e:
-            logger.error(f"Error handling host disconnect for game {self.room_code}: {e}")
+    async def game_over_event(self, event):
+        await self.send_json({"type": "game_over", "scores": event["scores"]})
 
     async def host_disconnected(self, event):
-        """Handle host disconnection event - notify client and redirect."""
-        await self.send(text_data=json.dumps({
-            'type': 'host_disconnected',
-            'message': event['message'],
-            'scores': event.get('scores', []),
-            'redirect': True
-        }))
-
-    # --- Database Helpers (must be @database_sync_to_async) ---
-    @database_sync_to_async
-    def get_feedback_data(self, question_id):
-        game = Game.objects.select_related('quiz').get(code=self.room_code)
-        question = Question.objects.get(id=question_id)
-
-        correct_answer_id = question.answers.get(is_correct=True).id
-        player_answers = PlayerAnswer.objects.filter(question_id=question_id, player__game=game)
-
-        player_results_data = []
-        for p in game.players.all().order_by('-score'):
-            player_answer = player_answers.filter(player=p).first()
-            player_results_data.append({
-                'id': p.id,
-                'username': p.user.username,
-                'score': p.score, # This is the new total score
-                'is_correct': player_answer.is_correct if player_answer else False,
-                'score_earned': player_answer.score_earned if player_answer else 0,
-                'answered': True if player_answer else False
-            })
-        
-        return {
-            'correct_answer_id': correct_answer_id,
-            'player_results': player_results_data
-        }
-
-    @database_sync_to_async
-    def save_game(self, game):
-        game.save()
-
-    @database_sync_to_async
-    def get_final_scores(self):
-        game = Game.objects.get(code=self.room_code)
-        return sorted(
-            [{'username': p.user.username, 'score': p.score} for p in game.players.all()],
-            key=lambda x: x['score'],
-            reverse=True
+        await self.send_json(
+            {
+                "type": "host_disconnected",
+                "message": event["message"],
+                "scores": event.get("scores", []),
+                "redirect": True,
+            }
         )
+
+    async def kicked_from_game(self, event):
+        await self.send_json(
+            {
+                "type": "kicked_from_game",
+                "message": event.get("message", "You were removed from the game."),
+            }
+        )
+        await self.close(code=4003)
+
+    def cancel_round_loop(self):
+        loop_task = self.room_state.get("loop_task")
+        current_task = asyncio.current_task()
+        if loop_task and not loop_task.done() and loop_task is not current_task:
+            loop_task.cancel()
+        self.room_state["loop_task"] = None
 
     @database_sync_to_async
     def get_game(self):
-        try:
-            return Game.objects.select_related('quiz', 'host').get(code=self.room_code)
-        except Game.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def get_player(self):
-        try:
-            return GamePlayer.objects.filter(game__code=self.room_code, user=self.user).first()
-        except GamePlayer.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def set_game_active(self, status):
-        Game.objects.filter(code=self.room_code).update(is_active=status)
-
-    @database_sync_to_async
-    def get_current_db_question(self):
-        game = Game.objects.get(code=self.room_code)
-        return game.quiz.questions.all().order_by('order')[game.current_question_number - 1]
-
-    @database_sync_to_async
-    def save_player_answer(self, player, question_id, answer_id, is_correct, score_earned):
-        player.score += score_earned
-        player.save()
-
-        answer = Answer.objects.get(id=answer_id)
-        PlayerAnswer.objects.create(
-            player=player,
-            question_id=question_id,
-            answer=answer,
-            is_correct=is_correct,
-            score_earned=score_earned
-        )
-
-    @database_sync_to_async
-    def get_game_players_count(self, game):
-        return GamePlayer.objects.filter(game=game).count()
-
-    @database_sync_to_async
-    def get_player_answers_count_for_question(self, question):
-        return PlayerAnswer.objects.filter(question=question).count()
-
-    @database_sync_to_async
-    def check_all_players_answered(self):
-        game = Game.objects.get(code=self.room_code)
-        question = game.quiz.questions.all().order_by('order')[game.current_question_number - 1]
-        player_count = game.players.count()
-        answer_count = PlayerAnswer.objects.filter(question=question).count()
-        return player_count == answer_count
-
-    @database_sync_to_async
-    def get_scores(self):
-        game = Game.objects.get(code=self.room_code)
-        players = GamePlayer.objects.filter(game=game).order_by('-score')
-        return [{'username': p.user.username, 'score': p.score} for p in players]
-
-    @database_sync_to_async
-    def get_answer_stats(self, question):
-        correct_answer_id = question.answers.get(is_correct=True).id
-        answer_counts = {}
-        for answer in question.answers.all():
-            answer_counts[answer.id] = PlayerAnswer.objects.filter(question=question, answer=answer).count()
-        return {
-            'correct_answer_id': correct_answer_id,
-            'answer_counts': answer_counts
-        }
-
-    @database_sync_to_async
-    def increment_question_number(self):
-        game = Game.objects.get(code=self.room_code)
-        game.current_question_number += 1
-        game.save()
-        return game
-
-    @database_sync_to_async
-    def get_current_question_number(self):
-        """Gets the current question number without incrementing it."""
-        game = Game.objects.get(code=self.room_code)
-        return game.current_question_number
-
-    @database_sync_to_async
-    def set_game_completed(self):
-        Game.objects.filter(code=self.room_code).update(is_completed=True)
-
-    @database_sync_to_async
-    def get_current_question(self, re_send=False):
-        """Gets the next question for the game.""" 
-        try:
-            game = Game.objects.get(code=self.room_code)
-
-            if not re_send:
-                game.current_question_number += 1
-                game.save()
-
-            if game.current_question_number <= 0:
-                return None
-
-            questions = list(Question.objects.filter(quiz=game.quiz).order_by('order'))
-            
-            if not questions or game.current_question_number > len(questions):
-                return None
-
-            question = questions[game.current_question_number - 1]
-
-            answers = list(question.answers.all())
-            if not answers:
-                logger.error(f"Question {question.id} has no answers")
-                return None
-                
-            random.shuffle(answers)
-
-            return {
-                'id': question.id,
-                'question_text': question.text,
-                'answers': [{'id': a.id, 'text': a.text} for a in answers],
-                'time_limit': question.time_limit,
-                'current_question': game.current_question_number,
-                'total_questions': len(questions)
-            }
-        except (Game.DoesNotExist, IndexError, Question.DoesNotExist) as e:
-            logger.error(f"Could not retrieve question for game {self.room_code}: {e}")
-            return None
-
-    @database_sync_to_async
-    def is_user_host(self):
-        game = Game.objects.get(code=self.room_code)
-        return game.host.id == self.user.id
-
-    @database_sync_to_async
-    def get_or_create_player(self):
-        game = Game.objects.get(code=self.room_code)
-        player, created = GamePlayer.objects.get_or_create(game=game, user=self.user)
-        # Use select_related to pre-fetch the user and avoid lazy loading in async context
-        return game, GamePlayer.objects.select_related('user').get(id=player.id)
-
-    @database_sync_to_async
-    def get_all_players_in_game(self):
-        game = Game.objects.get(code=self.room_code)
-        players = GamePlayer.objects.filter(game=game).select_related('user', 'user__profile', 'user__profile__selected_frame')
-        player_list = []
-        for p in players:
-            # Get avatar URL if exists
-            avatar_url = None
-            if hasattr(p.user, 'profile') and p.user.profile.avatar:
-                avatar_url = p.user.profile.avatar.url
-
-            # Get selected frame CSS class if exists
-            selected_frame_css = None
-            if hasattr(p.user, 'profile') and p.user.profile.selected_frame:
-                selected_frame_css = p.user.profile.selected_frame.css_class
-
-            player_list.append({
-                'id': p.id, 
-                'username': p.user.username,
-                'score': p.score,
-                'is_host': game.host == p.user,
-                'user': {
-                    'username': p.user.username,
-                    'profile': {
-                        'avatar': {'url': avatar_url} if avatar_url else None,
-                        'selected_frame': {'css_class': selected_frame_css} if selected_frame_css else None,
-                        'total_points': p.user.profile.total_points if hasattr(p.user, 'profile') else 0,
-                        'games_played': p.user.profile.games_played if hasattr(p.user, 'profile') else 0,
-                        'level': p.user.profile.level if hasattr(p.user, 'profile') else 1
-                    }
-                }
-            })
-        return player_list
+        return Game.objects.select_related("quiz", "host").filter(code=self.room_code).first()
 
     @database_sync_to_async
     def get_game_state(self):
-        """
-        Fetches the current state of the game.
-        """
-        try:
-            game = Game.objects.get(code=self.room_code)
-            return {
-                'is_active': game.is_active,
-                'is_completed': game.is_completed,
-                'current_question': game.current_question_number
-            }
-        except Game.DoesNotExist:
+        game = Game.objects.filter(code=self.room_code).first()
+        if not game:
             return None
-
-    @database_sync_to_async
-    def get_db_question_by_text(self, question_text):
-        try:
-            return Question.objects.get(text=question_text, quiz__games__code=self.room_code)
-        except Question.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def get_question_by_id(self, question_id):
-        return Question.objects.filter(id=question_id).first()
-
-    @database_sync_to_async
-    def record_unanswered_as_incorrect(self, question):
-        game = Game.objects.get(code=self.room_code)
-        players_in_game = GamePlayer.objects.filter(game=game)
-        players_who_answered = PlayerAnswer.objects.filter(
-            question=question,
-            player__in=players_in_game
-        ).values_list('player_id', flat=True)
-
-        unanswered_players = players_in_game.exclude(id__in=players_who_answered)
-
-        for player in unanswered_players:
-            PlayerAnswer.objects.create(
-                player=player,
-                question=question,
-                answer=None,  # No answer was chosen
-                is_correct=False,  # Explicitly mark as incorrect
-                points_awarded=0
-            )
-
-    @database_sync_to_async
-    def remove_player_from_game(self, user):
-        try:
-            player = GamePlayer.objects.get(game__code=self.room_code, user=user)
-            game = player.game
-            is_host = game.host == user
-
-            player_data = {
-                'id': player.id,
-                'username': user.username,
-                'was_host': is_host
-            }
-            player.delete()
-            return player_data
-        except GamePlayer.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def game_exists(self):
-        return Game.objects.filter(code=self.room_code).exists()
-
-    @database_sync_to_async
-    def get_player_id(self):
-        try:
-            return GamePlayer.objects.get(game__code=self.room_code, user=self.user).id
-        except GamePlayer.DoesNotExist:
-            return None
-
-    @database_sync_to_async
-    def calculate_score(self, answer_id, time_taken, time_limit):
-        try:
-            answer = Answer.objects.get(id=answer_id)
-            if not answer.is_correct:
-                return False, 0
-
-            # Score calculation: 1000 base points, scaled by time remaining
-            # Max score: 1000, Min score: 500 (for answering at the last moment)
-            time_ratio = 1 - (time_taken / time_limit)
-            score = 500 + (500 * time_ratio)
-            return True, int(score)
-        except Answer.DoesNotExist:
-            return False, 0
-
-    @database_sync_to_async
-    def get_player_data_as_dict(self, player):
-        game = Game.objects.get(code=self.room_code)
-        
-        # Get avatar URL if exists
-        avatar_url = None
-        if hasattr(player.user, 'profile') and player.user.profile.avatar:
-            avatar_url = player.user.profile.avatar.url
-
-        # Get selected frame CSS class if exists
-        selected_frame_css = None
-        if hasattr(player.user, 'profile') and player.user.profile.selected_frame:
-            selected_frame_css = player.user.profile.selected_frame.css_class
-        
         return {
-            'id': player.id,
-            'username': player.user.username,
-            'score': player.score,
-            'is_host': game.host == player.user,
-            'user': {
-                'username': player.user.username,
-                'profile': {
-                    'avatar': {'url': avatar_url} if avatar_url else None,
-                    'selected_frame': {'css_class': selected_frame_css} if selected_frame_css else None,
-                    'total_points': player.user.profile.total_points if hasattr(player.user, 'profile') else 0,
-                    'games_played': player.user.profile.games_played if hasattr(player.user, 'profile') else 0,
-                    'level': player.user.profile.level if hasattr(player.user, 'profile') else 1
-                }
-            }
+            "is_active": game.is_active,
+            "is_completed": game.is_completed,
+            "current_question_number": game.current_question_number,
         }
 
     @database_sync_to_async
-    def get_correct_answer(self, question_id):
-        try:
-            return Answer.objects.get(question_id=question_id, is_correct=True)
-        except Answer.DoesNotExist:
-            return None
+    def process_game_rewards(self):
+        from accounts.views import award_game_points
+
+        with transaction.atomic():
+            game = Game.objects.select_for_update().select_related("quiz").filter(code=self.room_code).first()
+            if not game or game.rewards_processed:
+                return
+
+            total_questions = game.quiz.questions.count()
+            student_players = GamePlayer.objects.filter(
+                game=game,
+                user__profile__role='student',
+            ).select_related("user", "user__profile").annotate(
+                correct_answers=Count("answers", filter=Q(answers__is_correct=True))
+            )
+
+            for player in student_players:
+                award_game_points(player.user, player.correct_answers, total_questions)
+
+            game.rewards_processed = True
+            game.save(update_fields=["rewards_processed"])
 
     @database_sync_to_async
-    def get_total_questions(self):
+    def mark_game_started(self):
         game = Game.objects.get(code=self.room_code)
-        return game.quiz.questions.count()
+        game.is_active = True
+        game.is_completed = False
+        game.current_question_number = 0
+        game.current_question = None
+        game.save(
+            update_fields=[
+                "is_active",
+                "is_completed",
+                "current_question_number",
+                "current_question",
+            ]
+        )
 
     @database_sync_to_async
-    def get_player_by_id(self, player_id):
-        try:
-            return GamePlayer.objects.get(id=player_id)
-        except GamePlayer.DoesNotExist:
+    def set_game_completed(self):
+        Game.objects.filter(code=self.room_code).update(is_completed=True, is_active=False)
+
+    @database_sync_to_async
+    def get_or_create_player(self):
+        game = Game.objects.filter(code=self.room_code).first()
+        if not game:
+            return None, None
+
+        if self.user.is_authenticated:
+            profile = getattr(self.user, "profile", None)
+            if profile and profile.is_teacher() and self.user.id != game.host_id:
+                return game, None
+
+            player, _ = GamePlayer.objects.get_or_create(
+                game=game,
+                user=self.user,
+                defaults={"display_name": self.user.username},
+            )
+            if not player.display_name.strip():
+                player.display_name = self.user.username
+                player.save(update_fields=["display_name"])
+        else:
+            player_id = None
+            if self.session is not None:
+                player_id = self.session.get(self.guest_session_key(self.room_code))
+            if not player_id:
+                return game, None
+
+            player = (
+                GamePlayer.objects.filter(
+                    game=game,
+                    id=player_id,
+                    user__isnull=True,
+                )
+                .first()
+            )
+            if not player:
+                return game, None
+
+        player = GamePlayer.objects.select_related(
+            "user",
+            "user__profile",
+            "user__profile__selected_frame",
+            "game__host",
+        ).get(id=player.id)
+        return game, player
+
+    @database_sync_to_async
+    def remove_player_from_game(self, player_id):
+        player = (
+            GamePlayer.objects.select_related("game", "user")
+            .filter(game__code=self.room_code, id=player_id)
+            .first()
+        )
+        if not player:
             return None
+        payload = {
+            "id": player.id,
+            "username": player.name,
+            "was_host": player.is_host,
+        }
+        player.delete()
+        return payload
+
+    @database_sync_to_async
+    def remove_player_by_id(self, player_id):
+        player = (
+            GamePlayer.objects.select_related("game", "user")
+            .filter(game__code=self.room_code, id=player_id)
+            .first()
+        )
+        if not player or player.is_host:
+            return None
+
+        payload = {
+            "id": player.id,
+            "username": player.name,
+            "was_host": False,
+        }
+        player.delete()
+        return payload
+
+    @database_sync_to_async
+    def is_user_host(self):
+        game = Game.objects.filter(code=self.room_code).first()
+        return bool(game and self.user.is_authenticated and game.host_id == self.user.id)
+
+    @database_sync_to_async
+    def get_host_id(self):
+        game = Game.objects.filter(code=self.room_code).first()
+        return game.host_id if game else None
+
+    @database_sync_to_async
+    def get_teacher_player_id(self):
+        game = Game.objects.filter(code=self.room_code).first()
+        if not game:
+            return None
+        player = GamePlayer.objects.filter(game=game, user_id=game.host_id).first()
+        return player.id if player else None
+
+    @database_sync_to_async
+    def get_next_question_data(self):
+        game = Game.objects.select_related("quiz").filter(code=self.room_code).first()
+        if not game:
+            return None
+
+        questions = list(Question.objects.filter(quiz=game.quiz).order_by("order"))
+        next_number = game.current_question_number + 1
+        if next_number > len(questions):
+            return None
+
+        question = questions[next_number - 1]
+        answers = list(question.answers.all())
+        if not answers:
+            return None
+
+        random.shuffle(answers)
+
+        game.current_question_number = next_number
+        game.current_question = question
+        game.save(update_fields=["current_question_number", "current_question"])
+
+        return {
+            "question_id": question.id,
+            "question_text": question.text,
+            "answers": [{"id": answer.id, "text": answer.text} for answer in answers],
+            "time_limit": question.time_limit,
+            "current_question": next_number,
+            "total_questions": len(questions),
+        }
+
+    async def get_current_question_for_resend(self):
+        context = self.room_state.get("current_question_context", {})
+        if not context:
+            return None
+
+        elapsed = max(0, int(time.time() - context["start_time"]))
+        remaining = max(1, context["time_limit"] - elapsed)
+        return {
+            "type": "show_question",
+            "question_id": context["question_id"],
+            "question_text": context["question_text"],
+            "answers": context["answers"],
+            "time_limit": remaining,
+            "current_question": context["current_question"],
+            "total_questions": context["total_questions"],
+        }
+
+    @database_sync_to_async
+    def save_player_answer(self, player_id, question_id, answer_id, is_correct, score_earned):
+        with transaction.atomic():
+            player = GamePlayer.objects.select_for_update().filter(id=player_id).first()
+            if not player:
+                return False, 0
+
+            existing = PlayerAnswer.objects.filter(player=player, question_id=question_id).first()
+            if existing:
+                return False, player.score
+
+            answer = Answer.objects.filter(id=answer_id, question_id=question_id).first()
+            if not answer:
+                return False, player.score
+
+            player.score += score_earned
+            player.save(update_fields=["score"])
+
+            PlayerAnswer.objects.create(
+                player=player,
+                question_id=question_id,
+                answer=answer,
+                is_correct=is_correct,
+                score_earned=score_earned,
+            )
+            return True, player.score
+
+    @database_sync_to_async
+    def get_feedback_data(self, question_id):
+        game = Game.objects.select_related("host").filter(code=self.room_code).first()
+        question = Question.objects.filter(id=question_id).first()
+        if not game or not question:
+            return {"correct_answer_id": None, "player_results": []}
+
+        correct_answer = question.answers.filter(is_correct=True).first()
+        correct_answer_id = correct_answer.id if correct_answer else None
+
+        answers = PlayerAnswer.objects.filter(
+            question_id=question_id,
+            player__game=game,
+        ).select_related("player__user", "answer")
+        answers_by_player = {item.player_id: item for item in answers}
+
+        players = (
+            GamePlayer.objects.filter(game=game)
+            .exclude(user_id=game.host_id)
+            .select_related("user")
+            .order_by("-score", "joined_at")
+        )
+
+        player_results = []
+        for player in players:
+            player_answer = answers_by_player.get(player.id)
+            player_results.append(
+                {
+                    "id": player.id,
+                    "username": player.name,
+                    "score": player.score,
+                    "is_correct": player_answer.is_correct if player_answer else False,
+                    "score_earned": player_answer.score_earned if player_answer else 0,
+                    "answered": bool(player_answer),
+                    "selected_answer_id": player_answer.answer_id if player_answer else None,
+                }
+            )
+
+        return {
+            "correct_answer_id": correct_answer_id,
+            "player_results": player_results,
+        }
+
+    @database_sync_to_async
+    def get_final_scores(self):
+        game = Game.objects.select_related("host").filter(code=self.room_code).first()
+        if not game:
+            return []
+
+        players = (
+            GamePlayer.objects.filter(game=game)
+            .exclude(user_id=game.host_id)
+            .select_related("user")
+            .annotate(correct_answers=Count("answers", filter=Q(answers__is_correct=True)))
+            .order_by("-score", "joined_at")
+        )
+        return [
+            {
+                "id": player.id,
+                "username": player.name,
+                "score": player.score,
+                "correct_answers": player.correct_answers,
+                "coins_earned": min(player.correct_answers, 10) if player.correct_answers > 0 else 0,
+            }
+            for player in players
+        ]
+
+    @database_sync_to_async
+    def calculate_score(self, answer_id, time_taken, time_limit):
+        answer = Answer.objects.filter(id=answer_id).first()
+        if not answer or not answer.is_correct:
+            return False, 0
+
+        if time_limit <= 0:
+            return True, 500
+
+        time_ratio = max(0.0, min(1.0, 1 - (time_taken / time_limit)))
+        score = 500 + int(500 * time_ratio)
+        return True, score
+
+    @database_sync_to_async
+    def get_correct_answer(self, question_id):
+        return Answer.objects.filter(question_id=question_id, is_correct=True).first()
+
+    @database_sync_to_async
+    def get_all_players_in_game(self):
+        game = Game.objects.select_related("host").filter(code=self.room_code).first()
+        if not game:
+            return []
+
+        players = (
+            GamePlayer.objects.filter(game=game)
+            .select_related("user", "user__profile", "user__profile__selected_frame")
+            .order_by("joined_at")
+        )
+
+        payload = []
+        for player in players:
+            selected_frame = {"css_class": player.selected_frame_css_class} if player.selected_frame_css_class else None
+            payload.append(
+                {
+                    "id": player.id,
+                    "username": player.name,
+                    "score": player.score,
+                    "is_host": player.is_host,
+                    "user": {
+                        "username": player.name,
+                        "profile": {
+                            "avatar": {"url": player.avatar_url} if player.avatar_url else None,
+                            "selected_frame": selected_frame,
+                            "total_points": player.profile.total_points if player.profile else 0,
+                            "games_played": player.profile.games_played if player.profile else 0,
+                            "level": player.level,
+                        },
+                    },
+                }
+            )
+        return payload
+
+    @database_sync_to_async
+    def get_player_data_as_dict(self, player_id):
+        player = (
+            GamePlayer.objects.select_related(
+                "user",
+                "user__profile",
+                "user__profile__selected_frame",
+                "game__host",
+            )
+            .filter(id=player_id)
+            .first()
+        )
+        if not player:
+            return None
+
+        selected_frame = {"css_class": player.selected_frame_css_class} if player.selected_frame_css_class else None
+        return {
+            "id": player.id,
+            "username": player.name,
+            "score": player.score,
+            "is_host": player.is_host,
+            "user": {
+                "username": player.name,
+                "profile": {
+                    "avatar": {"url": player.avatar_url} if player.avatar_url else None,
+                    "selected_frame": selected_frame,
+                    "total_points": player.profile.total_points if player.profile else 0,
+                    "games_played": player.profile.games_played if player.profile else 0,
+                    "level": player.level,
+                },
+            },
+        }

@@ -3,7 +3,7 @@
     <div class="card quiz-card h-100 shadow-sm border-0">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="card-title fw-bold">{{ quiz.title }}</h5>
+                <h5 class="card-title fw-bold" data-no-translate>{{ quiz.title }}</h5>
                 {% if is_private %}
                     <span class="badge bg-secondary rounded-pill"><i class="fas fa-lock me-1"></i>{% trans "Private" %}</span>
                 {% else %}

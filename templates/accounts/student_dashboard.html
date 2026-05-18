@@ -24,8 +24,8 @@
                         <div class="user-avatar-container">
                             {% if profile.selected_frame %}
                                 <div class="avatar-frame {{ profile.selected_frame.css_class }}">
-                                    {% if profile.avatar %}
-                                        <img src="{{ profile.avatar.url }}" alt="Avatar" class="user-avatar">
+                                    {% if profile.avatar_url %}
+                                        <img src="{{ profile.avatar_url }}" alt="Avatar" class="user-avatar">
                                     {% else %}
                                         <div class="default-avatar">
                                             <i class="fas fa-user"></i>
@@ -33,8 +33,8 @@
                                     {% endif %}
                                 </div>
                             {% else %}
-                                {% if profile.avatar %}
-                                    <img src="{{ profile.avatar.url }}" alt="Avatar" class="user-avatar">
+                                {% if profile.avatar_url %}
+                                    <img src="{{ profile.avatar_url }}" alt="Avatar" class="user-avatar">
                                 {% else %}
                                     <div class="default-avatar">
                                         <i class="fas fa-user"></i>
@@ -202,7 +202,7 @@
                                                 {% endif %}
                                             </div>
                                             <div class="achievement-info">
-                                                <h4>{{ game.game.quiz.title }}</h4>
+                                                <h4 data-no-translate>{{ game.game.quiz.title }}</h4>
                                                 <p>{% trans "Score:" %} {{ game.score }} {% trans "points" %}</p>
                                                 <span class="achievement-date">{{ game.joined_at|date:"M d" }}</span>
                                             </div>
@@ -290,8 +290,8 @@
                                 {% for purchase in purchased_frames %}
                                 <div class="collection-item compact">
                                     <div class="frame-preview {{ purchase.item.css_class }}">
-                                        {% if profile.avatar %}
-                                            <img src="{{ profile.avatar.url }}" alt="Preview">
+                                        {% if profile.avatar_url %}
+                                            <img src="{{ profile.avatar_url }}" alt="Preview">
                                         {% else %}
                                             <div class="default-avatar-preview">
                                                 <i class="fas fa-user"></i>
@@ -419,10 +419,10 @@
                     <div class="mb-3">
                         <label for="avatar" class="form-label">{% trans "Profile Picture" %}</label>
                         <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
-                        {% if profile.avatar %}
+                        {% if profile.avatar_url %}
                         <div class="mt-2">
                             <small class="text-muted">{% trans "Current avatar:" %}</small>
-                            <img src="{{ profile.avatar.url }}" alt="Current Avatar" class="rounded-circle ms-2" width="40" height="40">
+                            <img src="{{ profile.avatar_url }}" alt="Current Avatar" class="rounded-circle ms-2" width="40" height="40">
                         </div>
                         {% endif %}
                     </div>
