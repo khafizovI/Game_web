@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third-party apps
-    'crispy_forms',
     'whitenoise',  # Add whitenoise to installed apps
     # Custom apps
     'accounts',
@@ -184,9 +183,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'accounts:profile'
 LOGOUT_REDIRECT_URL = 'home'
 CSRF_FAILURE_VIEW = 'quizgame.views.csrf_failure'
-
-# Crispy Forms
-CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 # Email Configuration
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
