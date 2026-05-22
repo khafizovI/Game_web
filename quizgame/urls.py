@@ -31,6 +31,7 @@ handler500 = 'quizgame.views.server_error'
 urlpatterns = [
     # Use our custom language switcher instead of Django's built-in one
     path('i18n/setlang/', views.set_language, name='set_language'),
+    path('healthz/', views.healthcheck, name='healthcheck'),
     path('.well-known/appspecific/com.chrome.devtools.json', views.def_chrome_devtools_json, name='chrome_devtools_json'),
 ]
 
