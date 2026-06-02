@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <link rel="stylesheet" href="{% static 'css/game.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pet.css' %}">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -41,13 +42,13 @@
                 <span class="brand-mark"><i class="fas fa-bolt"></i></span>
                 <span class="brand-text">QuizBattle</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="{% trans 'Toggle navigation' %}">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center site-nav-links">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'home' %}">Home</a>
+                        <a class="nav-link" href="{% url 'home' %}">{% trans "Home" %}</a>
                     </li>
                     {% if user.is_authenticated %}
                         {% if user.profile.role == 'teacher' %}
@@ -71,6 +72,11 @@
                                 <i class="fas fa-shopping-cart me-1"></i>{% trans "Shop" %}
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:inventory' %}">
+                                <i class="fas fa-suitcase me-1"></i>{% trans "Inventory" %}
+                            </a>
+                        </li>
                         {% endif %}
                         <li class="nav-item dropdown user-menu-item">
                             <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -83,15 +89,16 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                 {% if user.profile.role == 'student' %}
-                                <li><a class="dropdown-item" href="{% url 'accounts:student_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
-                                <li><a class="dropdown-item" href="{% url 'accounts:shop' %}"><i class="fas fa-shopping-cart me-2"></i>Shop</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:student_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>{% trans "Dashboard" %}</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:shop' %}"><i class="fas fa-shopping-cart me-2"></i>{% trans "Shop" %}</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:inventory' %}"><i class="fas fa-suitcase me-2"></i>{% trans "Inventory" %}</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 {% else %}
-                                <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="fas fa-user-circle me-2"></i>My Profile</a></li>
-                                <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}"><i class="fas fa-edit me-2"></i>Edit Profile</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="fas fa-user-circle me-2"></i>{% trans "My Profile" %}</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}"><i class="fas fa-edit me-2"></i>{% trans "Edit Profile" %}</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 {% endif %}
-                                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>{% trans "Logout" %}</a></li>
                             </ul>
                         </li>
                     {% else %}
@@ -99,10 +106,10 @@
                             <a class="nav-link" href="{% url 'game:join' %}">{% trans "Join Game" %}</a>
                         </li>
                         <li class="nav-item nav-auth-link">
-                            <a class="nav-link" href="{% url 'accounts:login' %}">Login</a>
+                            <a class="nav-link" href="{% url 'accounts:login' %}">{% trans "Login" %}</a>
                         </li>
                         <li class="nav-item nav-auth-link nav-auth-primary">
-                            <a class="nav-link" href="{% url 'accounts:register' %}">Register</a>
+                            <a class="nav-link" href="{% url 'accounts:register' %}">{% trans "Register" %}</a>
                         </li>
                     {% endif %}
                     <li class="nav-item dropdown ms-lg-2 site-language-item">
@@ -157,7 +164,7 @@
                         {% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
                         {{ message }}
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="{% trans 'Close' %}"></button>
                 </div>
             </div>
             {% endwith %}
@@ -166,6 +173,31 @@
         
         {% block content %}{% endblock %}
     </main>
+
+    {% if user.is_authenticated and user.profile.role == 'student' and user.profile.selected_pet and user.profile.selected_pet.pet.is_active %}
+    <div
+        class="site-pet"
+        id="site-pet"
+        data-pet-name="{{ user.profile.selected_pet.pet.name }}"
+        data-pet-image="{{ user.profile.selected_pet.pet.image }}"
+        data-pet-rarity="{{ user.profile.selected_pet.pet.rarity }}"
+        data-pet-static-base="{% static 'pets' %}"
+        aria-label="{{ user.profile.selected_pet.pet.name }}"
+        role="button"
+        tabindex="0"
+    >
+        <div class="site-pet-dialog" id="site-pet-dialog"></div>
+        <div class="site-pet-sprite{% if user.profile.selected_pet.pet.name == 'Cat' or user.profile.selected_pet.pet.name == 'Robot' %} sprite-image{% endif %}">
+            {% if user.profile.selected_pet.pet.name == 'Cat' %}
+                <img id="site-pet-frame" src="{% static 'pets/cat/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}">
+            {% elif user.profile.selected_pet.pet.name == 'Robot' %}
+                <img id="site-pet-frame" src="{% static 'pets/cat/robot/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}">
+            {% else %}
+                <span id="site-pet-frame">{{ user.profile.selected_pet.pet.image }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Footer -->
     {% block footer %}
@@ -177,7 +209,7 @@
                     <p class="mb-0 site-footer-copy">&copy; 2025 QuizBattle. All rights reserved.</p>
                 </div>
                 <div class="site-footer-links">
-                    <a href="{% url 'home' %}">Home</a>
+                    <a href="{% url 'home' %}">{% trans "Home" %}</a>
                     {% if not user.is_authenticated or user.profile.role == 'student' %}
                     <a href="{% url 'game:join' %}">{% trans "Join Game" %}</a>
                     {% endif %}
@@ -202,6 +234,7 @@
 
     <!-- Custom JS -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/pet.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

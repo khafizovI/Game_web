@@ -12,6 +12,8 @@ from django.utils import timezone
 # Create your models here.
 
 class Profile(models.Model):
+    MAX_AVATAR_SIZE = 2 * 1024 * 1024
+
     ROLE_CHOICES = (
         ('student', 'Student'),
         ('teacher', 'Teacher'),
@@ -26,13 +28,17 @@ class Profile(models.Model):
     experience_points = models.IntegerField(default=0)  # XP for leveling up
     level = models.IntegerField(default=1)  # Current level
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     avatar_data = models.BinaryField(blank=True, null=True)
     avatar_content_type = models.CharField(max_length=100, blank=True)
     avatar_filename = models.CharField(max_length=255, blank=True)
     email_verified = models.BooleanField(default=False)
     selected_frame = models.ForeignKey('ShopItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='users_using')
     selected_theme = models.ForeignKey('ShopItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='users_using_theme')
+    selected_avatar = models.ForeignKey('InventoryItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='selected_as_avatar')
+    selected_border = models.ForeignKey('InventoryItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='selected_as_border')
+    selected_banner = models.ForeignKey('InventoryItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='selected_as_banner')
+    selected_title = models.ForeignKey('InventoryItem', on_delete=models.SET_NULL, null=True, blank=True, related_name='selected_as_title')
+    selected_pet = models.ForeignKey('UserPet', on_delete=models.SET_NULL, null=True, blank=True, related_name='selected_by_profiles')
     user_rating = models.IntegerField(null=True, blank=True, help_text="User's rating of the platform (1-5 stars)")
     
     def __str__(self):
@@ -93,27 +99,26 @@ class Profile(models.Model):
         if not content_type.startswith("image/"):
             raise ValueError("Avatar upload must be an image.")
 
+        if getattr(uploaded_file, "size", 0) > self.MAX_AVATAR_SIZE:
+            raise ValueError("Avatar image must be 2 MB or smaller.")
+
         self.avatar_data = uploaded_file.read()
         self.avatar_content_type = content_type
         self.avatar_filename = getattr(uploaded_file, "name", "") or ""
 
-        if self.avatar:
-            self.avatar.delete(save=False)
-        self.avatar = None
-
     @property
     def avatar_url(self):
+        if self.selected_avatar:
+            return self.selected_avatar.preview_value
+
         if self.avatar_data and self.avatar_content_type:
             encoded_bytes = base64.b64encode(self.avatar_data).decode("ascii")
             return f"data:{self.avatar_content_type};base64,{encoded_bytes}"
 
-        if self.avatar:
-            try:
-                return self.avatar.url
-            except (ValueError, OSError):
-                return None
-
         return None
+
+    def owns_inventory_item(self, item):
+        return UserInventoryItem.objects.filter(user=self.user, item=item).exists()
 
 
 class ShopItem(models.Model):
@@ -149,6 +154,79 @@ class UserPurchase(models.Model):
     
     def __str__(self):
         return f"{self.user.username} owns {self.item.name}"
+
+
+class InventoryItem(models.Model):
+    ITEM_TYPES = (
+        ('avatar', 'Avatar'),
+        ('border', 'Avatar Border'),
+        ('banner', 'Profile Banner'),
+        ('title', 'Title'),
+    )
+    RARITIES = (
+        ('common', 'Common'),
+        ('rare', 'Rare'),
+        ('epic', 'Epic'),
+        ('legendary', 'Legendary'),
+    )
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPES)
+    rarity = models.CharField(max_length=20, choices=RARITIES, default='common')
+    preview_value = models.CharField(max_length=255, help_text='Emoji, image URL, text, or CSS-friendly value.')
+    css_class = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_type', 'rarity', 'name']
+        unique_together = ('name', 'item_type')
+
+    def __str__(self):
+        return f"{self.name} ({self.get_item_type_display()} / {self.get_rarity_display()})"
+
+
+class UserInventoryItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='inventory_items')
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='owners')
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'item')
+        ordering = ['-unlocked_at']
+
+    def __str__(self):
+        return f"{self.user.username} owns {self.item.name}"
+
+
+class Pet(models.Model):
+    RARITIES = InventoryItem.RARITIES
+
+    name = models.CharField(max_length=50, unique=True)
+    image = models.CharField(max_length=255, help_text='Emoji or image URL used as the pet image.')
+    rarity = models.CharField(max_length=20, choices=RARITIES, default='common')
+    weight = models.PositiveIntegerField(default=10)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['rarity', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_rarity_display()})"
+
+
+class UserPet(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pets')
+    pet = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name='owners')
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'pet')
+        ordering = ['-unlocked_at']
+
+    def __str__(self):
+        return f"{self.user.username} owns {self.pet.name}"
 
 
 class Achievement(models.Model):
@@ -199,6 +277,25 @@ class EmailVerification(models.Model):
         code = ''.join(random.choices(string.digits, k=6))
         verification = cls.objects.create(user=user, code=code)
         return verification
+
+
+class PasswordResetCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Password reset for {self.user.username}"
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=10)
+
+    @classmethod
+    def generate_code(cls, user):
+        cls.objects.filter(user=user, is_used=False).delete()
+        code = ''.join(random.choices(string.digits, k=6))
+        return cls.objects.create(user=user, code=code)
 
 
 class DailyTask(models.Model):

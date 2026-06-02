@@ -14,7 +14,7 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="dashboard-container{% if profile.selected_theme %} {{ profile.selected_theme.css_class }}{% endif %}">
+<div class="dashboard-container{% if profile.selected_theme %} {{ profile.selected_theme.css_class }}{% endif %}{% if profile.selected_banner %} {{ profile.selected_banner.css_class }}{% endif %}">
     <!-- Header Section -->
     <div class="dashboard-header">
         <div class="container">
@@ -22,8 +22,8 @@
                 <div class="col-lg-8">
                     <div class="user-welcome">
                         <div class="user-avatar-container">
-                            {% if profile.selected_frame %}
-                                <div class="avatar-frame {{ profile.selected_frame.css_class }}">
+                            {% if profile.selected_border or profile.selected_frame %}
+                                <div class="avatar-frame {% if profile.selected_border %}{{ profile.selected_border.css_class }}{% else %}{{ profile.selected_frame.css_class }}{% endif %}">
                                     {% if profile.avatar_url %}
                                         <img src="{{ profile.avatar_url }}" alt="Avatar" class="user-avatar">
                                     {% else %}
@@ -44,7 +44,12 @@
                         </div>
                         <div class="user-info">
                             <h1 class="welcome-text">{% trans "Welcome back," %} <span class="username">{{ user.username }}</span></h1>
-                            <p class="user-level">{% trans "Level" %} {{ level }} {% trans "Student" %}</p>
+                            <p class="user-level">
+                                {% trans "Level" %} {{ level }} {% trans "Student" %}
+                                {% if profile.selected_title %}
+                                    <span class="equipped-title-badge">{{ profile.selected_title.preview_value }}</span>
+                                {% endif %}
+                            </p>
                             <div class="level-progress">
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width: {{ level_progress }}%"></div>
@@ -436,5 +441,4 @@
     </div>
 </div>
 
-<script src="{% static 'js/student_dashboard.js' %}"></script>
 {% endblock %}

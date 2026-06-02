@@ -1,10 +1,10 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 | QuizBattle</title>
+    <title>{% trans "403 | QuizBattle" %}</title>
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,19 +19,19 @@
             <div class="error-copy">
                 <div class="error-badge">
                     <i class="fas fa-lock"></i>
-                    Access denied
+                    {% trans "Access denied" %}
                 </div>
                 <div class="error-code">403</div>
-                <h1 class="error-title">Bu joyga ruxsat yo‘q.</h1>
+                <h1 class="error-title">{% trans "You do not have permission to access this area." %}</h1>
                 <p class="error-description">
-                    Siz ochmoqchi bo‘lgan sahifa yoki amal uchun yetarli ruxsat topilmadi. To‘g‘ri akkaunt bilan kiring yoki boshqa sahifaga qayting.
+                    {% trans "You do not have permission to view this page or perform this action. Sign in with the correct account or return to another page." %}
                 </p>
                 <div class="error-actions">
                     <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-house me-2"></i>Home ga qaytish
+                        <i class="fas fa-house me-2"></i>{% trans "Back Home" %}
                     </a>
                     <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark btn-lg">
-                        <i class="fas fa-right-to-bracket me-2"></i>Login
+                        <i class="fas fa-right-to-bracket me-2"></i>{% trans "Login" %}
                     </a>
                 </div>
             </div>

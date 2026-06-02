@@ -14,42 +14,42 @@
 {% block content %}
 <div class="module aligned">
     <h1>{{ title }}</h1>
-    
+
     <div class="form-row">
         <div class="field-box">
-            <h2>Current Status</h2>
-            <p><strong>Student:</strong> {{ user.get_full_name|default:user.username }}</p>
-            <p><strong>Username:</strong> {{ user.username }}</p>
-            <p><strong>Current Coins:</strong> <span style="color: #ffc107; font-weight: bold;">{{ current_coins }} рџЄ™</span></p>
+            <h2>{% trans "Current Status" %}</h2>
+            <p><strong>{% trans "Student:" %}</strong> {{ user.get_full_name|default:user.username }}</p>
+            <p><strong>{% trans "Username:" %}</strong> {{ user.username }}</p>
+            <p><strong>{% trans "Current Coins:" %}</strong> <span style="color: #ffc107; font-weight: bold;">{{ current_coins }} {% trans "coins" %}</span></p>
         </div>
     </div>
-    
+
     <form method="post" novalidate>
         {% csrf_token %}
-        
+
         <fieldset class="module aligned">
-            <h2>Give Coins</h2>
-            
+            <h2>{% trans "Give Coins" %}</h2>
+
             <div class="form-row">
                 <div class="field-box">
-                    <label for="id_coins" class="required">Number of coins to give:</label>
+                    <label for="id_coins" class="required">{% trans "Number of coins to give:" %}</label>
                     <input type="number" name="coins" id="id_coins" min="1" max="10000" required>
-                    <p class="help">Enter the number of coins to give to this student (1-10000).</p>
+                    <p class="help">{% trans "Enter the number of coins to give to this student (1-10000)." %}</p>
                 </div>
             </div>
-            
+
             <div class="form-row">
                 <div class="field-box">
-                    <label for="id_reason">Reason (optional):</label>
-                    <textarea name="reason" id="id_reason" rows="3" cols="40" placeholder="e.g., Excellent performance in quiz, Participation reward, etc."></textarea>
-                    <p class="help">Optional reason for giving coins (will be logged).</p>
+                    <label for="id_reason">{% trans "Reason (optional):" %}</label>
+                    <textarea name="reason" id="id_reason" rows="3" cols="40" placeholder="{% trans 'e.g., Excellent performance in quiz, Participation reward, etc.' %}"></textarea>
+                    <p class="help">{% trans "Optional reason for giving coins (will be logged)." %}</p>
                 </div>
             </div>
         </fieldset>
-        
+
         <div class="submit-row">
-            <input type="submit" value="Give Coins" class="default" style="background-color: #28a745; border-color: #28a745;">
-            <a href="{% url 'admin:auth_user_changelist' %}" class="button cancel-link">Cancel</a>
+            <input type="submit" value="{% trans 'Give Coins' %}" class="default" style="background-color: #28a745; border-color: #28a745;">
+            <a href="{% url 'admin:auth_user_changelist' %}" class="button cancel-link">{% trans "Cancel" %}</a>
         </div>
     </form>
 </div>
@@ -65,7 +65,7 @@
     margin-bottom: 5px;
 }
 
-.field-box input[type="number"], 
+.field-box input[type="number"],
 .field-box textarea {
     width: 300px;
     padding: 8px;

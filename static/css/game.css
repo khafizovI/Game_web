@@ -94,3 +94,7 @@
     margin-bottom: 8px;
     font-size: 1.1rem;
 }
+.avatar-frame-wrapper.aqua-border { background: conic-gradient(#14b8a6, #67e8f9, #14b8a6); }
+.avatar-frame-wrapper.solar-border { background: conic-gradient(#f97316, #fde047, #f97316); }
+.avatar-frame-wrapper.plasma-border { background: conic-gradient(#7c3aed, #ec4899, #22d3ee, #7c3aed); }
+.avatar-frame-wrapper.royal-crown-border { background: conic-gradient(#111827, #facc15, #7c3aed, #111827); }

@@ -60,6 +60,43 @@ document.addEventListener('DOMContentLoaded', function() {
         toast.show();
     });
 
+    document.querySelectorAll('input[type="password"]').forEach(input => {
+        if (input.dataset.passwordToggleReady === 'true') {
+            return;
+        }
+
+        const parent = input.parentElement;
+        if (!parent) {
+            return;
+        }
+
+        parent.classList.add('password-toggle-field');
+        input.classList.add('password-toggle-input');
+        input.dataset.passwordToggleReady = 'true';
+
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'password-toggle-btn';
+        toggleButton.setAttribute('aria-label', window.t ? window.t('Show password', 'Show password') : 'Show password');
+        toggleButton.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i>';
+
+        toggleButton.addEventListener('click', function () {
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            toggleButton.setAttribute(
+                'aria-label',
+                isHidden
+                    ? (window.t ? window.t('Hide password', 'Hide password') : 'Hide password')
+                    : (window.t ? window.t('Show password', 'Show password') : 'Show password')
+            );
+            toggleButton.innerHTML = isHidden
+                ? '<i class="fas fa-eye-slash" aria-hidden="true"></i>'
+                : '<i class="fas fa-eye" aria-hidden="true"></i>';
+        });
+
+        input.insertAdjacentElement('afterend', toggleButton);
+    });
+
     document.addEventListener('click', function(event) {
         const link = event.target.closest('a[href]');
         if (!link) {

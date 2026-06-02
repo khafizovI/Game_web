@@ -1,0 +1,109 @@
+.site-pet {
+    position: fixed;
+    left: 28px;
+    bottom: 24px;
+    z-index: 1040;
+    width: 104px;
+    height: 104px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    animation: petIdle 3.2s ease-in-out infinite;
+}
+
+.site-pet.dragging {
+    cursor: grabbing;
+    animation: none;
+}
+
+.site-pet.pet-bounce .site-pet-sprite {
+    animation: petBounce 0.42s ease;
+}
+
+.site-pet-sprite {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 3.1rem;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.24);
+    backdrop-filter: blur(12px);
+}
+
+.site-pet-sprite img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: auto;
+    pointer-events: none;
+}
+
+.site-pet-sprite.sprite-image {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.site-pet-dialog {
+    position: absolute;
+    left: 18px;
+    bottom: 82px;
+    max-width: min(230px, 70vw);
+    padding: 0.65rem 0.85rem;
+    border-radius: 14px;
+    background: rgba(17, 24, 39, 0.86);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    line-height: 1.25;
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.25);
+    transform: translateY(8px) scale(0.96);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    white-space: nowrap;
+}
+
+.site-pet-dialog.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+@keyframes petIdle {
+    0%, 100% { transform: translateX(0) translateY(0) rotate(-2deg); }
+    35% { transform: translateX(9px) translateY(-4px) rotate(2deg); }
+    70% { transform: translateX(-5px) translateY(1px) rotate(-1deg); }
+}
+
+.site-pet.pet-walking {
+    animation: petStep 0.95s ease-in-out;
+}
+
+@keyframes petStep {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(18px); }
+}
+
+@keyframes petBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10px) scale(1.08); }
+}
+
+@media (max-width: 576px) {
+    .site-pet {
+        width: 82px;
+        height: 82px;
+        left: 14px;
+        bottom: 16px;
+    }
+
+    .site-pet-sprite {
+        width: 76px;
+        height: 76px;
+        font-size: 2.55rem;
+    }
+}

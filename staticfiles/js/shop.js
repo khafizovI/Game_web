@@ -1,270 +1,156 @@
-// Shop JavaScript functionality
-document.addEventListener('DOMContentLoaded', function() {
-    // Tab switching functionality
-    const shopTabs = document.querySelectorAll('.shop-tab');
-    const shopSections = document.querySelectorAll('.shop-section');
-    
-    shopTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            const targetTab = this.dataset.tab;
-            
-            // Remove active class from all tabs and sections
-            shopTabs.forEach(t => t.classList.remove('active'));
-            shopSections.forEach(s => s.classList.remove('active'));
-            
-            // Add active class to clicked tab and corresponding section
-            this.classList.add('active');
-            document.getElementById(targetTab + '-section').classList.add('active');
-        });
+document.addEventListener('DOMContentLoaded', () => {
+    const translate = window.t || ((key, fallback) => fallback || key);
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+    const coinBalance = document.getElementById('coin-balance');
+    const confirmModalElement = document.getElementById('boxConfirmModal');
+    const confirmModal = confirmModalElement ? new bootstrap.Modal(confirmModalElement) : null;
+    const confirmOpenButton = document.getElementById('confirm-open-box');
+    const confirmText = document.getElementById('box-confirm-text');
+    const rewardModalElement = document.getElementById('rewardModal');
+    const rewardModal = rewardModalElement ? new bootstrap.Modal(rewardModalElement) : null;
+    const rewardPreview = document.getElementById('reward-preview');
+    const rewardRarity = document.getElementById('reward-rarity');
+    const rewardName = document.getElementById('reward-name');
+    const rewardMeta = document.getElementById('reward-meta');
+    const historyToggle = document.getElementById('toggle-shop-history');
+    const historyPanel = document.getElementById('shop-history');
+    let pendingButton = null;
+
+    document.querySelectorAll('.open-box-btn').forEach((button) => {
+        button.addEventListener('click', () => askToOpenBox(button));
     });
-    
-    // Purchase functionality
-    const purchaseButtons = document.querySelectorAll('.purchase-btn');
-    const purchaseModal = new bootstrap.Modal(document.getElementById('purchaseModal'));
-    const confirmPurchaseBtn = document.getElementById('confirm-purchase');
-    let currentItemId = null;
-    let currentItemPrice = null;
-    let currentItemType = null;
-    
-    purchaseButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            currentItemId = this.dataset.itemId;
-            currentItemPrice = parseInt(this.dataset.price);
-            currentItemType = this.dataset.itemType || null;
-            
-            const currentCoins = parseInt(document.getElementById('coin-balance').textContent);
-            const remainingBalance = currentCoins - currentItemPrice;
-            
-            // Update modal content
-            document.getElementById('item-cost').textContent = currentItemPrice;
-            document.getElementById('remaining-balance').textContent = remainingBalance;
-            
-            // Check if user has enough coins
-            if (remainingBalance < 0) {
-                document.getElementById('remaining-balance').style.color = '#ff6b6b';
-                confirmPurchaseBtn.disabled = true;
-                confirmPurchaseBtn.textContent = 'Insufficient Coins';
-            } else {
-                document.getElementById('remaining-balance').style.color = '#6c757d';
-                confirmPurchaseBtn.disabled = false;
-                confirmPurchaseBtn.textContent = 'Purchase';
-            }
-            
-            purchaseModal.show();
-        });
-    });
-    
-    // Confirm purchase
-    confirmPurchaseBtn.addEventListener('click', function() {
-        if (currentItemId && currentItemPrice) {
-            purchaseItem(currentItemId, currentItemPrice);
+
+    confirmOpenButton?.addEventListener('click', () => {
+        if (pendingButton) {
+            confirmModal?.hide();
+            openBox(pendingButton);
         }
     });
-    
-    // Equip functionality
-    const equipButtons = document.querySelectorAll('.equip-btn');
-    const equippedFramePreview = document.getElementById('equipped-frame-preview');
-    const equippedFrameName = document.getElementById('equipped-frame-name');
-    const knownFrameClasses = [
-        'cosmic-frame',
-        'dragon-frame',
-        'crystal-frame',
-        'neon-frame',
-        'royal-frame',
-        'ocean-frame',
-        'flame-frame',
-        'shadow-frame',
-        'mythic-frame',
-        'starlight-frame',
-        'tempest-frame',
-        'obsidian-frame'
-    ];
-    
-    equipButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            equipFrame(itemId);
-        });
+
+    historyToggle?.addEventListener('click', () => {
+        historyPanel?.classList.toggle('history-collapsed');
+        const isOpen = !historyPanel?.classList.contains('history-collapsed');
+        const label = isOpen ? historyToggle.dataset.hideLabel : historyToggle.dataset.showLabel;
+        const labelSpan = historyToggle.querySelector('span');
+        if (labelSpan && label) {
+            labelSpan.textContent = label;
+        }
     });
-    
-    // Purchase item function
-    function purchaseItem(itemId, price) {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        // Get the current language prefix from the URL
-        const currentPath = window.location.pathname;
-        const langPrefix = currentPath.match(/^\/([a-z]{2})\//)?.[0] || '/en/';
-        
-        fetch(`${langPrefix}accounts/shop/purchase/${itemId}/`, {
+
+    function askToOpenBox(button) {
+        const price = parseInt(button.dataset.price || '0', 10);
+        const currentCoins = parseInt(coinBalance?.textContent || '0', 10);
+        if (currentCoins < price) {
+            showNotification(translate('Not enough coins', 'Not enough coins'), 'error');
+            return;
+        }
+
+        const boxName = button.dataset.boxName || translate('this item', 'this item');
+        pendingButton = button;
+        if (confirmText) {
+            confirmText.textContent = translate(
+                'Are you sure you want to purchase {item_name}?',
+                `Are you sure you want to purchase ${boxName}?`
+            ).replace('{item_name}', boxName);
+        }
+        confirmModal?.show();
+    }
+
+    function openBox(button) {
+        button.disabled = true;
+        button.classList.add('is-opening');
+
+        fetch(button.dataset.url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken,
             },
-            body: JSON.stringify({})
+            body: JSON.stringify({}),
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update coin balance
-                document.getElementById('coin-balance').textContent = data.new_coin_balance;
-                
-                // Update the button to show "Owned" or "Equip"
-                const purchaseBtn = document.querySelector(`[data-item-id="${itemId}"]`);
-                if (purchaseBtn) {
-                    if ((data.item_type || currentItemType) === 'frame') {
-                        purchaseBtn.className = 'btn btn-primary equip-btn';
-                        purchaseBtn.innerHTML = '<i class="fas fa-hand-paper"></i> Equip';
-                        purchaseBtn.dataset.itemId = itemId;
-                        
-                        // Add event listener for equip functionality
-                        purchaseBtn.addEventListener('click', function() {
-                            equipFrame(itemId);
-                        });
-                    } else {
-                        purchaseBtn.className = 'btn btn-success';
-                        purchaseBtn.innerHTML = '<i class="fas fa-check"></i> Owned';
-                        purchaseBtn.disabled = true;
-                    }
+            .then((response) => response.json())
+            .then((data) => {
+                if (!data.success) {
+                    showNotification(data.message || translate('Box opening failed.', 'Box opening failed.'), 'error');
+                    return;
                 }
-                
-                // Show success message
-                showNotification('Item purchased successfully!', 'success');
-                
-                // Close modal
-                purchaseModal.hide();
-            } else {
-                showNotification(data.message || 'Purchase failed. Please try again.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('An error occurred. Please try again.', 'error');
-        });
+
+                if (coinBalance) {
+                    coinBalance.textContent = data.new_coin_balance;
+                }
+
+                if (data.pet) {
+                    renderPetReward(data.pet, data.duplicate);
+                } else if (data.item) {
+                    renderItemReward(data.item, data.duplicate);
+                }
+
+                rewardModal?.show();
+            })
+            .catch(() => showNotification(translate('An error occurred. Please try again.', 'An error occurred. Please try again.'), 'error'))
+            .finally(() => {
+                button.disabled = false;
+                button.classList.remove('is-opening');
+                pendingButton = null;
+            });
     }
-    
-    // Equip frame function
-    function equipFrame(itemId) {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        
-        // Get the current language prefix from the URL
-        const currentPath = window.location.pathname;
-        const langPrefix = currentPath.match(/^\/([a-z]{2})\//)?.[0] || '/en/';
-        
-        fetch(`${langPrefix}accounts/shop/equip-frame/${itemId}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-            },
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update all equip buttons
-                document.querySelectorAll('.equip-btn').forEach(btn => {
-                    btn.className = 'btn btn-primary equip-btn';
-                    btn.innerHTML = '<i class="fas fa-hand-paper"></i> Equip';
-                    btn.disabled = false;
-                });
-                
-                // Update the equipped item button
-                const equippedBtn = document.querySelector(`[data-item-id="${itemId}"]`);
-                if (equippedBtn) {
-                    equippedBtn.className = 'btn btn-success';
-                    equippedBtn.innerHTML = '<i class="fas fa-check"></i> Equipped';
-                    equippedBtn.disabled = true;
-                }
 
-                document.querySelectorAll('[data-frame-card]').forEach(card => {
-                    card.classList.remove('selected-frame-card');
-                });
-                const selectedCard = document.querySelector(`[data-frame-card="${itemId}"]`);
-                if (selectedCard) {
-                    selectedCard.classList.add('selected-frame-card');
-                }
-
-                if (equippedFramePreview && data.css_class) {
-                    equippedFramePreview.classList.remove(...knownFrameClasses);
-                    equippedFramePreview.classList.add(data.css_class);
-                }
-
-                if (equippedFrameName && data.item_name) {
-                    equippedFrameName.textContent = data.item_name;
-                }
-                
-                showNotification('Frame equipped successfully!', 'success');
-            } else {
-                showNotification(data.message || 'Failed to equip frame. Please try again.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('An error occurred. Please try again.', 'error');
-        });
+    function renderItemReward(item, duplicate) {
+        rewardPreview.className = `reward-preview rarity-rail-${item.rarity}`;
+        rewardPreview.innerHTML = item.type === 'avatar'
+            ? `<img src="${item.preview}" alt="${escapeHtml(item.name)}">`
+            : `<i class="fas ${iconForType(item.type)}"></i>`;
+        rewardRarity.textContent = item.rarity_label;
+        rewardRarity.className = `reward-rarity rarity-text-${item.rarity}`;
+        rewardName.textContent = item.name;
+        rewardMeta.textContent = `${item.type_label}${duplicate ? ` · ${translate('Duplicate item', 'Duplicate item')}` : ` · ${translate('Added to inventory', 'Added to inventory')}`}`;
     }
-    
-    // Notification function
+
+    function renderPetReward(pet, duplicate) {
+        rewardPreview.className = `reward-preview pet-reward rarity-rail-${pet.rarity}`;
+        rewardPreview.innerHTML = pet.image && pet.image.includes('/')
+            ? `<img src="${escapeHtml(pet.image)}" alt="${escapeHtml(pet.name)}">`
+            : escapeHtml(pet.image || pet.name);
+        rewardRarity.textContent = pet.rarity_label;
+        rewardRarity.className = `reward-rarity rarity-text-${pet.rarity}`;
+        rewardName.textContent = pet.name;
+        rewardMeta.textContent = `${pet.unlocked_at}${duplicate ? ` · ${translate('Duplicate pet', 'Duplicate pet')}` : ` · ${translate('Added to inventory', 'Added to inventory')}`}`;
+    }
+
+    function iconForType(type) {
+        const icons = {
+            border: 'fa-circle-notch',
+            banner: 'fa-image',
+            title: 'fa-tag',
+        };
+        return icons[type] || 'fa-star';
+    }
+
     function showNotification(message, type) {
-        // Remove existing notifications
-        const existingNotifications = document.querySelectorAll('.shop-notification');
-        existingNotifications.forEach(notification => notification.remove());
-        
-        // Create notification element
         const notification = document.createElement('div');
-        notification.className = `shop-notification alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        `;
-        
-        notification.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
-                <span>${message}</span>
-                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
+        notification.className = `shop-notification alert alert-${type === 'success' ? 'success' : 'danger'} fade show`;
+        notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'triangle-exclamation'} me-2"></i>${escapeHtml(message)}`;
         document.body.appendChild(notification);
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 5000);
+        setTimeout(() => notification.remove(), 4200);
     }
-    
-    // Add CSRF token to all AJAX requests
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (!csrfToken) {
-        // Create CSRF token input if it doesn't exist
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'csrfmiddlewaretoken';
-        tokenInput.value = getCookie('csrftoken');
-        document.body.appendChild(tokenInput);
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
     }
-    
-    // Get CSRF token from cookies
+
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+        const cookies = document.cookie ? document.cookie.split(';') : [];
+        for (const cookie of cookies) {
+            const trimmed = cookie.trim();
+            if (trimmed.startsWith(`${name}=`)) {
+                return decodeURIComponent(trimmed.slice(name.length + 1));
             }
         }
-        return cookieValue;
+        return '';
     }
 });

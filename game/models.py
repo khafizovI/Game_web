@@ -76,6 +76,8 @@ class GamePlayer(models.Model):
     @property
     def selected_frame_css_class(self):
         profile = self.profile
+        if profile and profile.selected_border:
+            return profile.selected_border.css_class
         if profile and profile.selected_frame:
             return profile.selected_frame.css_class
         return ""

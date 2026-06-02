@@ -6,7 +6,18 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils.html import format_html
-from .models import Profile, ShopItem, UserPurchase, Achievement, UserAchievement
+from .models import (
+    Profile,
+    ShopItem,
+    UserPurchase,
+    InventoryItem,
+    UserInventoryItem,
+    Pet,
+    UserPet,
+    Achievement,
+    UserAchievement,
+    PasswordResetCode,
+)
 
 # Register your models here.
 
@@ -14,7 +25,20 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ('bio', 'role', 'games_hosted', 'games_played', 'total_points', 'coins', 'avatar', 'selected_frame')
+    fields = (
+        'bio',
+        'role',
+        'games_hosted',
+        'games_played',
+        'total_points',
+        'coins',
+        'selected_avatar',
+        'selected_border',
+        'selected_banner',
+        'selected_title',
+        'selected_pet',
+        'selected_frame',
+    )
     readonly_fields = ('games_hosted', 'games_played')
 
 class UserAdmin(BaseUserAdmin):
@@ -112,6 +136,38 @@ class UserPurchaseAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'item__name')
     readonly_fields = ('purchased_at',)
 
+
+@admin.register(InventoryItem)
+class InventoryItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'item_type', 'rarity', 'is_active', 'created_at')
+    list_filter = ('item_type', 'rarity', 'is_active')
+    search_fields = ('name', 'description')
+    list_editable = ('is_active',)
+
+
+@admin.register(UserInventoryItem)
+class UserInventoryItemAdmin(admin.ModelAdmin):
+    list_display = ('user', 'item', 'unlocked_at')
+    list_filter = ('item__item_type', 'item__rarity', 'unlocked_at')
+    search_fields = ('user__username', 'item__name')
+    readonly_fields = ('unlocked_at',)
+
+
+@admin.register(Pet)
+class PetAdmin(admin.ModelAdmin):
+    list_display = ('name', 'rarity', 'weight', 'is_active')
+    list_filter = ('rarity', 'is_active')
+    search_fields = ('name',)
+    list_editable = ('weight', 'is_active')
+
+
+@admin.register(UserPet)
+class UserPetAdmin(admin.ModelAdmin):
+    list_display = ('user', 'pet', 'unlocked_at')
+    list_filter = ('pet__rarity', 'unlocked_at')
+    search_fields = ('user__username', 'pet__name')
+    readonly_fields = ('unlocked_at',)
+
 @admin.register(Achievement)
 class AchievementAdmin(admin.ModelAdmin):
     list_display = ('name', 'points_required', 'games_required', 'reward_coins', 'is_hidden')
@@ -125,3 +181,11 @@ class UserAchievementAdmin(admin.ModelAdmin):
     list_filter = ('achievement', 'earned_at')
     search_fields = ('user__username', 'achievement__name')
     readonly_fields = ('earned_at',)
+
+
+@admin.register(PasswordResetCode)
+class PasswordResetCodeAdmin(admin.ModelAdmin):
+    list_display = ('user', 'code', 'created_at', 'is_used')
+    list_filter = ('is_used', 'created_at')
+    search_fields = ('user__username', 'user__email', 'code')
+    readonly_fields = ('created_at',)

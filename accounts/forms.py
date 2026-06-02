@@ -126,10 +126,15 @@ class CustomUserCreationForm(UserCreationForm):
 
 class LoginForm(forms.Form):
     username = forms.CharField(
-        label=_("Username"),
+        label=_("Username or Email"),
         max_length=150,
         required=True,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'autofocus': True, 'placeholder': _('Username')})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'autofocus': True,
+            'placeholder': _('Username or Email'),
+            'autocomplete': 'username',
+        })
     )
     password = forms.CharField(
         label=_("Password"),
@@ -176,3 +181,75 @@ class EmailVerificationForm(forms.Form):
             except EmailVerification.DoesNotExist:
                 raise forms.ValidationError(_("Invalid verification code."))
         return code
+
+
+class PasswordResetEmailForm(forms.Form):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Email'),
+            'autocomplete': 'email',
+        })
+    )
+
+
+class PasswordResetCodeForm(forms.Form):
+    code = forms.CharField(
+        label=_("Reset Code"),
+        max_length=6,
+        min_length=6,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control text-center',
+            'placeholder': '000000',
+            'autocomplete': 'one-time-code',
+            'inputmode': 'numeric',
+            'style': 'letter-spacing: 0.5em; font-size: 1.5em;',
+        })
+    )
+
+
+class SetNewPasswordForm(forms.Form):
+    password1 = forms.CharField(
+        label=_("New Password"),
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('New Password'),
+            'autocomplete': 'new-password',
+        }, render_value=True),
+        required=True,
+    )
+    password2 = forms.CharField(
+        label=_("Repeat Password"),
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': _('Repeat Password'),
+            'autocomplete': 'new-password',
+        }, render_value=True),
+        required=True,
+    )
+
+    def clean_password1(self):
+        password1 = self.cleaned_data.get('password1')
+        if not password1:
+            raise forms.ValidationError(_("Password is required."))
+        if len(password1) < 4:
+            raise forms.ValidationError(_("Password must be at least 4 characters long."))
+        if password1.isdigit():
+            raise forms.ValidationError(_("Password cannot contain only numbers."))
+        if password1.lower() in [
+            '1234', '12345', '123456', '1234567', '12345678',
+            'password', 'pass', 'admin', 'user', 'test',
+            'qwerty', 'abc123', '111111', '000000'
+        ]:
+            raise forms.ValidationError(_("Password is too simple. Please choose a more secure password."))
+        return password1
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('password1')
+        password2 = cleaned_data.get('password2')
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', _("The two password fields didn't match."))
+        return cleaned_data

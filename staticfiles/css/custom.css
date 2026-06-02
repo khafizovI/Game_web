@@ -481,6 +481,77 @@ a:hover {
     color: var(--primary-dark);
 }
 
+.site-language-form {
+    position: relative;
+}
+
+.site-language-toggle {
+    min-width: 96px;
+    min-height: 50px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.7rem 1rem;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+}
+
+.site-language-toggle:hover,
+.site-language-toggle:focus,
+.site-language-toggle.show {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.site-language-toggle::after {
+    margin-left: 0.15rem;
+}
+
+.site-language-menu {
+    min-width: 124px;
+    padding: 0.45rem;
+    background: #ffffff;
+}
+
+.site-language-option {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: #0f172a;
+    background: transparent;
+    border: 0;
+}
+
+.site-language-option:hover,
+.site-language-option:focus {
+    color: #0f172a;
+    background: rgba(15, 118, 110, 0.08);
+}
+
+.site-language-option.active,
+.site-language-option:active {
+    color: #ffffff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.site-language-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.site-language-code {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
 .btn {
     border-radius: 14px;
     font-weight: 700;
@@ -1542,4 +1613,41 @@ a:hover {
 
 .quiz-card .card-title {
     font-size: 1.1rem;
+}
+
+.password-toggle-field {
+    position: relative;
+}
+
+.password-toggle-input {
+    padding-right: 3rem !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    z-index: 5;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #6c757d;
+    transform: translateY(-50%);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus {
+    color: var(--bs-primary);
+    background: rgba(13, 110, 253, 0.08);
+    outline: none;
+}
+
+.form-floating.password-toggle-field > .password-toggle-btn {
+    top: 50%;
 }

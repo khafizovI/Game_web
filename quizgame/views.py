@@ -4,10 +4,8 @@ from game.models import Game, GamePlayer
 from accounts.models import Profile
 from django.contrib.auth.models import User
 from django.utils import translation
-from django.utils import timezone
 from django.conf import settings
 from django.http import HttpResponseRedirect, JsonResponse
-from django.db import connection
 from django.db.utils import OperationalError, ProgrammingError
 from django.db.models import Count, Avg
 from .translation_utils import normalize_language_code, switch_language_url
@@ -94,23 +92,6 @@ def set_language(request):
 
 def def_chrome_devtools_json(request):
     return JsonResponse({})
-
-
-def healthcheck(request):
-    database_status = 'ok'
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT 1')
-            cursor.fetchone()
-    except Exception:
-        database_status = 'unavailable'
-
-    return JsonResponse({
-        'status': 'ok',
-        'database': database_status,
-        'timestamp': timezone.now().isoformat(),
-    })
 
 
 def bad_request(request, exception):

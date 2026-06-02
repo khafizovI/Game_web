@@ -1,0 +1,132 @@
+{% extends 'base/base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Inventory" %}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/shop.css' %}">
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="shop-container inventory-container">
+    <section class="shop-hero inventory-hero">
+        <div class="container">
+            <div class="shop-hero-grid">
+                <div>
+                    <p class="shop-kicker">{% trans "Inventory" %}</p>
+                    <h1 class="shop-title">{% trans "Equip your QuizBattle loadout" %}</h1>
+                    <p class="shop-subtitle">{% trans "Only one avatar, border, banner, title, and pet can be active at the same time." %}</p>
+                </div>
+                <div class="coin-balance">
+                    <div class="coin-icon"><i class="fas fa-coins"></i></div>
+                    <div class="coin-info">
+                        <span class="coin-amount">{{ profile.coins }}</span>
+                        <span class="coin-label">{% trans "Coins" %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="shop-content">
+        <div class="container">
+            <div class="inventory-tabs" role="tablist">
+                <button class="inventory-tab active" data-tab="avatar"><i class="fas fa-user"></i>{% trans "Avatars" %}</button>
+                <button class="inventory-tab" data-tab="border"><i class="fas fa-circle-notch"></i>{% trans "Borders" %}</button>
+                <button class="inventory-tab" data-tab="banner"><i class="fas fa-image"></i>{% trans "Banners" %}</button>
+                <button class="inventory-tab" data-tab="title"><i class="fas fa-tag"></i>{% trans "Titles" %}</button>
+                <button class="inventory-tab" data-tab="pet"><i class="fas fa-paw"></i>{% trans "Pets" %}</button>
+            </div>
+
+            {% for item_type, items in grouped_items.items %}
+            <section class="inventory-section{% if item_type == 'avatar' %} active{% endif %}" id="inventory-{{ item_type }}">
+                <div class="inventory-grid">
+                    {% for owned in items %}
+                    <article class="inventory-card rarity-rail-{{ owned.item.rarity }}{% if item_type == 'avatar' and profile.selected_avatar_id == owned.item.id %} equipped{% elif item_type == 'border' and profile.selected_border_id == owned.item.id %} equipped{% elif item_type == 'banner' and profile.selected_banner_id == owned.item.id %} equipped{% elif item_type == 'title' and profile.selected_title_id == owned.item.id %} equipped{% endif %}">
+                        <div class="inventory-preview {% if item_type != 'avatar' %}{{ owned.item.css_class }}{% endif %}">
+                            {% if item_type == 'avatar' %}
+                                <img src="{{ owned.item.preview_value }}" alt="{{ owned.item.name }}">
+                            {% elif item_type == 'title' %}
+                                <span>{{ owned.item.preview_value }}</span>
+                            {% elif item_type == 'banner' %}
+                                <span>{{ owned.item.preview_value }}</span>
+                            {% else %}
+                                <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
+                        <div class="inventory-copy">
+                            <span class="rarity-pill rarity-{{ owned.item.rarity }}">{{ owned.item.get_rarity_display }}</span>
+                            <h3>{{ owned.item.name }}</h3>
+                            <p>{{ owned.item.get_item_type_display }} · {{ owned.unlocked_at|date:"Y-m-d" }}</p>
+                        </div>
+                        <div class="inventory-actions">
+                            <button class="preview-btn" data-preview-name="{{ owned.item.name }}" data-preview-type="{{ owned.item.get_item_type_display }}" data-preview-rarity="{{ owned.item.get_rarity_display }}">
+                                <i class="fas fa-eye"></i>{% trans "Preview" %}
+                            </button>
+                            {% if item_type == 'avatar' and profile.selected_avatar_id == owned.item.id or item_type == 'border' and profile.selected_border_id == owned.item.id or item_type == 'banner' and profile.selected_banner_id == owned.item.id or item_type == 'title' and profile.selected_title_id == owned.item.id %}
+                                <button class="unequip-btn" data-url="{% url 'accounts:unequip_inventory_type' item_type %}">
+                                    <i class="fas fa-xmark"></i>{% trans "Unequip" %}
+                                </button>
+                            {% else %}
+                                <button class="equip-item-btn" data-url="{% url 'accounts:equip_inventory_item' owned.id %}">
+                                    <i class="fas fa-check"></i>{% trans "Equip" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% empty %}
+                    <div class="empty-inventory">
+                        <i class="fas fa-box-open"></i>
+                        <p>{% trans "No items in this category yet." %}</p>
+                        <a href="{% url 'accounts:shop' %}">{% trans "Open boxes in the Shop" %}</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <section class="inventory-section" id="inventory-pet">
+                <div class="inventory-grid pet-inventory-grid">
+                    {% for owned in owned_pets %}
+                    <article class="inventory-card pet-card rarity-rail-{{ owned.pet.rarity }}{% if profile.selected_pet_id == owned.id %} equipped{% endif %}">
+                        <div class="inventory-preview pet-inventory-preview">
+                            <img src="{{ owned.pet.image }}" alt="{{ owned.pet.name }}">
+                        </div>
+                        <div class="inventory-copy">
+                            <span class="rarity-pill rarity-{{ owned.pet.rarity }}">{{ owned.pet.get_rarity_display }}</span>
+                            <h3>{{ owned.pet.name }}</h3>
+                            <p>{% trans "Unlocked" %}: {{ owned.unlocked_at|date:"Y-m-d" }}</p>
+                        </div>
+                        <div class="inventory-actions">
+                            <button class="preview-btn" data-preview-name="{{ owned.pet.name }}" data-preview-type="{% trans 'Pet' %}" data-preview-rarity="{{ owned.pet.get_rarity_display }}">
+                                <i class="fas fa-eye"></i>{% trans "Preview" %}
+                            </button>
+                            {% if profile.selected_pet_id == owned.id %}
+                                <button class="unequip-btn" data-url="{% url 'accounts:unequip_inventory_type' 'pet' %}">
+                                    <i class="fas fa-xmark"></i>{% trans "Unequip" %}
+                                </button>
+                            {% else %}
+                                <button class="equip-item-btn" data-url="{% url 'accounts:equip_pet' owned.id %}">
+                                    <i class="fas fa-check"></i>{% trans "Equip" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% empty %}
+                    <div class="empty-inventory">
+                        <i class="fas fa-paw"></i>
+                        <p>{% trans "No pets unlocked yet." %}</p>
+                        <a href="{% url 'accounts:shop' %}">{% trans "Open a Pet Box" %}</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/inventory.js' %}"></script>
+{% endblock %}

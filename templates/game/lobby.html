@@ -1169,17 +1169,41 @@ document.addEventListener('DOMContentLoaded', function () {
     const MUSIC_TIME_STORAGE_KEY = 'gameweb:music:time';
     const MUSIC_ACTIVE_STORAGE_KEY = 'gameweb:music:active';
 
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
+    function safeSessionGet(key, fallback = null) {
+        try {
+            const value = window.sessionStorage.getItem(key);
+            return value === null ? fallback : value;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function safeSessionSet(key, value) {
+        try {
+            window.sessionStorage.setItem(key, value);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // Initialize Bootstrap tooltips when the bundle is available.
+    if (window.bootstrap && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
 
     const roomCode = '{{ game.code }}';
     const isHost = {{ is_host|yesno:"true,false" }};
     const joinUrl = "{% url 'game:join' %}";
-    const playUrl = "{% url 'game:play' game.code %}";
+    const playerQuery = window.location.search || '';
+    const playUrl = "{% url 'game:play' game.code %}" + playerQuery;
+    const lobbyStateUrl = "{% url 'game:lobby_state' game.code %}" + playerQuery;
+    const statusUrl = "{% url 'game:status' game.code %}" + playerQuery;
     let isRedirectingAfterKick = false;
+    let isIntentionalHostExit = false;
 
     const playerList = document.getElementById('player-list');
     const playerCount = document.getElementById('player-count');
@@ -1188,30 +1212,44 @@ document.addEventListener('DOMContentLoaded', function () {
     const countdownOverlay = document.getElementById('countdown-overlay');
     const countdownNumber = document.getElementById('countdown-number');
     const lobbyMusic = document.getElementById('lobby-music');
+    let hasStartRequestBeenSent = false;
+
+    function setStartButtonState(disabled, label) {
+        if (!isHost || !startButton) {
+            return;
+        }
+
+        startButton.disabled = disabled;
+        startButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+
+        if (label) {
+            startButton.innerHTML = `<i class="fas fa-play me-2"></i>${label}`;
+        }
+    }
 
     function playLobbyMusic() {
         if (!lobbyMusic) {
             return;
         }
         lobbyMusic.volume = 0.45;
-        const savedTime = parseFloat(window.sessionStorage.getItem(MUSIC_TIME_STORAGE_KEY) || '0');
+        const savedTime = parseFloat(safeSessionGet(MUSIC_TIME_STORAGE_KEY, '0') || '0');
         if (!Number.isNaN(savedTime) && savedTime > 0 && Math.abs(lobbyMusic.currentTime - savedTime) > 1) {
             lobbyMusic.currentTime = savedTime;
         }
         lobbyMusic.play().catch(() => {});
-        window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'true');
+        safeSessionSet(MUSIC_ACTIVE_STORAGE_KEY, 'true');
     }
 
     function stopLobbyMusic(resetTime = true) {
         if (!lobbyMusic) {
             return;
         }
-        window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, String(lobbyMusic.currentTime || 0));
+        safeSessionSet(MUSIC_TIME_STORAGE_KEY, String(lobbyMusic.currentTime || 0));
         lobbyMusic.pause();
         if (resetTime) {
             lobbyMusic.currentTime = 0;
-            window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, '0');
-            window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'false');
+            safeSessionSet(MUSIC_TIME_STORAGE_KEY, '0');
+            safeSessionSet(MUSIC_ACTIVE_STORAGE_KEY, 'false');
         }
     }
 
@@ -1221,18 +1259,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
     playLobbyMusic();
     window.addEventListener('beforeunload', () => stopLobbyMusic(false));
-
-    copyButton.addEventListener('click', () => {
-        navigator.clipboard.writeText(roomCode).then(() => {
-            const tooltip = bootstrap.Tooltip.getInstance(copyButton);
-            copyButton.setAttribute('data-bs-original-title', 'Copied!');
-            tooltip.show();
-            setTimeout(() => {
-                copyButton.setAttribute('data-bs-original-title', 'Copy to clipboard');
-                tooltip.hide();
-            }, 2000);
-        });
+    window.addEventListener('beforeunload', (event) => {
+        if (!isHost || isIntentionalHostExit) {
+            return;
+        }
+        event.preventDefault();
+        event.returnValue = '';
     });
+
+    if (copyButton) {
+        copyButton.addEventListener('click', async () => {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(roomCode);
+                } else {
+                    const tempInput = document.createElement('input');
+                    tempInput.value = roomCode;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                }
+
+                if (window.bootstrap && bootstrap.Tooltip) {
+                    const tooltip = bootstrap.Tooltip.getInstance(copyButton) || new bootstrap.Tooltip(copyButton);
+                    copyButton.setAttribute('data-bs-original-title', 'Copied!');
+                    tooltip.show();
+                    setTimeout(() => {
+                        copyButton.setAttribute('data-bs-original-title', 'Copy to clipboard');
+                        tooltip.hide();
+                    }, 2000);
+                }
+            } catch (error) {
+                console.warn('Copy code failed', error);
+            }
+        });
+    }
 
     function refreshPlayerPins() {
         Array.from(playerList.querySelectorAll('.player-avatar-circle')).forEach((item, index) => {
@@ -1264,13 +1326,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const frameWrapper = document.createElement('div');
         frameWrapper.className = 'avatar-frame-wrapper';
-        if (player.user.profile.selected_frame && player.user.profile.selected_frame.css_class) {
-            frameWrapper.classList.add(player.user.profile.selected_frame.css_class);
+        const profile = (player.user && player.user.profile) || {};
+        if (profile.selected_frame && profile.selected_frame.css_class) {
+            frameWrapper.classList.add(profile.selected_frame.css_class);
         }
 
-        if (player.user.profile.avatar && player.user.profile.avatar.url) {
+        const avatarUrl = player.avatar_url || (profile.avatar && profile.avatar.url);
+        if (avatarUrl) {
             const playerAvatar = document.createElement('img');
-            playerAvatar.src = player.user.profile.avatar.url;
+            playerAvatar.src = avatarUrl;
             playerAvatar.alt = player.user.username;
             playerAvatar.className = 'circle-avatar';
             frameWrapper.appendChild(playerAvatar);
@@ -1343,88 +1407,157 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshPlayerPins();
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const socket = new WebSocket(
-        protocol + window.location.host + '/ws/game/' + roomCode + '/'
-    );
-
-    socket.onopen = function(e) {
-        console.log("WebSocket connection established");
-    };
-
-    socket.onmessage = function (e) {
-        const data = JSON.parse(e.data);
-
-        if (data.type === 'lobby_state') {
-            updatePlayerList(data.players);
-        } else if (data.type === 'player_joined') {
-            playerList.appendChild(createPlayerCard(data.player, playerList.querySelectorAll('.player-avatar-circle').length));
-            refreshPlayerPins();
-        } else if (data.type === 'player_left') {
-            const playerElement = document.getElementById(`player-${data.player.id}`);
-            if (playerElement) {
-                playerElement.remove();
-                refreshPlayerPins();
-            }
-        } else if (data.type === 'kicked_from_game') {
-            isRedirectingAfterKick = true;
-            stopLobbyMusic(false);
-            alert(data.message || translate('The teacher removed you from the game.'));
-            window.location.href = joinUrl;
-        } else if (data.type === 'game_starting') {
-            const countdownOverlay = document.getElementById('countdown-overlay');
-            const countdownNumber = document.getElementById('countdown-number');
-            let count = 3;
-
-            countdownOverlay.classList.add('visible');
-
-            function showNumber() {
-                countdownNumber.textContent = count;
-                countdownNumber.classList.add('show');
-                setTimeout(() => {
-                    countdownNumber.classList.remove('show');
-                    count--;
-                    if (count > 0) {
-                        setTimeout(showNumber, 500); // Wait before showing next number
-                    } else if (count === 0) {
-                        countdownNumber.textContent = "{% trans 'Go!' %}";
-                        countdownNumber.classList.add('show');
-                        setTimeout(() => {
-                            stopLobbyMusic(false);
-                            window.location.href = playUrl;
-                        }, 1000);
-                    }
-                }, 1000); // Number is visible for 1s
-            }
-            showNumber();
-        } else if (data.type === 'game_started') {
-            // This handles re-connecting players
-            stopLobbyMusic(false);
-            window.location.href = playUrl;
-        }
-    };
-
-    socket.onclose = function (e) {
-        console.error('Game socket closed unexpectedly');
-        if (isRedirectingAfterKick) {
+    async function refreshLobbyPlayers() {
+        if (isIntentionalHostExit || isRedirectingAfterKick) {
             return;
         }
-        // Optional: Add a more user-friendly notification here
-        const toastBody = document.querySelector('.toast-body');
-        if(toastBody) {
-            toastBody.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${translate('Connection to the lobby was lost. Please refresh.')}`;
-            const toast = new bootstrap.Toast(document.querySelector('.toast'));
-            toast.show();
+
+        try {
+            const response = await fetch(lobbyStateUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data.players)) {
+                updatePlayerList(data.players);
+            }
+        } catch (error) {
+            console.warn('Lobby player refresh failed', error);
         }
-    };
+    }
+
+    async function checkGameStatus() {
+        if (isIntentionalHostExit || isRedirectingAfterKick) {
+            return;
+        }
+
+        try {
+            const response = await fetch(statusUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            if (data.is_active || data.current_question_number > 0 || data.is_completed) {
+                isIntentionalHostExit = true;
+                stopLobbyMusic(false);
+                window.location.replace(playUrl);
+            }
+        } catch (error) {
+            console.warn('Lobby status check failed', error);
+        }
+    }
+
+    let socket = null;
+
+    function setupLobbySocket() {
+        try {
+            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            socket = new WebSocket(
+                protocol + window.location.host + '/ws/game/' + roomCode + '/' + playerQuery
+            );
+        } catch (error) {
+            console.warn('Lobby websocket setup failed', error);
+            setStartButtonState(true, translate('Realtime unavailable'));
+            return;
+        }
+
+        socket.onopen = function() {
+            console.log("WebSocket connection established");
+            setStartButtonState(false, translate('Start Game'));
+        };
+
+        socket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+
+            if (data.type === 'lobby_state') {
+                updatePlayerList(data.players);
+            } else if (data.type === 'player_joined') {
+                playerList.appendChild(createPlayerCard(data.player, playerList.querySelectorAll('.player-avatar-circle').length));
+                refreshPlayerPins();
+            } else if (data.type === 'player_left') {
+                const playerElement = document.getElementById(`player-${data.player.id}`);
+                if (playerElement) {
+                    playerElement.remove();
+                    refreshPlayerPins();
+                }
+            } else if (data.type === 'kicked_from_game') {
+                isRedirectingAfterKick = true;
+                stopLobbyMusic(false);
+                alert(data.message || translate('The teacher removed you from the game.'));
+                window.location.href = joinUrl;
+            } else if (data.type === 'game_starting') {
+                setStartButtonState(true, translate('Starting...'));
+                isIntentionalHostExit = true;
+                stopLobbyMusic(false);
+                window.location.replace(playUrl);
+            } else if (data.type === 'game_started') {
+                // This handles re-connecting players
+                isIntentionalHostExit = true;
+                stopLobbyMusic(false);
+                window.location.replace(playUrl);
+            } else if (data.type === 'host_disconnected') {
+                isIntentionalHostExit = true;
+                stopLobbyMusic(false);
+                alert(data.message || translate('The teacher left the game. The session has ended.'));
+                window.location.href = joinUrl;
+            }
+        };
+
+        socket.onclose = function () {
+            console.error('Game socket closed unexpectedly');
+            setStartButtonState(true, translate('Reconnect and try again'));
+            if (isRedirectingAfterKick) {
+                return;
+            }
+            const toastBody = document.querySelector('.toast-body');
+            if(toastBody) {
+                toastBody.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${translate('Connection to the lobby was lost. Please refresh.')}`;
+                if (window.bootstrap && bootstrap.Toast) {
+                    const toast = new bootstrap.Toast(document.querySelector('.toast'));
+                    toast.show();
+                }
+            }
+        };
+    }
 
     if (isHost && startButton) {
+        setStartButtonState(true, translate('Connecting...'));
         startButton.addEventListener('click', function() {
+            if (hasStartRequestBeenSent || !socket || socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            hasStartRequestBeenSent = true;
+            setStartButtonState(true, translate('Starting...'));
             socket.send(JSON.stringify({
                 'type': 'start_game'
             }));
         });
     }
+
+    checkGameStatus();
+    refreshLobbyPlayers();
+    window.setInterval(checkGameStatus, 1000);
+    window.setInterval(refreshLobbyPlayers, 2000);
+    setupLobbySocket();
 });
 </script>
 {% endblock %}

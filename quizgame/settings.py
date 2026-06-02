@@ -1,8 +1,5 @@
 from pathlib import Path
 import os
-from urllib.parse import urlparse
-
-import dj_database_url
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -15,22 +12,6 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 def env_list(name, default=''):
     return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
 
-
-def env_bool(name, default=False):
-    return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
-
-
-def extend_unique(target, values):
-    for value in values:
-        if value and value not in target:
-            target.append(value)
-
-
-def hostname_from_url(url):
-    if not url:
-        return ''
-    return urlparse(url).hostname or ''
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -40,35 +21,16 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-vr3g#ql0h!g3yp+zs#^
 # Groq API Token
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
-FRONTEND_URL = os.getenv('FRONTEND_URL', '').strip().rstrip('/')
-BACKEND_URL = os.getenv('BACKEND_URL', '').strip().rstrip('/')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool('DJANGO_DEBUG', False)
+DEBUG = os.getenv('DJANGO_DEBUG', 'false').lower() == 'true'
 
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,testserver')
-extend_unique(ALLOWED_HOSTS, [hostname_from_url(BACKEND_URL)])
-
 CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
-CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
-extend_unique(CSRF_TRUSTED_ORIGINS, [BACKEND_URL, FRONTEND_URL])
-extend_unique(CORS_ALLOWED_ORIGINS, [FRONTEND_URL])
+USE_X_FORWARDED_HOST = os.getenv('DJANGO_USE_X_FORWARDED_HOST', 'true').lower() == 'true'
 
-CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', False)
-CORS_ALLOW_CREDENTIALS = env_bool('CORS_ALLOW_CREDENTIALS', True)
-USE_X_FORWARDED_HOST = env_bool('DJANGO_USE_X_FORWARDED_HOST', True)
-
-if env_bool('DJANGO_TRUST_X_FORWARDED_PROTO', True):
+if os.getenv('DJANGO_TRUST_X_FORWARDED_PROTO', 'true').lower() == 'true':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', not DEBUG)
-SESSION_COOKIE_SECURE = env_bool('DJANGO_SESSION_COOKIE_SECURE', not DEBUG)
-CSRF_COOKIE_SECURE = env_bool('DJANGO_CSRF_COOKIE_SECURE', not DEBUG)
-SESSION_COOKIE_SAMESITE = os.getenv('DJANGO_SESSION_COOKIE_SAMESITE', 'None' if FRONTEND_URL else 'Lax')
-CSRF_COOKIE_SAMESITE = os.getenv('DJANGO_CSRF_COOKIE_SAMESITE', 'None' if FRONTEND_URL else 'Lax')
-SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
-SECURE_HSTS_PRELOAD = env_bool('DJANGO_SECURE_HSTS_PRELOAD', False)
 
 # Application definition
 
@@ -76,7 +38,6 @@ INSTALLED_APPS = [
     'jazzmin',  # Add jazzmin before django.contrib.admin
     'channels',
     'daphne',
-    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -95,7 +56,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',  # Add LocaleMiddleware for language support
     'django.middleware.common.CommonMiddleware',
@@ -139,23 +99,12 @@ WSGI_APPLICATION = 'quizgame.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
-
-if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=int(os.getenv('DATABASE_CONN_MAX_AGE', '600')),
-            conn_health_checks=env_bool('DATABASE_CONN_HEALTH_CHECKS', True),
-        )
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -182,7 +131,7 @@ LANGUAGE_CODE = 'en'
 LANGUAGES = [
     ('en', 'English'),
     ('uz', "O'zbekcha"),
-    ('ru', 'Русский'),
+    ('ru', 'Р СѓСЃСЃРєРёР№'),
 ]
 
 # Locale paths where translation files will be stored
@@ -195,9 +144,9 @@ LANGUAGE_COOKIE_NAME = 'django_language'
 LANGUAGE_COOKIE_AGE = None  # Use session cookie
 LANGUAGE_COOKIE_DOMAIN = None
 LANGUAGE_COOKIE_PATH = '/'
-LANGUAGE_COOKIE_SECURE = env_bool('DJANGO_LANGUAGE_COOKIE_SECURE', SESSION_COOKIE_SECURE)
+LANGUAGE_COOKIE_SECURE = False
 LANGUAGE_COOKIE_HTTPONLY = False
-LANGUAGE_COOKIE_SAMESITE = os.getenv('DJANGO_LANGUAGE_COOKIE_SAMESITE', SESSION_COOKIE_SAMESITE)
+LANGUAGE_COOKIE_SAMESITE = None
 
 # Language session key
 LANGUAGE_SESSION_KEY = 'django_language'
@@ -213,9 +162,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
+    ('avatars', os.path.join(BASE_DIR, 'avatars')),
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
@@ -254,6 +204,35 @@ if EMAIL_CONFIGURED:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+            'level': 'INFO',
+        },
+    },
+    'loggers': {
+        'game': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'game.views': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # Jazzmin Admin Theme Configuration
 JAZZMIN_SETTINGS = {

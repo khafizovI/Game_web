@@ -167,6 +167,11 @@
         align-items: stretch;
     }
 
+    .answers-grid.single-answer {
+        grid-template-columns: minmax(0, min(100%, 560px));
+        justify-content: center;
+    }
+
     .answer-card {
         min-height: 110px;
         border: none;
@@ -1000,6 +1005,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const MUSIC_TIME_STORAGE_KEY = 'gameweb:music:time';
     const MUSIC_ACTIVE_STORAGE_KEY = 'gameweb:music:active';
 
+    function safeSessionGet(key, fallback = null) {
+        try {
+            const value = window.sessionStorage.getItem(key);
+            return value === null ? fallback : value;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function safeSessionSet(key, value) {
+        try {
+            window.sessionStorage.setItem(key, value);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function safeLocalGet(key, fallback = null) {
+        try {
+            const value = window.localStorage.getItem(key);
+            return value === null ? fallback : value;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    function safeLocalSet(key, value) {
+        try {
+            window.localStorage.setItem(key, value);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
     const gameClient = {
         code: "{{ game.code }}",
         isHost,
@@ -1033,6 +1074,7 @@ document.addEventListener('DOMContentLoaded', function() {
             teacherLeaderboardHeader: document.getElementById('teacher-leaderboard-header'),
             teacherLeaderboardContent: document.getElementById('teacher-leaderboard-content'),
             teacherAutoNextStatus: document.getElementById('teacher-auto-next-status'),
+            teacherRevealStatus: document.getElementById('teacher-reveal-status'),
             nextQuestionBtn: document.getElementById('next-question-btn'),
             finalScores: document.getElementById('final-scores'),
             finalLeaderboard: document.getElementById('final-leaderboard'),
@@ -1083,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.elements.settingsClose.addEventListener('click', () => this.toggleSettingsDrawer(false));
                 this.elements.autoNextToggle.addEventListener('change', (event) => {
                     this.autoNextEnabled = event.target.checked;
-                    window.localStorage.setItem(AUTO_NEXT_STORAGE_KEY, String(this.autoNextEnabled));
+                    safeLocalSet(AUTO_NEXT_STORAGE_KEY, String(this.autoNextEnabled));
                     if (this.currentPhase === 'results') {
                         if (this.autoNextEnabled) {
                             this.scheduleAutoNext();
@@ -1123,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            this.autoNextEnabled = window.localStorage.getItem(AUTO_NEXT_STORAGE_KEY) === 'true';
+            this.autoNextEnabled = safeLocalGet(AUTO_NEXT_STORAGE_KEY) === 'true';
             this.musicEnabled = true;
         },
 
@@ -1145,8 +1187,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             audio.volume = 0.45;
-            const shouldResume = window.sessionStorage.getItem(MUSIC_ACTIVE_STORAGE_KEY) !== 'false';
-            const savedTime = parseFloat(window.sessionStorage.getItem(MUSIC_TIME_STORAGE_KEY) || '0');
+            const shouldResume = safeSessionGet(MUSIC_ACTIVE_STORAGE_KEY) !== 'false';
+            const savedTime = parseFloat(safeSessionGet(MUSIC_TIME_STORAGE_KEY, '0') || '0');
             if (shouldResume && !Number.isNaN(savedTime) && savedTime > 0) {
                 audio.currentTime = savedTime;
             }
@@ -1161,20 +1203,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             audio.addEventListener('timeupdate', () => {
-                window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, String(audio.currentTime || 0));
+                safeSessionSet(MUSIC_TIME_STORAGE_KEY, String(audio.currentTime || 0));
             });
 
             window.addEventListener('beforeunload', () => {
                 if (this.currentPhase !== 'completed') {
-                    window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, String(audio.currentTime || 0));
-                    window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, this.musicEnabled ? 'true' : 'false');
+                    safeSessionSet(MUSIC_TIME_STORAGE_KEY, String(audio.currentTime || 0));
+                    safeSessionSet(MUSIC_ACTIVE_STORAGE_KEY, this.musicEnabled ? 'true' : 'false');
                 }
+            });
+
+            window.addEventListener('beforeunload', (event) => {
+                if (!this.isHost || this.redirectingAfterExit || this.currentPhase === 'completed') {
+                    return;
+                }
+                event.preventDefault();
+                event.returnValue = '';
             });
         },
 
         setupSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-            this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/');
+            const playerQuery = window.location.search || '';
+            this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/' + playerQuery);
 
             this.socket.onopen = () => {
                 this.sendMessage('player_ready');
@@ -1194,6 +1245,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         break;
                     case 'teacher_leaderboard':
                         this.handleTeacherLeaderboard(data);
+                        break;
+                    case 'teacher_answer_reveal':
+                        this.handleTeacherAnswerReveal(data);
                         break;
                     case 'player_left':
                         this.handlePlayerLeft(data);
@@ -1281,6 +1335,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
+        startTeacherRevealCountdown(duration) {
+            this.clearAutoNext();
+            if (this.elements.teacherRevealStatus) {
+                this.elements.teacherRevealStatus.textContent = '';
+            }
+        },
+
         scheduleAutoNext() {
             if (!this.isHost || !this.autoNextEnabled || this.currentPhase !== 'results') {
                 return;
@@ -1304,6 +1365,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         resetAnswerCards() {
+            this.elements.answerGrid.classList.remove('single-answer');
             this.elements.answerCards.forEach((card) => {
                 card.classList.remove('correct', 'incorrect', 'selected', 'submitted');
                 card.dataset.answerId = '';
@@ -1350,6 +1412,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.elements.teacherAutoNextStatus) {
                 this.elements.teacherAutoNextStatus.textContent = '';
             }
+            if (this.elements.teacherRevealStatus) {
+                this.elements.teacherRevealStatus.textContent = '';
+            }
             if (this.isHost && this.elements.playerScoreValue) {
                 this.elements.playerScoreValue.textContent = '0';
             }
@@ -1359,6 +1424,26 @@ document.addEventListener('DOMContentLoaded', function() {
             this.renderAnswers(data.answers || []);
             this.startTimer(data.time_limit || 20);
             this.startMusic();
+            this.updateTeacherControlState();
+        },
+
+        handleTeacherAnswerReveal(data) {
+            if (!this.isHost) {
+                return;
+            }
+
+            this.currentPhase = 'reveal';
+            this.clearTimer();
+            this.hideHeader();
+            this.switchScreen('play-screen');
+            this.highlightAnswers(data.correct_answer_id, null);
+            this.showOnlyCorrectAnswer(data.correct_answer_id);
+            this.disableAnswers();
+            this.elements.questionCounter.textContent = translate('Question {current} of {total}')
+                .replace('{current}', data.current_question)
+                .replace('{total}', data.total_questions);
+            this.elements.nextQuestionBtn.style.display = 'none';
+            this.startTeacherRevealCountdown(data.reveal_duration || 4);
             this.updateTeacherControlState();
         },
 
@@ -1406,6 +1491,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     card.classList.add('incorrect');
                 }
             });
+        },
+
+        showOnlyCorrectAnswer(correctAnswerId) {
+            let hasVisibleCorrectAnswer = false;
+
+            this.elements.answerCards.forEach((card) => {
+                const answerId = parseInt(card.dataset.answerId || '0', 10);
+                const isCorrectAnswer = answerId === correctAnswerId;
+                card.style.display = isCorrectAnswer ? 'flex' : 'none';
+                if (isCorrectAnswer) {
+                    hasVisibleCorrectAnswer = true;
+                }
+            });
+
+            this.elements.answerGrid.classList.toggle('single-answer', hasVisibleCorrectAnswer);
         },
 
         renderLeaderboard(container, players) {
@@ -1508,6 +1608,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalQuestions: data.total_questions
             };
             this.clearTimer();
+            if (this.elements.teacherRevealStatus) {
+                this.elements.teacherRevealStatus.textContent = '';
+            }
             this.switchScreen('teacher-leaderboard-screen');
             this.elements.teacherLeaderboardHeader.textContent = translate('Question {number} Results').replace('{number}', data.current_question);
             this.renderLeaderboard(this.elements.teacherLeaderboardContent, this.leaderboardPlayers);
@@ -1734,15 +1837,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!audio || !this.musicEnabled) {
                 return;
             }
-            window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'true');
+            safeSessionSet(MUSIC_ACTIVE_STORAGE_KEY, 'true');
             audio.play().catch(() => {});
         },
 
         stopMusic() {
             const audio = this.elements.gameMusic;
             if (audio) {
-                window.sessionStorage.setItem(MUSIC_TIME_STORAGE_KEY, '0');
-                window.sessionStorage.setItem(MUSIC_ACTIVE_STORAGE_KEY, 'false');
+                safeSessionSet(MUSIC_TIME_STORAGE_KEY, '0');
+                safeSessionSet(MUSIC_ACTIVE_STORAGE_KEY, 'false');
                 audio.pause();
                 audio.currentTime = 0;
             }

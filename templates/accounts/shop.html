@@ -10,141 +10,224 @@
 {% block content %}
 {% csrf_token %}
 <div class="shop-container">
-    <!-- Shop Header -->
-    <div class="shop-header">
+    <section class="shop-hero">
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-lg-8">
-                    <h1 class="shop-title">
-                        <i class="fas fa-shopping-cart me-3"></i>
-                        {% trans "Student Shop" %}
-                    </h1>
-                    <p class="shop-subtitle">{% trans "Choose an animated avatar border for the game lobby." %}</p>
+            <div class="shop-hero-grid">
+                <div>
+                    <p class="shop-kicker">{% trans "QuizBattle Market" %}</p>
+                    <h1 class="shop-title">{% trans "Open boxes. Build your style. Unlock pets." %}</h1>
+                    <p class="shop-subtitle">{% trans "Spend coins earned from quizzes on avatars, borders, banners, titles, and interactive pets." %}</p>
+                    <div class="shop-actions">
+                        <a href="{% url 'accounts:inventory' %}" class="shop-link-btn">
+                            <i class="fas fa-suitcase"></i>
+                            {% trans "Inventory" %}
+                        </a>
+                    </div>
                 </div>
-                <div class="col-lg-4">
-                    <div class="coin-balance">
-                        <div class="coin-icon">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <div class="coin-info">
-                            <span class="coin-amount" id="coin-balance">{{ profile.coins }}</span>
-                            <span class="coin-label">{% trans "Coins" %}</span>
-                        </div>
+                <div class="coin-balance">
+                    <div class="coin-icon"><i class="fas fa-coins"></i></div>
+                    <div class="coin-info">
+                        <span class="coin-amount" id="coin-balance">{{ profile.coins }}</span>
+                        <span class="coin-label">{% trans "Coins" %}</span>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Shop Content -->
-    <div class="shop-content">
+    <main class="shop-content">
         <div class="container">
-            <div class="equipped-frame-panel">
-                <div class="equipped-frame-copy">
-                    <p class="equipped-frame-label">{% trans "Current lobby avatar" %}</p>
-                    <h3 id="equipped-frame-name">
-                        {% if profile.selected_frame %}
-                            {{ profile.selected_frame.name }}
-                        {% else %}
-                            {% trans "No frame equipped" %}
-                        {% endif %}
-                    </h3>
-                </div>
-                <div class="equipped-frame-visual">
-                    <div id="equipped-frame-preview" class="frame-preview equipped-frame-preview{% if profile.selected_frame %} {{ profile.selected_frame.css_class }}{% endif %}">
-                        {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="Preview">
-                        {% else %}
-                            <div class="default-avatar-preview">
-                                <i class="fas fa-user"></i>
-                            </div>
-                        {% endif %}
+            <div class="shop-section active">
+                <div class="section-header">
+                    <div>
+                        <p class="section-eyebrow">{% trans "Cosmetic Boxes" %}</p>
+                        <h2>{% trans "Choose a box" %}</h2>
                     </div>
+                    <p>{% trans "Each box can drop avatars, avatar borders, profile banners, or titles." %}</p>
+                </div>
+
+                <div class="box-grid">
+                    {% for key, box in cosmetic_boxes.items %}
+                    <article class="loot-box loot-box-{{ key }}">
+                        <div class="box-glow"></div>
+                        <div class="box-icon"><i class="fas {{ box.icon }}"></i></div>
+                        <div class="box-copy">
+                            <span class="rarity-pill rarity-{{ key }}">{% if key == 'common' %}{% trans "Common" %}{% elif key == 'rare' %}{% trans "Rare" %}{% elif key == 'epic' %}{% trans "Epic" %}{% else %}{% trans "Legendary" %}{% endif %}</span>
+                            <h3>{% if key == 'common' %}{% trans "Common Box" %}{% elif key == 'rare' %}{% trans "Rare Box" %}{% elif key == 'epic' %}{% trans "Epic Box" %}{% else %}{% trans "Legendary Box" %}{% endif %}</h3>
+                            <p>{% trans "Drops cosmetics with weighted rarity chances." %}</p>
+                        </div>
+                        <div class="box-footer">
+                            <div class="item-price"><i class="fas fa-coins"></i><span>{{ box.price }}</span></div>
+                            <button class="open-box-btn" data-box-key="{{ key }}" data-box-name="{% if key == 'common' %}{% trans "Common Box" %}{% elif key == 'rare' %}{% trans "Rare Box" %}{% elif key == 'epic' %}{% trans "Epic Box" %}{% else %}{% trans "Legendary Box" %}{% endif %}" data-price="{{ box.price }}" data-url="{% url 'accounts:open_cosmetic_box' key %}">
+                                <i class="fas fa-unlock"></i>
+                                {% trans "Open" %}
+                            </button>
+                        </div>
+                    </article>
+                    {% endfor %}
                 </div>
             </div>
 
-            <div class="shop-section active" id="frames-section">
-                <div class="section-header mb-4">
-                    <h2>{% trans "Profile Frames" %}</h2>
-                    <p>{% trans "Stand out in game lobbies with animated avatar borders. These cosmetics are visible in the lobby only." %}</p>
+            <div class="shop-section avatar-box-section">
+                <div class="section-header">
+                    <div>
+                        <p class="section-eyebrow">{% trans "Avatar Boxes" %}</p>
+                        <h2>{% trans "Pick a character box" %}</h2>
+                    </div>
+                    <p>{% trans "These boxes drop only profile avatars from the selected collection." %}</p>
                 </div>
-                <div class="items-grid">
-                    {% for frame in frames %}
-                        <div class="shop-item{% if profile.selected_frame and profile.selected_frame.id == frame.id %} selected-frame-card{% endif %}" data-frame-card="{{ frame.id }}">
-                            <div class="item-preview">
-                                <div class="frame-preview {{ frame.css_class }}">
-                                    {% if profile.avatar_url %}
-                                        <img src="{{ profile.avatar_url }}" alt="Preview">
-                                    {% else %}
-                                        <div class="default-avatar-preview">
-                                            <i class="fas fa-user"></i>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="item-info">
-                                <div class="frame-availability">{% trans "Lobby only" %}</div>
-                                <h3>{{ frame.name }}</h3>
-                                <p>{{ frame.description }}</p>
-                                <div class="frame-flavor">{% trans "Animated border for your lobby avatar slot." %}</div>
-                                <div class="item-price">
-                                    <i class="fas fa-coins"></i>
-                                    <span>{{ frame.price }}</span>
-                                </div>
-                            </div>
-                            <div class="item-actions">
-                                {% if frame.id in user_purchases %}
-                                    {% if profile.selected_frame.id == frame.id %}
-                                        <button class="btn btn-success" disabled>
-                                            <i class="fas fa-check"></i> {% trans "Equipped" %}
-                                        </button>
-                                    {% else %}
-                                        <button class="btn btn-primary equip-btn" data-item-id="{{ frame.id }}">
-                                            <i class="fas fa-hand-paper"></i> {% trans "Equip" %}
-                                        </button>
-                                    {% endif %}
-                                {% else %}
-                                    <button class="btn btn-outline-primary purchase-btn" data-item-id="{{ frame.id }}" data-price="{{ frame.price }}" data-item-type="{{ frame.item_type }}">
-                                        <i class="fas fa-shopping-cart"></i> {% trans "Buy" %}
-                                    </button>
-                                {% endif %}
+
+                <div class="box-grid avatar-box-grid">
+                    {% for key, box in avatar_boxes.items %}
+                    <article class="loot-box avatar-loot-box loot-box-{{ box.accent }}{% if box.is_complete %} case-complete{% endif %}">
+                        <div class="box-glow"></div>
+                        <div class="avatar-box-preview">
+                            <div class="avatar-box-logo">
+                                <i class="fas {{ box.icon }}"></i>
                             </div>
                         </div>
-                    {% empty %}
-                        <div class="empty-section">
-                            <i class="fas fa-border-style"></i>
-                            <p>{% trans "No frames available yet. Check back soon!" %}</p>
+                        <div class="box-copy">
+                            <span class="rarity-pill rarity-rare">{% trans "Avatar" %}</span>
+                            <h3>{% if key == 'girls' %}{% trans "Girls Box" %}{% else %}{% trans "Boys Box" %}{% endif %}</h3>
+                            <p>{% trans "Unlock one random avatar from this collection." %}</p>
                         </div>
+                        <div class="box-footer">
+                            <div class="item-price"><i class="fas fa-coins"></i><span>{{ box.price }}</span></div>
+                            {% if box.is_complete %}
+                                <button class="open-box-btn case-closed-btn" disabled>
+                                    <i class="fas fa-lock"></i>
+                                    {% trans "Coming Soon" %}
+                                </button>
+                            {% else %}
+                                <button class="open-box-btn" data-box-key="{{ key }}" data-box-name="{% if key == 'girls' %}{% trans "Girls Box" %}{% else %}{% trans "Boys Box" %}{% endif %}" data-price="{{ box.price }}" data-url="{% url 'accounts:open_avatar_box' key %}">
+                                    <i class="fas fa-unlock"></i>
+                                    {% trans "Open" %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </article>
                     {% endfor %}
                 </div>
+            </div>
+
+            <div class="pet-shop-panel">
+                <div class="pet-shop-copy">
+                    <p class="section-eyebrow">{% trans "Pet Box" %}</p>
+                    <h2>{% trans "Unlock an interactive companion" %}</h2>
+                    <p>{% trans "Cat or the ultra-rare Robot can appear." %}</p>
+                </div>
+                <div class="pet-preview-strip" aria-hidden="true">
+                    <span><img src="{% static 'pets/cat/default.png' %}" alt=""></span>
+                    <span><img src="{% static 'pets/cat/robot/default.png' %}" alt=""></span>
+                    <span>😸</span><span>🐶</span><span>🐮</span><span>🦊</span><span>🐼</span><span>🦉</span><span>🐧</span><span>🤖</span>
+                </div>
+                <div class="box-footer pet-box-footer">
+                    <div class="item-price"><i class="fas fa-coins"></i><span>{{ pet_box.price }}</span></div>
+                    <button class="open-box-btn pet-open-btn" data-box-name="{% trans "Pet Box" %}" data-price="{{ pet_box.price }}" data-url="{% url 'accounts:open_pet_box' %}">
+                        <i class="fas {{ pet_box.icon }}"></i>
+                        {% trans "Open Pet Box" %}
+                    </button>
+                </div>
+            </div>
+
+            <div class="history-toggle-row">
+                <button class="shop-link-btn" type="button" id="toggle-shop-history" data-show-label="{% trans 'Show history' %}" data-hide-label="{% trans 'Hide history' %}">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span>{% trans "Show history" %}</span>
+                </button>
+            </div>
+
+            <div class="unlock-history history-collapsed" id="shop-history">
+                <section>
+                    <div class="section-header compact">
+                        <div>
+                            <p class="section-eyebrow">{% trans "Latest Cosmetics" %}</p>
+                            <h2>{% trans "Recent unlocks" %}</h2>
+                        </div>
+                    </div>
+                    <div class="mini-grid">
+                        {% for owned in recent_items %}
+                        <div class="mini-item rarity-rail-{{ owned.item.rarity }}">
+                            <div class="mini-preview {% if owned.item.item_type != 'avatar' %}{{ owned.item.css_class }}{% endif %}">
+                                {% if owned.item.item_type == 'avatar' %}
+                                    <img src="{{ owned.item.preview_value }}" alt="{{ owned.item.name }}">
+                                {% elif owned.item.item_type == 'title' %}
+                                    <i class="fas fa-tag"></i>
+                                {% elif owned.item.item_type == 'banner' %}
+                                    <i class="fas fa-image"></i>
+                                {% else %}
+                                    <i class="fas fa-circle-notch"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <strong>{{ owned.item.name }}</strong>
+                                <span>{{ owned.item.get_item_type_display }} · {{ owned.item.get_rarity_display }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="empty-copy">{% trans "No cosmetics unlocked yet." %}</p>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section>
+                    <div class="section-header compact">
+                        <div>
+                            <p class="section-eyebrow">{% trans "Latest Pets" %}</p>
+                            <h2>{% trans "Pet collection" %}</h2>
+                        </div>
+                    </div>
+                    <div class="mini-grid">
+                        {% for owned in recent_pets %}
+                        <div class="mini-item rarity-rail-{{ owned.pet.rarity }}">
+                            <div class="mini-preview pet-mini">
+                                <img src="{{ owned.pet.image }}" alt="{{ owned.pet.name }}">
+                            </div>
+                            <div>
+                                <strong>{{ owned.pet.name }}</strong>
+                                <span>{{ owned.pet.get_rarity_display }} · {{ owned.unlocked_at|date:"Y-m-d" }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="empty-copy">{% trans "No pets unlocked yet." %}</p>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="modal fade confirm-purchase-modal" id="boxConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Confirm Purchase" %}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+            </div>
+            <div class="modal-body">
+                <p id="box-confirm-text">{% trans "Are you sure you want to purchase this item?" %}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="shop-secondary-btn" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="shop-primary-btn" id="confirm-open-box">{% trans "Purchase" %}</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Purchase Confirmation Modal -->
-<div class="modal fade" id="purchaseModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade reward-modal" id="rewardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{% trans "Confirm Purchase" %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
             <div class="modal-body">
-                <p>{% trans "Are you sure you want to purchase this item?" %}</p>
-                <div class="purchase-details">
-                    <div class="item-cost">
-                        <i class="fas fa-coins"></i>
-                        <span id="item-cost">0</span> {% trans "coins" %}
-                    </div>
-                    <div class="remaining-balance">
-                        {% trans "Remaining balance:" %} <span id="remaining-balance">0</span> {% trans "coins" %}
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
-                <button type="button" class="btn btn-primary" id="confirm-purchase">{% trans "Purchase" %}</button>
+                <div id="reward-preview" class="reward-preview"></div>
+                <p id="reward-rarity" class="reward-rarity"></p>
+                <h3 id="reward-name"></h3>
+                <p id="reward-meta"></p>
+                <a href="{% url 'accounts:inventory' %}" class="shop-link-btn modal-inventory-link">
+                    <i class="fas fa-suitcase"></i>
+                    {% trans "Go to Inventory" %}
+                </a>
             </div>
         </div>
     </div>

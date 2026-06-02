@@ -1824,3 +1824,27 @@
     0% { box-shadow: 0 0 25px rgba(44, 44, 44, 0.9), 0 0 50px rgba(0, 0, 0, 0.8); }
     100% { box-shadow: 0 0 35px rgba(0, 0, 0, 1), 0 0 70px rgba(44, 44, 44, 0.9); }
 }
+/* Inventory cosmetics */
+.dashboard-container.fresh-banner .dashboard-header { background: linear-gradient(135deg, rgba(20, 184, 166, 0.92), rgba(132, 204, 22, 0.88)); }
+.dashboard-container.night-banner .dashboard-header { background: linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(37, 99, 235, 0.86)); }
+.dashboard-container.victory-banner .dashboard-header { background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(245, 158, 11, 0.9)); }
+.dashboard-container.aurora-banner .dashboard-header { background: linear-gradient(135deg, rgba(34, 211, 238, 0.84), rgba(167, 139, 250, 0.86), rgba(249, 168, 212, 0.82)); }
+
+.equipped-title-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    margin-left: 0.55rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 900;
+}
+
+.avatar-frame.aqua-border { background: conic-gradient(#14b8a6, #67e8f9, #14b8a6); }
+.avatar-frame.solar-border { background: conic-gradient(#f97316, #fde047, #f97316); }
+.avatar-frame.plasma-border { background: conic-gradient(#7c3aed, #ec4899, #22d3ee, #7c3aed); }
+.avatar-frame.royal-crown-border { background: conic-gradient(#111827, #facc15, #7c3aed, #111827); }

@@ -1,10 +1,10 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>400 | QuizBattle</title>
+    <title>{% trans "400 | QuizBattle" %}</title>
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,19 +19,19 @@
             <div class="error-copy">
                 <div class="error-badge">
                     <i class="fas fa-shield-halved"></i>
-                    Invalid request
+                    {% trans "Invalid request" %}
                 </div>
                 <div class="error-code">400</div>
-                <h1 class="error-title">So‘rov qabul qilinmadi.</h1>
+                <h1 class="error-title">{% trans "Request rejected." %}</h1>
                 <p class="error-description">
-                    Bu odatda noto‘g‘ri host, eskirgan link yoki serverga mos kelmaydigan request yuborilganda chiqadi. Agar domen orqali kirayotgan bo‘lsangiz, serverni qayta ishga tushiring va host sozlamasini tekshiring.
+                    {% trans "This request could not be completed. The host, link, or domain settings may be invalid. If you opened the site from a custom domain, restart the server and verify the host configuration." %}
                 </p>
                 <div class="error-actions">
                     <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-house me-2"></i>Home ga qaytish
+                        <i class="fas fa-house me-2"></i>{% trans "Back Home" %}
                     </a>
                     <a href="javascript:location.reload()" class="btn btn-outline-dark btn-lg">
-                        <i class="fas fa-rotate-right me-2"></i>Qayta urinish
+                        <i class="fas fa-rotate-right me-2"></i>{% trans "Try Again" %}
                     </a>
                 </div>
             </div>

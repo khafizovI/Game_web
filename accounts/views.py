@@ -2,17 +2,41 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Profile, EmailVerification, ShopItem, UserPurchase, Achievement, UserAchievement, DailyTask, UserDailyTask
+from .models import (
+    Profile,
+    EmailVerification,
+    PasswordResetCode,
+    ShopItem,
+    UserPurchase,
+    InventoryItem,
+    UserInventoryItem,
+    Pet,
+    UserPet,
+    Achievement,
+    UserAchievement,
+    DailyTask,
+    UserDailyTask,
+)
 from quiz.models import Quiz
 from game.models import Game, GamePlayer, PlayerAnswer
-from .forms import CustomUserCreationForm, LoginForm, EmailVerificationForm, append_css_class
+from .forms import (
+    CustomUserCreationForm,
+    LoginForm,
+    EmailVerificationForm,
+    PasswordResetEmailForm,
+    PasswordResetCodeForm,
+    SetNewPasswordForm,
+    append_css_class,
+)
 from django.contrib.auth import authenticate, login, logout
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
 from django.http import JsonResponse
 from django.db.models import Count, Q
+from django.db import transaction
 from django.utils import timezone
+from django.template.loader import render_to_string
 from datetime import timedelta
 from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
@@ -80,6 +104,143 @@ DEFAULT_DAILY_TASKS = [
         'icon': 'fas fa-flag-checkered',
     },
 ]
+
+COSMETIC_BOXES = {
+    'common': {
+        'name': 'Common Box',
+        'price': 60,
+        'icon': 'fa-box',
+        'rarity_weights': {'common': 72, 'rare': 22, 'epic': 6, 'legendary': 0},
+    },
+    'rare': {
+        'name': 'Rare Box',
+        'price': 130,
+        'icon': 'fa-gem',
+        'rarity_weights': {'common': 38, 'rare': 42, 'epic': 17, 'legendary': 3},
+    },
+    'epic': {
+        'name': 'Epic Box',
+        'price': 260,
+        'icon': 'fa-wand-magic-sparkles',
+        'rarity_weights': {'common': 16, 'rare': 34, 'epic': 40, 'legendary': 10},
+    },
+    'legendary': {
+        'name': 'Legendary Box',
+        'price': 520,
+        'icon': 'fa-crown',
+        'rarity_weights': {'common': 4, 'rare': 18, 'epic': 42, 'legendary': 36},
+    },
+}
+
+PET_BOX = {
+    'name': 'Pet Box',
+    'price': 300,
+    'icon': 'fa-paw',
+}
+
+AVATAR_BOXES = {
+    'girls': {
+        'name': 'Girls Box',
+        'price': 100,
+        'icon': 'fa-venus',
+        'accent': 'girls',
+    },
+    'boys': {
+        'name': 'Boys Box',
+        'price': 120,
+        'icon': 'fa-mars',
+        'accent': 'boys',
+    },
+}
+
+DEFAULT_INVENTORY_ITEMS = [
+    ('Neon Rookie', 'avatar', 'common', 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"%3E%3Crect width="128" height="128" rx="64" fill="%2314b8a6"/%3E%3Ccircle cx="46" cy="54" r="10" fill="white"/%3E%3Ccircle cx="82" cy="54" r="10" fill="white"/%3E%3Cpath d="M42 84c15 12 35 12 50 0" stroke="white" stroke-width="8" fill="none" stroke-linecap="round"/%3E%3C/svg%3E', 'avatar-neon-rookie'),
+    ('Quiz Spark', 'avatar', 'rare', 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"%3E%3Crect width="128" height="128" rx="64" fill="%233b82f6"/%3E%3Cpath d="M68 12 34 72h26l-8 44 42-66H68z" fill="%23facc15"/%3E%3C/svg%3E', 'avatar-quiz-spark'),
+    ('Arcane Mind', 'avatar', 'epic', 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"%3E%3Crect width="128" height="128" rx="64" fill="%237c3aed"/%3E%3Ccircle cx="64" cy="64" r="34" fill="%23f0abfc"/%3E%3Cpath d="M34 64h60M64 34v60M42 42l44 44M86 42 42 86" stroke="%23fff" stroke-width="6" stroke-linecap="round"/%3E%3C/svg%3E', 'avatar-arcane-mind'),
+    ('Crown Solver', 'avatar', 'legendary', 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"%3E%3Crect width="128" height="128" rx="64" fill="%23111827"/%3E%3Cpath d="m24 52 22 18 18-34 18 34 22-18-8 44H32z" fill="%23facc15"/%3E%3Ccircle cx="64" cy="78" r="12" fill="%23fff7ed"/%3E%3C/svg%3E', 'avatar-crown-solver'),
+    ('Aqua Ring', 'border', 'common', 'Aqua', 'aqua-border'),
+    ('Solar Ring', 'border', 'rare', 'Solar', 'solar-border'),
+    ('Plasma Ring', 'border', 'epic', 'Plasma', 'plasma-border'),
+    ('Royal Crown Ring', 'border', 'legendary', 'Royal', 'royal-crown-border'),
+    ('Fresh Start Banner', 'banner', 'common', 'Fresh Start', 'fresh-banner'),
+    ('Night League Banner', 'banner', 'rare', 'Night League', 'night-banner'),
+    ('Victory Pulse Banner', 'banner', 'epic', 'Victory Pulse', 'victory-banner'),
+    ('Champion Aurora Banner', 'banner', 'legendary', 'Champion Aurora', 'aurora-banner'),
+    ('Fast Thinker', 'title', 'common', 'Fast Thinker', 'title-fast-thinker'),
+    ('Quiz Hunter', 'title', 'rare', 'Quiz Hunter', 'title-quiz-hunter'),
+    ('Brainstormer', 'title', 'epic', 'Brainstormer', 'title-brainstormer'),
+    ('Legend of Logic', 'title', 'legendary', 'Legend of Logic', 'title-legend-logic'),
+]
+
+DEFAULT_AVATAR_ITEMS = [
+    ('Girls Avatar 1', 'avatar', 'common', '/static/avatars/girls.png', 'avatar-girls-1', 'girls'),
+    ('Girls Avatar 2', 'avatar', 'rare', '/static/avatars/girls2.png', 'avatar-girls-2', 'girls'),
+    ('Girls Avatar 3', 'avatar', 'epic', '/static/avatars/girls3.png', 'avatar-girls-3', 'girls'),
+    ('Girls Avatar 4', 'avatar', 'legendary', '/static/avatars/girls4.png', 'avatar-girls-4', 'girls'),
+    ('Boys Avatar 1', 'avatar', 'common', '/static/avatars/boys.png', 'avatar-boys-1', 'boys'),
+    ('Boys Avatar 2', 'avatar', 'rare', '/static/avatars/boys2.png', 'avatar-boys-2', 'boys'),
+    ('Boys Avatar 3', 'avatar', 'epic', '/static/avatars/boys3.png', 'avatar-boys-3', 'boys'),
+    ('Boys Avatar 4', 'avatar', 'legendary', '/static/avatars/boys4.png', 'avatar-boys-4', 'boys'),
+]
+
+DEFAULT_PETS = [
+    ('Cat', '😸', 'common', 28),
+    ('Dog', '🐶', 'common', 28),
+    ('Cow', '🐮', 'common', 20),
+    ('Fox', '🦊', 'rare', 14),
+    ('Panda', '🐼', 'rare', 11),
+    ('Owl', '🦉', 'epic', 7),
+    ('Penguin', '🐧', 'epic', 6),
+    ('Robot', '🤖', 'legendary', 2),
+]
+
+DEFAULT_PETS = [
+    ('Cat', '/static/pets/cat/default.png', 'common', 28),
+    ('Robot', '/static/pets/cat/robot/default.png', 'legendary', 2),
+]
+
+
+def ensure_shop_catalog():
+    for name, item_type, rarity, preview_value, css_class in DEFAULT_INVENTORY_ITEMS:
+        InventoryItem.objects.update_or_create(
+            name=name,
+            item_type=item_type,
+            defaults={
+                'description': f'{rarity.title()} {InventoryItem(item_type=item_type).get_item_type_display()} cosmetic.',
+                'rarity': rarity,
+                'preview_value': preview_value,
+                'css_class': css_class,
+                'is_active': True,
+            },
+        )
+
+    for name, item_type, rarity, preview_value, css_class, group in DEFAULT_AVATAR_ITEMS:
+        InventoryItem.objects.update_or_create(
+            name=name,
+            item_type=item_type,
+            defaults={
+                'description': f'{group.title()} avatar from the {group.title()} Box.',
+                'rarity': rarity,
+                'preview_value': preview_value,
+                'css_class': css_class,
+                'is_active': True,
+            },
+        )
+
+    active_pet_names = [name for name, _, _, _ in DEFAULT_PETS]
+    Pet.objects.exclude(name__in=active_pet_names).update(is_active=False)
+    Profile.objects.filter(selected_pet__pet__is_active=False).update(selected_pet=None)
+
+    for name, image, rarity, weight in DEFAULT_PETS:
+        Pet.objects.update_or_create(
+            name=name,
+            defaults={'image': image, 'rarity': rarity, 'weight': weight, 'is_active': True},
+        )
+
+
+def choose_weighted_key(weights):
+    entries = [(key, weight) for key, weight in weights.items() if weight > 0]
+    return random.choices([key for key, _ in entries], weights=[weight for _, weight in entries], k=1)[0]
 
 
 def ajax_login_required(view_func):
@@ -181,6 +342,37 @@ def send_verification_email(user, code, language_code='en'):
         raise
 
 
+def send_password_reset_email(user, code, language_code='en'):
+    subject = translate_text('Reset Your QuizBattle Password', language_code)
+    text_message = "\n".join([
+        translate_text('Hi {username},', language_code, username=user.username),
+        "",
+        translate_text('Use this code to reset your QuizBattle password:', language_code),
+        "",
+        code,
+        "",
+        translate_text('This code will expire in 10 minutes.', language_code),
+        translate_text("If you didn't request a password reset, you can ignore this email.", language_code),
+    ])
+    html_message = render_to_string('accounts/emails/password_reset_code.html', {
+        'user': user,
+        'code': code,
+    })
+
+    try:
+        send_mail(
+            subject,
+            text_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+            html_message=html_message,
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to send password reset email to %s", user.email)
+        raise
+
+
 def verify_email(request):
     user_id = request.session.get('pending_user_id')
     if not user_id:
@@ -254,6 +446,115 @@ def verify_email(request):
     return render(request, 'accounts/verify_email.html', {'form': form, 'user': user})
 
 
+def forgot_password(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    if request.method == 'POST':
+        form = PasswordResetEmailForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email'].strip()
+            user = User.objects.filter(email__iexact=email).first()
+            if not user:
+                form.add_error('email', _('No account was found with this email address.'))
+            else:
+                reset_code = PasswordResetCode.generate_code(user)
+                try:
+                    send_password_reset_email(user, reset_code.code, request.LANGUAGE_CODE)
+                except Exception:
+                    messages.error(
+                        request,
+                        translate_text_for_request(
+                            request,
+                            'We could not send the reset email right now. Please try again later.'
+                        ),
+                    )
+                    return render(request, 'accounts/forgot_password.html', {'form': form})
+
+                request.session['password_reset_user_id'] = user.id
+                request.session.pop('password_reset_verified', None)
+                messages.info(request, translate_text_for_request(request, 'A reset code has been sent to your email.'))
+                return redirect('accounts:forgot_password_code')
+    else:
+        form = PasswordResetEmailForm()
+
+    return render(request, 'accounts/forgot_password.html', {'form': form})
+
+
+def forgot_password_code(request):
+    user_id = request.session.get('password_reset_user_id')
+    if not user_id:
+        return redirect('accounts:forgot_password')
+
+    user = get_object_or_404(User, id=user_id)
+
+    if request.method == 'POST':
+        if 'resend_code' in request.POST:
+            reset_code = PasswordResetCode.generate_code(user)
+            try:
+                send_password_reset_email(user, reset_code.code, request.LANGUAGE_CODE)
+                messages.success(request, translate_text_for_request(request, 'New reset code sent to your email.'))
+            except Exception:
+                messages.error(
+                    request,
+                    translate_text_for_request(
+                        request,
+                        'We could not send the reset email right now. Please try again later.'
+                    ),
+                )
+            return render(request, 'accounts/forgot_password_code.html', {'form': PasswordResetCodeForm(), 'user': user})
+
+        form = PasswordResetCodeForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data['code']
+            reset_code = PasswordResetCode.objects.filter(user=user, code=code, is_used=False).order_by('-created_at').first()
+            if not reset_code:
+                form.add_error('code', _('Invalid reset code.'))
+            elif reset_code.is_expired():
+                form.add_error('code', _('Reset code has expired. Please request a new one.'))
+            else:
+                request.session['password_reset_verified'] = True
+                request.session['password_reset_code_id'] = reset_code.id
+                return redirect('accounts:reset_password')
+    else:
+        form = PasswordResetCodeForm()
+
+    return render(request, 'accounts/forgot_password_code.html', {'form': form, 'user': user})
+
+
+def reset_password(request):
+    user_id = request.session.get('password_reset_user_id')
+    verified = request.session.get('password_reset_verified')
+    code_id = request.session.get('password_reset_code_id')
+    if not user_id or not verified or not code_id:
+        return redirect('accounts:forgot_password')
+
+    user = get_object_or_404(User, id=user_id)
+    reset_code = PasswordResetCode.objects.filter(id=code_id, user=user, is_used=False).first()
+    if not reset_code or reset_code.is_expired():
+        messages.error(request, translate_text_for_request(request, 'Reset session expired. Please request a new code.'))
+        request.session.pop('password_reset_verified', None)
+        request.session.pop('password_reset_code_id', None)
+        return redirect('accounts:forgot_password')
+
+    if request.method == 'POST':
+        form = SetNewPasswordForm(request.POST)
+        if form.is_valid():
+            user.set_password(form.cleaned_data['password1'])
+            user.save()
+            reset_code.is_used = True
+            reset_code.save(update_fields=['is_used'])
+            request.session.pop('password_reset_user_id', None)
+            request.session.pop('password_reset_verified', None)
+            request.session.pop('password_reset_code_id', None)
+            messages.success(request, translate_text_for_request(request, 'Your password has been updated. You can log in now.'))
+            return redirect('accounts:login')
+    else:
+        form = SetNewPasswordForm()
+
+    return render(request, 'accounts/reset_password.html', {'form': form})
+
+
 # This is the corrected login view that preserves data on error
 def login_view(request):
     """Custom login view that preserves data on error."""
@@ -261,10 +562,16 @@ def login_view(request):
         # Bind data to the form
         form = LoginForm(data=request.POST)
         if form.is_valid():
-            username = form.cleaned_data.get('username')
+            username_or_email = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
 
-            user = authenticate(request, username=username, password=password)
+            auth_username = username_or_email
+            if username_or_email and '@' in username_or_email:
+                email_user = User.objects.filter(email__iexact=username_or_email, is_active=True).order_by('id').first()
+                if email_user:
+                    auth_username = email_user.username
+
+            user = authenticate(request, username=auth_username, password=password)
 
             if user is not None:
                 # Check if email is verified
@@ -301,7 +608,7 @@ def login_view(request):
                 return redirect('home')
             else:
                 # This error is for invalid username/password
-                form.add_error(None, _('Invalid username or password.'))
+                form.add_error(None, _('Invalid username/email or password.'))
                 append_css_class(form.fields['username'].widget, 'is-invalid')
                 append_css_class(form.fields['password'].widget, 'is-invalid')
         # If form is not valid, it will be rendered again with errors and preserved data
@@ -603,21 +910,260 @@ def shop(request):
         messages.error(request, "Access denied. Students only.")
         return redirect('home')
     
+    ensure_shop_catalog()
     profile = request.user.profile
-    
-    # Only lobby avatar frames are shown in the student shop
-    frames = ShopItem.objects.filter(item_type='frame', is_active=True)
-    
-    # Get user's purchases
-    user_purchases = UserPurchase.objects.filter(user=request.user).values_list('item_id', flat=True)
-    
+    recent_items = UserInventoryItem.objects.filter(user=request.user).select_related('item')[:8]
+    recent_pets = UserPet.objects.filter(user=request.user, pet__is_active=True).select_related('pet')[:8]
+    owned_item_ids = set(UserInventoryItem.objects.filter(user=request.user).values_list('item_id', flat=True))
+    avatar_boxes = {}
+
+    for key, box in AVATAR_BOXES.items():
+        group_prefix = 'Girls Avatar' if key == 'girls' else 'Boys Avatar'
+        pool_ids = list(InventoryItem.objects.filter(
+            item_type='avatar',
+            name__startswith=group_prefix,
+            is_active=True,
+        ).values_list('id', flat=True))
+        box_data = box.copy()
+        box_data['total_items'] = len(pool_ids)
+        box_data['owned_items'] = len([item_id for item_id in pool_ids if item_id in owned_item_ids])
+        box_data['is_complete'] = bool(pool_ids) and box_data['owned_items'] >= box_data['total_items']
+        avatar_boxes[key] = box_data
+
     context = {
         'profile': profile,
-        'frames': frames,
-        'user_purchases': user_purchases,
+        'cosmetic_boxes': COSMETIC_BOXES,
+        'avatar_boxes': avatar_boxes,
+        'pet_box': PET_BOX,
+        'recent_items': recent_items,
+        'recent_pets': recent_pets,
     }
     
     return render(request, 'accounts/shop.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def open_cosmetic_box(request, box_key):
+    if not request.user.profile.is_student():
+        return JsonResponse({'success': False, 'message': 'Access denied'}, status=403)
+
+    ensure_shop_catalog()
+    box = COSMETIC_BOXES.get(box_key)
+    if not box:
+        return JsonResponse({'success': False, 'message': 'Box not found'}, status=404)
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=request.user)
+        if profile.coins < box['price']:
+            return JsonResponse({'success': False, 'message': 'Not enough coins'}, status=400)
+
+        rarity = choose_weighted_key(box['rarity_weights'])
+        pool = list(InventoryItem.objects.filter(rarity=rarity, is_active=True))
+        if not pool:
+            pool = list(InventoryItem.objects.filter(is_active=True))
+        if not pool:
+            return JsonResponse({'success': False, 'message': 'No cosmetic items are available'}, status=500)
+
+        owned_ids = set(UserInventoryItem.objects.filter(user=request.user).values_list('item_id', flat=True))
+        unowned_pool = [item for item in pool if item.id not in owned_ids]
+        if not unowned_pool:
+            return JsonResponse({'success': False, 'message': 'This case is closed'}, status=400)
+
+        item = random.choice(unowned_pool)
+        is_duplicate = False
+
+        profile.coins -= box['price']
+        profile.save(update_fields=['coins'])
+        if not is_duplicate:
+            UserInventoryItem.objects.create(user=request.user, item=item)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Box opened!',
+        'new_coin_balance': profile.coins,
+        'duplicate': is_duplicate,
+        'item': {
+            'name': item.name,
+            'type': item.item_type,
+            'type_label': item.get_item_type_display(),
+            'rarity': item.rarity,
+            'rarity_label': item.get_rarity_display(),
+            'preview': item.preview_value,
+            'css_class': item.css_class,
+        },
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def open_avatar_box(request, box_key):
+    if not request.user.profile.is_student():
+        return JsonResponse({'success': False, 'message': 'Access denied'}, status=403)
+
+    ensure_shop_catalog()
+    box = AVATAR_BOXES.get(box_key)
+    if not box:
+        return JsonResponse({'success': False, 'message': 'Box not found'}, status=404)
+
+    group_prefix = 'Girls Avatar' if box_key == 'girls' else 'Boys Avatar'
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=request.user)
+        if profile.coins < box['price']:
+            return JsonResponse({'success': False, 'message': 'Not enough coins'}, status=400)
+
+        pool = list(InventoryItem.objects.filter(item_type='avatar', name__startswith=group_prefix, is_active=True))
+        if not pool:
+            return JsonResponse({'success': False, 'message': 'No avatars are available'}, status=500)
+
+        owned_ids = set(UserInventoryItem.objects.filter(user=request.user).values_list('item_id', flat=True))
+        unowned_pool = [item for item in pool if item.id not in owned_ids]
+        if not unowned_pool:
+            return JsonResponse({'success': False, 'message': 'This case is closed'}, status=400)
+
+        item = random.choice(unowned_pool)
+        is_duplicate = False
+
+        profile.coins -= box['price']
+        profile.save(update_fields=['coins'])
+        if not is_duplicate:
+            UserInventoryItem.objects.create(user=request.user, item=item)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Box opened!',
+        'new_coin_balance': profile.coins,
+        'duplicate': is_duplicate,
+        'item': {
+            'name': item.name,
+            'type': item.item_type,
+            'type_label': item.get_item_type_display(),
+            'rarity': item.rarity,
+            'rarity_label': item.get_rarity_display(),
+            'preview': item.preview_value,
+            'css_class': item.css_class,
+        },
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def open_pet_box(request):
+    if not request.user.profile.is_student():
+        return JsonResponse({'success': False, 'message': 'Access denied'}, status=403)
+
+    ensure_shop_catalog()
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=request.user)
+        if profile.coins < PET_BOX['price']:
+            return JsonResponse({'success': False, 'message': 'Not enough coins'}, status=400)
+
+        pets = list(Pet.objects.filter(is_active=True))
+        if not pets:
+            return JsonResponse({'success': False, 'message': 'No pets are available'}, status=500)
+
+        owned_ids = set(UserPet.objects.filter(user=request.user).values_list('pet_id', flat=True))
+        unowned_pets = [pet for pet in pets if pet.id not in owned_ids]
+        weighted_pool = unowned_pets or pets
+        pet = random.choices(weighted_pool, weights=[entry.weight for entry in weighted_pool], k=1)[0]
+        is_duplicate = pet.id in owned_ids
+
+        profile.coins -= PET_BOX['price']
+        profile.save(update_fields=['coins'])
+        if not is_duplicate:
+            user_pet = UserPet.objects.create(user=request.user, pet=pet)
+        else:
+            user_pet = UserPet.objects.get(user=request.user, pet=pet)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Pet unlocked!',
+        'new_coin_balance': profile.coins,
+        'duplicate': is_duplicate,
+        'pet': {
+            'id': user_pet.id,
+            'name': pet.name,
+            'image': pet.image,
+            'rarity': pet.rarity,
+            'rarity_label': pet.get_rarity_display(),
+            'unlocked_at': user_pet.unlocked_at.strftime('%Y-%m-%d %H:%M'),
+        },
+    })
+
+
+@login_required
+def inventory(request):
+    if not request.user.profile.is_student():
+        messages.error(request, "Access denied. Students only.")
+        return redirect('home')
+
+    ensure_shop_catalog()
+    owned_items = UserInventoryItem.objects.filter(user=request.user).select_related('item')
+    owned_pets = UserPet.objects.filter(user=request.user, pet__is_active=True).select_related('pet')
+    grouped_items = {
+        'avatar': owned_items.filter(item__item_type='avatar'),
+        'border': owned_items.filter(item__item_type='border'),
+        'banner': owned_items.filter(item__item_type='banner'),
+        'title': owned_items.filter(item__item_type='title'),
+    }
+    return render(request, 'accounts/inventory.html', {
+        'profile': request.user.profile,
+        'grouped_items': grouped_items,
+        'owned_pets': owned_pets,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def equip_inventory_item(request, user_item_id):
+    profile = request.user.profile
+    user_item = get_object_or_404(UserInventoryItem.objects.select_related('item'), id=user_item_id, user=request.user)
+    field_by_type = {
+        'avatar': 'selected_avatar',
+        'border': 'selected_border',
+        'banner': 'selected_banner',
+        'title': 'selected_title',
+    }
+    field = field_by_type[user_item.item.item_type]
+    setattr(profile, field, user_item.item)
+    if user_item.item.item_type == 'border':
+        matching_frame = ShopItem.objects.filter(css_class=user_item.item.css_class, item_type='frame').first()
+        if matching_frame:
+            profile.selected_frame = matching_frame
+    profile.save()
+    return JsonResponse({'success': True, 'message': f'Equipped {user_item.item.name}', 'item_type': user_item.item.item_type})
+
+
+@login_required
+@require_http_methods(["POST"])
+def unequip_inventory_type(request, item_type):
+    field_by_type = {
+        'avatar': 'selected_avatar',
+        'border': 'selected_border',
+        'banner': 'selected_banner',
+        'title': 'selected_title',
+        'pet': 'selected_pet',
+    }
+    field = field_by_type.get(item_type)
+    if not field:
+        return JsonResponse({'success': False, 'message': 'Invalid item type'}, status=400)
+
+    profile = request.user.profile
+    setattr(profile, field, None)
+    if item_type == 'border':
+        profile.selected_frame = None
+    profile.save()
+    return JsonResponse({'success': True, 'message': 'Unequipped', 'item_type': item_type})
+
+
+@login_required
+@require_http_methods(["POST"])
+def equip_pet(request, user_pet_id):
+    profile = request.user.profile
+    user_pet = get_object_or_404(UserPet.objects.select_related('pet'), id=user_pet_id, user=request.user)
+    profile.selected_pet = user_pet
+    profile.save(update_fields=['selected_pet'])
+    return JsonResponse({'success': True, 'message': f'Equipped {user_pet.pet.name}', 'pet_name': user_pet.pet.name})
 
 
 def purchase_item(request, item_id):

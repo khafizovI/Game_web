@@ -1614,3 +1614,40 @@ a:hover {
 .quiz-card .card-title {
     font-size: 1.1rem;
 }
+
+.password-toggle-field {
+    position: relative;
+}
+
+.password-toggle-input {
+    padding-right: 3rem !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    z-index: 5;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #6c757d;
+    transform: translateY(-50%);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus {
+    color: var(--bs-primary);
+    background: rgba(13, 110, 253, 0.08);
+    outline: none;
+}
+
+.form-floating.password-toggle-field > .password-toggle-btn {
+    top: 50%;
+}

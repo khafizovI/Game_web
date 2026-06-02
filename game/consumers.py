@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import time
+from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -12,10 +13,11 @@ from django.db.models import Count, Q
 from game.models import Game, GamePlayer, PlayerAnswer
 from quiz.models import Answer, Question
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('game.consumers')
 
 
 class GameConsumer(AsyncWebsocketConsumer):
+    TEACHER_REVEAL_SECONDS = 4
     room_states = {}
 
     @classmethod
@@ -25,6 +27,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             {
                 "phase": "lobby",
                 "player_channels": {},
+                "player_disconnect_tasks": {},
                 "teacher_channel": None,
                 "loop_task": None,
                 "host_disconnect_task": None,
@@ -39,9 +42,29 @@ class GameConsumer(AsyncWebsocketConsumer):
         if state and state.get(task_name) is task:
             state[task_name] = None
 
+    @classmethod
+    def clear_player_disconnect_task(cls, room_code, player_id, task):
+        state = cls.room_states.get(room_code)
+        if not state:
+            return
+        tasks = state.get("player_disconnect_tasks", {})
+        if tasks.get(player_id) is task:
+            tasks.pop(player_id, None)
+
     @staticmethod
     def guest_session_key(room_code):
         return f"guest_player_{room_code}"
+
+    def get_guest_player_id_from_query(self):
+        raw_query = (self.scope.get("query_string") or b"").decode("utf-8", errors="ignore")
+        query = parse_qs(raw_query)
+        player_id = query.get("player", [None])[0]
+        if not player_id:
+            return None
+        try:
+            return int(player_id)
+        except (TypeError, ValueError):
+            return None
 
     async def connect(self):
         self.room_code = self.scope["url_route"]["kwargs"]["room_code"]
@@ -51,6 +74,15 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.room_state = self.get_room_state(self.room_code)
         self.player = None
         self.player_id = None
+        self.guest_player_id_from_query = self.get_guest_player_id_from_query()
+
+        logger.info(
+            "ws_connect_start game=%s auth=%s guest_query=%s ua=%s",
+            self.room_code,
+            getattr(self.user, "is_authenticated", False),
+            self.guest_player_id_from_query,
+            dict(self.scope.get("headers") or []).get(b"user-agent", b"").decode("utf-8", errors="ignore")[:180],
+        )
 
         await self.channel_layer.group_add(self.game_group_name, self.channel_name)
         await self.accept()
@@ -70,6 +102,19 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.player = player
             self.player_id = player.id
             self.room_state["player_channels"][self.player_id] = self.channel_name
+
+            player_disconnect_task = self.room_state["player_disconnect_tasks"].pop(self.player_id, None)
+            if player_disconnect_task and not player_disconnect_task.done():
+                player_disconnect_task.cancel()
+
+            logger.info(
+                "ws_connect_ok game=%s player=%s name=%s host=%s phase=%s",
+                self.room_code,
+                self.player_id,
+                self.player.name,
+                self.player.is_host,
+                self.room_state.get("phase"),
+            )
 
             await self.send_lobby_state()
 
@@ -106,34 +151,39 @@ class GameConsumer(AsyncWebsocketConsumer):
                 self.room_state["teacher_channel"] = None
 
             game_state = await self.get_game_state()
-            if game_state and game_state["is_active"] and not game_state["is_completed"]:
-                game = await self.get_game()
-                if game and self.player and self.player.is_host:
-                    host_disconnect_task = self.room_state.get("host_disconnect_task")
-                    if not host_disconnect_task or host_disconnect_task.done():
-                        host_disconnect_task = asyncio.create_task(
-                            self.handle_host_disconnect_after_grace_period()
+            if game_state and not game_state["is_completed"] and self.player and self.player.is_host:
+                host_disconnect_task = self.room_state.get("host_disconnect_task")
+                if not host_disconnect_task or host_disconnect_task.done():
+                    host_disconnect_task = asyncio.create_task(
+                        self.handle_host_disconnect_after_grace_period()
+                    )
+                    self.room_state["host_disconnect_task"] = host_disconnect_task
+                    host_disconnect_task.add_done_callback(
+                        lambda task, room_code=self.room_code: self.clear_room_task(
+                            room_code, "host_disconnect_task", task
                         )
-                        self.room_state["host_disconnect_task"] = host_disconnect_task
-                        host_disconnect_task.add_done_callback(
-                            lambda task, room_code=self.room_code: self.clear_room_task(
-                                room_code, "host_disconnect_task", task
-                            )
-                        )
-
+                    )
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
                 return
 
-            if self.player_id:
-                player_left_data = await self.remove_player_from_game(self.player_id)
-                if player_left_data:
-                    await self.channel_layer.group_send(
-                        self.game_group_name,
-                        {
-                            "type": "player_left",
-                            "player": player_left_data,
-                            "sender_channel_name": self.channel_name,
-                        },
+            if (
+                self.player_id
+                and game_state
+                and not game_state["is_active"]
+                and not game_state["is_completed"]
+                and self.player
+                and not self.player.is_host
+            ):
+                existing_task = self.room_state["player_disconnect_tasks"].get(self.player_id)
+                if not existing_task or existing_task.done():
+                    disconnect_task = asyncio.create_task(
+                        self.handle_player_disconnect_after_grace_period(self.player_id)
+                    )
+                    self.room_state["player_disconnect_tasks"][self.player_id] = disconnect_task
+                    disconnect_task.add_done_callback(
+                        lambda task, room_code=self.room_code, player_id=self.player_id: self.clear_player_disconnect_task(
+                            room_code, player_id, task
+                        )
                     )
 
             await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
@@ -152,6 +202,13 @@ class GameConsumer(AsyncWebsocketConsumer):
             return
 
         message_type = data.get("type")
+        logger.info(
+            "ws_receive game=%s player=%s type=%s phase=%s",
+            self.room_code,
+            self.player_id,
+            message_type,
+            self.room_state.get("phase"),
+        )
 
         if message_type == "start_game" and await self.is_user_host():
             await self.start_game()
@@ -180,6 +237,8 @@ class GameConsumer(AsyncWebsocketConsumer):
         if not game or game.is_completed:
             return
 
+        logger.info("start_game game=%s player=%s", self.room_code, self.player_id)
+
         await self.mark_game_started()
         self.room_state["phase"] = "countdown"
         self.room_state["current_question_context"] = {}
@@ -194,6 +253,16 @@ class GameConsumer(AsyncWebsocketConsumer):
         game = await self.get_game()
         if not game or not self.player_id:
             return
+
+        logger.info(
+            "player_ready game=%s player=%s host=%s active=%s phase=%s qnum=%s",
+            self.room_code,
+            self.player_id,
+            await self.is_user_host(),
+            game.is_active,
+            self.room_state.get("phase"),
+            game.current_question_number,
+        )
 
         self.room_state["player_channels"][self.player_id] = self.channel_name
 
@@ -213,6 +282,10 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         if self.room_state["phase"] == "question":
             await self.send_current_question_to_self()
+            return
+
+        if self.room_state["phase"] == "reveal":
+            await self.send_current_reveal_to_self()
             return
 
         if self.room_state["phase"] == "results":
@@ -319,9 +392,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             "player_results": feedback_data["player_results"],
             "current_question": question_context.get("current_question", 0),
             "total_questions": question_context.get("total_questions", 0),
+            "reveal_started_at": time.time(),
+            "reveal_duration": self.TEACHER_REVEAL_SECONDS,
         }
 
-        self.room_state["phase"] = "results"
+        self.room_state["phase"] = "reveal"
         self.room_state["last_results"] = results_payload
 
         for player_id, channel_name in list(self.room_state["player_channels"].items()):
@@ -350,6 +425,23 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "player_results": feedback_data["player_results"],
                 },
             )
+
+        teacher_channel = self.room_state.get("teacher_channel")
+        if teacher_channel:
+            await self.channel_layer.send(
+                teacher_channel,
+                {
+                    "type": "send_teacher_answer_reveal",
+                    "correct_answer_id": feedback_data["correct_answer_id"],
+                    "current_question": question_context.get("current_question", 0),
+                    "total_questions": question_context.get("total_questions", 0),
+                    "reveal_duration": self.TEACHER_REVEAL_SECONDS,
+                },
+            )
+
+        await asyncio.sleep(self.TEACHER_REVEAL_SECONDS)
+
+        self.room_state["phase"] = "results"
 
         teacher_channel = self.room_state.get("teacher_channel")
         if teacher_channel:
@@ -448,6 +540,27 @@ class GameConsumer(AsyncWebsocketConsumer):
             }
         )
 
+    async def send_current_reveal_to_self(self):
+        results = self.room_state.get("last_results")
+        if not results:
+            return
+
+        if await self.is_user_host():
+            elapsed = max(0, time.time() - results.get("reveal_started_at", 0))
+            remaining = max(1, int(results.get("reveal_duration", self.TEACHER_REVEAL_SECONDS) - elapsed))
+            await self.send_json(
+                {
+                    "type": "teacher_answer_reveal",
+                    "correct_answer_id": results["correct_answer_id"],
+                    "current_question": results["current_question"],
+                    "total_questions": results["total_questions"],
+                    "reveal_duration": remaining,
+                }
+            )
+            return
+
+        await self.send_current_results_to_self()
+
     async def send_game_over_message(self):
         scores = await self.get_final_scores()
         await self.send_json({"type": "game_over", "scores": scores})
@@ -460,6 +573,29 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         if not self.room_state.get("teacher_channel"):
             await self.handle_host_disconnect()
+
+    async def handle_player_disconnect_after_grace_period(self, player_id):
+        try:
+            await asyncio.sleep(5)
+        except asyncio.CancelledError:
+            return
+
+        if self.room_state["player_channels"].get(player_id):
+            return
+
+        game_state = await self.get_game_state()
+        if not game_state or game_state["is_active"] or game_state["is_completed"]:
+            return
+
+        player_left_data = await self.remove_player_from_game(player_id)
+        if player_left_data:
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    "type": "player_left",
+                    "player": player_left_data,
+                },
+            )
 
     async def handle_host_disconnect(self):
         try:
@@ -505,6 +641,14 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.send_json({"type": "player_left", "player": event["player"]})
 
     async def show_question_event(self, event):
+        logger.info(
+            "show_question game=%s phase=%s qid=%s current=%s total=%s",
+            self.room_code,
+            self.room_state.get("phase"),
+            event["question_data"]["question_id"],
+            event["question_data"]["current_question"],
+            event["question_data"]["total_questions"],
+        )
         await self.send_json(
             {
                 "type": "show_question",
@@ -534,6 +678,17 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "player_results": event["player_results"],
                 "current_question": event["current_question"],
                 "total_questions": event["total_questions"],
+            }
+        )
+
+    async def send_teacher_answer_reveal(self, event):
+        await self.send_json(
+            {
+                "type": "teacher_answer_reveal",
+                "correct_answer_id": event["correct_answer_id"],
+                "current_question": event["current_question"],
+                "total_questions": event["total_questions"],
+                "reveal_duration": event["reveal_duration"],
             }
         )
 
@@ -644,8 +799,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 player.display_name = self.user.username
                 player.save(update_fields=["display_name"])
         else:
-            player_id = None
-            if self.session is not None:
+            player_id = self.guest_player_id_from_query
+            if not player_id and self.session is not None:
                 player_id = self.session.get(self.guest_session_key(self.room_code))
             if not player_id:
                 return game, None
@@ -900,6 +1055,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 {
                     "id": player.id,
                     "username": player.name,
+                    "avatar_url": player.avatar_url,
                     "score": player.score,
                     "is_host": player.is_host,
                     "user": {
@@ -935,6 +1091,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         return {
             "id": player.id,
             "username": player.name,
+            "avatar_url": player.avatar_url,
             "score": player.score,
             "is_host": player.is_host,
             "user": {

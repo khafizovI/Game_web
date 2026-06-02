@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext as _
 from quiz.models import Quiz, Question, Answer
@@ -9,6 +10,9 @@ from .models import Game, GamePlayer, PlayerAnswer
 from accounts.views import award_game_points, check_achievements
 from quizgame.translation_utils import translate_text_for_request
 import json
+import logging
+
+logger = logging.getLogger('game.views')
 
 # Create your views here.
 
@@ -40,15 +44,18 @@ def _get_authenticated_player(game, user):
 
 
 def _get_guest_player(request, game):
-    player_id = request.session.get(_guest_player_session_key(game.code))
+    player_id = request.GET.get('player') or request.session.get(_guest_player_session_key(game.code))
     if not player_id:
         return None
 
-    return (
+    player = (
         GamePlayer.objects.select_related("game", "game__host")
         .filter(id=player_id, game=game, user__isnull=True)
         .first()
     )
+    if player:
+        _remember_guest_player(request, game.code, player)
+    return player
 
 
 def _get_request_player(request, game):
@@ -61,6 +68,28 @@ def _remember_guest_player(request, game_code, player):
     request.session[_guest_player_session_key(game_code)] = player.id
     request.session["guest_player_name"] = player.name
     request.session.modified = True
+
+
+def _serialize_game_player(player):
+    selected_frame = {"css_class": player.selected_frame_css_class} if player.selected_frame_css_class else None
+    profile = player.profile
+    return {
+        'id': player.id,
+        'username': player.name,
+        'avatar_url': player.avatar_url,
+        'score': player.score,
+        'is_host': player.is_host,
+        'user': {
+            'username': player.name,
+            'profile': {
+                'avatar': {'url': player.avatar_url} if player.avatar_url else None,
+                'selected_frame': selected_frame,
+                'total_points': profile.total_points if profile else 0,
+                'games_played': profile.games_played if profile else 0,
+                'level': player.level,
+            },
+        },
+    }
 
 @login_required
 def host_game(request, quiz_id):
@@ -102,6 +131,13 @@ def lobby(request, game_code):
     """View for the game lobby, where players wait for the host to start the game."""
     game = get_object_or_404(Game, code=game_code)
     current_player = _get_request_player(request, game)
+    logger.info(
+        'lobby_view game=%s player=%s query_player=%s ua=%s',
+        game_code,
+        getattr(current_player, 'id', None),
+        request.GET.get('player'),
+        request.META.get('HTTP_USER_AGENT', '')[:180],
+    )
     if not current_player:
         messages.error(
             request,
@@ -166,24 +202,33 @@ def join_game(request):
                     )
                 _remember_guest_player(request, game.code, guest_player)
 
-            return redirect('game:lobby', game_code=game.code)
+            if request.user.is_authenticated:
+                return redirect('game:lobby', game_code=game.code)
+
+            lobby_url = reverse('game:lobby', kwargs={'game_code': game.code})
+            return redirect(f'{lobby_url}?player={guest_player.id}')
         except Game.DoesNotExist:
             messages.error(
                 request,
                 translate_text_for_request(request, 'Game with code {code} not found.', code=game_code),
             )
             return redirect('game:join')
-    initial_display_name = (
-        request.user.username
-        if request.user.is_authenticated
-        else request.session.get('guest_player_name', '')
-    )
+    initial_display_name = request.user.username if request.user.is_authenticated else ''
     return render(request, 'game/join.html', {'initial_display_name': initial_display_name})
 
 def play_game(request, game_code):
     """View for playing a game"""
     game = get_object_or_404(Game, code=game_code)
     player = _get_request_player(request, game)
+    logger.info(
+        'play_view game=%s active=%s qnum=%s player=%s query_player=%s ua=%s',
+        game_code,
+        game.is_active,
+        game.current_question_number,
+        getattr(player, 'id', None),
+        request.GET.get('player'),
+        request.META.get('HTTP_USER_AGENT', '')[:180],
+    )
     if not player:
         messages.error(
             request,
@@ -197,6 +242,53 @@ def play_game(request, game_code):
         'quiz': game.quiz
     }
     return render(request, 'game/play.html', context)
+
+def game_status(request, game_code):
+    """Lightweight status endpoint so clients can recover if websocket events are missed."""
+    game = get_object_or_404(Game, code=game_code)
+    player = _get_request_player(request, game)
+    logger.info(
+        'status_view game=%s active=%s qnum=%s player=%s query_player=%s ua=%s',
+        game_code,
+        game.is_active,
+        game.current_question_number,
+        getattr(player, 'id', None),
+        request.GET.get('player'),
+        request.META.get('HTTP_USER_AGENT', '')[:180],
+    )
+    if not player:
+        return JsonResponse({'detail': 'Join the game first.'}, status=403)
+
+    return JsonResponse(
+        {
+            'is_active': game.is_active,
+            'is_completed': game.is_completed,
+            'current_question_number': game.current_question_number,
+        }
+    )
+
+
+def lobby_state(request, game_code):
+    """Return the latest lobby player list for clients that missed websocket updates."""
+    game = get_object_or_404(Game, code=game_code)
+    player = _get_request_player(request, game)
+    logger.info(
+        'lobby_state game=%s players=%s player=%s query_player=%s ua=%s',
+        game_code,
+        GamePlayer.objects.filter(game=game).count(),
+        getattr(player, 'id', None),
+        request.GET.get('player'),
+        request.META.get('HTTP_USER_AGENT', '')[:180],
+    )
+    if not player:
+        return JsonResponse({'detail': 'Join the game first.'}, status=403)
+
+    players = (
+        GamePlayer.objects.filter(game=game)
+        .select_related('user', 'user__profile', 'user__profile__selected_frame')
+        .order_by('joined_at')
+    )
+    return JsonResponse({'players': [_serialize_game_player(item) for item in players]})
 
 @login_required
 def game_results(request, game_code):
