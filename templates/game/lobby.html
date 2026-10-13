@@ -1163,7 +1163,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script data-no-translate>
 document.addEventListener('DOMContentLoaded', function () {
     const translate = window.t || ((key) => key);
     const MUSIC_TIME_STORAGE_KEY = 'gameweb:music:time';
@@ -1199,7 +1199,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const isHost = {{ is_host|yesno:"true,false" }};
     const joinUrl = "{% url 'game:join' %}";
     const playerQuery = window.location.search || '';
-    const playUrl = "{% url 'game:play' game.code %}" + playerQuery;
+    const reversedPlayUrl = "{% url 'game:play' game.code %}" + playerQuery;
+    const playUrl = window.location.pathname.includes('/lobby/')
+        ? window.location.pathname.replace('/lobby/', '/play/') + playerQuery
+        : reversedPlayUrl;
     const lobbyStateUrl = "{% url 'game:lobby_state' game.code %}" + playerQuery;
     const statusUrl = "{% url 'game:status' game.code %}" + playerQuery;
     let isRedirectingAfterKick = false;
@@ -1213,6 +1216,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const countdownNumber = document.getElementById('countdown-number');
     const lobbyMusic = document.getElementById('lobby-music');
     let hasStartRequestBeenSent = false;
+
+    window.setTimeout(() => {
+        if (window.quizBattlePet) {
+            window.quizBattlePet.speakRandom('lobby', { duration: 3200 });
+        }
+    }, 700);
 
     function setStartButtonState(disabled, label) {
         if (!isHost || !startButton) {
@@ -1408,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function refreshLobbyPlayers() {
-        if (isIntentionalHostExit || isRedirectingAfterKick) {
+        if (isIntentionalHostExit || isRedirectingAfterKick || wsConnected) {
             return;
         }
 
@@ -1466,8 +1475,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let socket = null;
+    let wsConnected = false;
+    let reconnectAttempts = 0;
+    const MAX_WS_RECONNECT = 12;
 
     function setupLobbySocket() {
+        if (socket) {
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            try {
+                if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                    socket.close();
+                }
+            } catch (error) {
+                console.warn('Lobby socket cleanup failed', error);
+            }
+        }
+
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             socket = new WebSocket(
@@ -1480,6 +1505,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         socket.onopen = function() {
+            wsConnected = true;
+            reconnectAttempts = 0;
             console.log("WebSocket connection established");
             setStartButtonState(false, translate('Start Game'));
         };
@@ -1522,11 +1549,21 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         socket.onclose = function () {
+            wsConnected = false;
             console.error('Game socket closed unexpectedly');
-            setStartButtonState(true, translate('Reconnect and try again'));
-            if (isRedirectingAfterKick) {
+            if (isRedirectingAfterKick || isIntentionalHostExit) {
                 return;
             }
+
+            if (reconnectAttempts < MAX_WS_RECONNECT) {
+                reconnectAttempts += 1;
+                const delay = Math.min(800 + reconnectAttempts * 600, 8000);
+                setStartButtonState(true, translate('Reconnecting...'));
+                window.setTimeout(setupLobbySocket, delay);
+                return;
+            }
+
+            setStartButtonState(true, translate('Reconnect and try again'));
             const toastBody = document.querySelector('.toast-body');
             if(toastBody) {
                 toastBody.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${translate('Connection to the lobby was lost. Please refresh.')}`;
@@ -1555,8 +1592,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     checkGameStatus();
     refreshLobbyPlayers();
-    window.setInterval(checkGameStatus, 1000);
-    window.setInterval(refreshLobbyPlayers, 2000);
+    window.setInterval(checkGameStatus, 2500);
+    window.setInterval(refreshLobbyPlayers, 5000);
     setupLobbySocket();
 });
 </script>

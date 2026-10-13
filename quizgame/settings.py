@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     # Custom apps
     'accounts',
     'quiz',
-    'game',
+    'game.apps.GameConfig',
     'quizgame',
 ]
 
@@ -73,6 +73,11 @@ ASGI_APPLICATION = 'quizgame.asgi.application'
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'CONFIG': {
+            # Default capacity (100) overflows when many players join the same room.
+            'capacity': 5000,
+            'expiry': 30,
+        },
     },
 }
 
@@ -103,6 +108,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            # Wait longer for the write lock when many players answer at once.
+            'timeout': 30,
+        },
     }
 }
 
@@ -193,6 +202,14 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@quizgame.com')
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
+
+# Google OAuth credentials. Add these values to .env before enabling the button.
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+GOOGLE_REDIRECT_URI = os.getenv(
+    'GOOGLE_REDIRECT_URI',
+    'http://127.0.0.1:8000/en/accounts/google/callback/',
+).strip()
 EMAIL_CONFIGURED = all([
     EMAIL_HOST_USER,
     EMAIL_HOST_PASSWORD,

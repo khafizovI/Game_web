@@ -18,6 +18,9 @@ logger = logging.getLogger('game.consumers')
 
 class GameConsumer(AsyncWebsocketConsumer):
     TEACHER_REVEAL_SECONDS = 4
+    LOBBY_BROADCAST_DELAY = 0.35
+    POWERUP_DEFAULTS = {"shield": 1, "steal": 1}
+    VALID_POWERUPS = ("shield", "steal")
     room_states = {}
 
     @classmethod
@@ -33,6 +36,10 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "host_disconnect_task": None,
                 "current_question_context": {},
                 "last_results": None,
+                # Power-up & streak state (in-memory only, reset per game)
+                "player_streaks": {},   # {player_id: current_streak_count}
+                "player_powerups": {},  # {player_id: {pu_type: remaining_count}}
+                "active_effects": {},   # {player_id: {"shield": bool}}
             },
         )
 
@@ -54,6 +61,80 @@ class GameConsumer(AsyncWebsocketConsumer):
     @staticmethod
     def guest_session_key(room_code):
         return f"guest_player_{room_code}"
+
+    @staticmethod
+    def serialize_player(player):
+        """Build WS payload from an already-loaded GamePlayer (no extra DB query)."""
+        selected_frame = (
+            {"css_class": player.selected_frame_css_class}
+            if player.selected_frame_css_class
+            else None
+        )
+        profile = player.profile
+        return {
+            "id": player.id,
+            "username": player.name,
+            "avatar_url": player.avatar_url,
+            "score": player.score,
+            "is_host": player.is_host,
+            "user": {
+                "username": player.name,
+                "profile": {
+                    "avatar": {"url": player.avatar_url} if player.avatar_url else None,
+                    "selected_frame": selected_frame,
+                    "total_points": profile.total_points if profile else 0,
+                    "games_played": profile.games_played if profile else 0,
+                    "level": player.level,
+                },
+            },
+        }
+
+    async def _parallel_channel_send(self, messages):
+        """Send many channel messages concurrently instead of one-by-one."""
+        if not messages:
+            return
+        await asyncio.gather(
+            *[
+                self.channel_layer.send(channel_name, payload)
+                for channel_name, payload in messages
+            ],
+            return_exceptions=True,
+        )
+
+    async def schedule_lobby_broadcast(self):
+        """Debounce lobby updates so N simultaneous joins become one broadcast."""
+        existing = self.room_state.get("lobby_broadcast_task")
+        if existing and not existing.done():
+            existing.cancel()
+
+        origin_channel = self.channel_name
+        room_code = self.room_code
+        group_name = self.game_group_name
+        channel_layer = self.channel_layer
+        delay = self.LOBBY_BROADCAST_DELAY
+
+        async def _debounced():
+            current_task = asyncio.current_task()
+            try:
+                await asyncio.sleep(delay)
+                players = await self.get_all_players_in_game()
+                await channel_layer.group_send(
+                    group_name,
+                    {
+                        "type": "broadcast_lobby_state_event",
+                        "players": players,
+                        "origin_channel": origin_channel,
+                    },
+                )
+            except asyncio.CancelledError:
+                return
+            finally:
+                state = GameConsumer.room_states.get(room_code)
+                if state and state.get("lobby_broadcast_task") is current_task:
+                    state["lobby_broadcast_task"] = None
+
+        task = asyncio.create_task(_debounced())
+        self.room_state["lobby_broadcast_task"] = task
 
     def get_guest_player_id_from_query(self):
         raw_query = (self.scope.get("query_string") or b"").decode("utf-8", errors="ignore")
@@ -117,21 +198,13 @@ class GameConsumer(AsyncWebsocketConsumer):
             )
 
             await self.send_lobby_state()
-
-            player_data = await self.get_player_data_as_dict(player.id)
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    "type": "player_joined",
-                    "player": player_data,
-                    "sender_channel_name": self.channel_name,
-                },
-            )
+            await self.schedule_lobby_broadcast()
 
             if game.is_completed:
                 await self.send_game_over_message()
             elif game.is_active:
                 await self.send_json({"type": "game_started"})
+                await self.sync_active_game_after_connect(game)
 
         except Exception as exc:
             logger.error(
@@ -202,7 +275,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             return
 
         message_type = data.get("type")
-        logger.info(
+        logger.debug(
             "ws_receive game=%s player=%s type=%s phase=%s",
             self.room_code,
             self.player_id,
@@ -216,6 +289,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.player_ready()
         elif message_type == "submit_answer":
             await self.submit_answer(data)
+        elif message_type == "use_powerup":
+            await self.use_powerup(data)
         elif message_type == "next_question" and await self.is_user_host():
             await self.proceed_to_next_question()
         elif message_type == "end_game" and await self.is_user_host():
@@ -232,6 +307,20 @@ class GameConsumer(AsyncWebsocketConsumer):
         players = await self.get_all_players_in_game()
         await self.send_json({"type": "lobby_state", "players": players})
 
+    async def sync_active_game_after_connect(self, game):
+        if await self.is_user_host():
+            self.room_state["teacher_channel"] = self.channel_name
+            if self.room_state.get("phase") in {"lobby", "countdown"} and game.current_question_number == 0:
+                await self.launch_question_round()
+            return
+
+        if self.room_state["phase"] == "question":
+            await self.send_current_question_to_self()
+        elif self.room_state["phase"] == "reveal":
+            await self.send_current_reveal_to_self()
+        elif self.room_state["phase"] == "results":
+            await self.send_current_results_to_self()
+
     async def start_game(self):
         game = await self.get_game()
         if not game or game.is_completed:
@@ -243,11 +332,17 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.room_state["phase"] = "countdown"
         self.room_state["current_question_context"] = {}
         self.room_state["last_results"] = None
+        # Reset per-game power-up and streak state
+        self.room_state["player_streaks"] = {}
+        self.room_state["player_powerups"] = {}
+        self.room_state["active_effects"] = {}
+        await self.init_game_powerups()
 
         await self.channel_layer.group_send(
             self.game_group_name,
             {"type": "broadcast_game_starting"},
         )
+        await self.launch_question_round()
 
     async def player_ready(self):
         game = await self.get_game()
@@ -312,25 +407,76 @@ class GameConsumer(AsyncWebsocketConsumer):
         time_limit = question_context.get("time_limit", 10)
 
         is_correct, score_to_add = await self.calculate_score(answer_id, time_taken, time_limit)
+
+        # Apply active power-up effects
+        effects = self.room_state.get("active_effects", {}).get(self.player_id, {})
+        shield_active = effects.get("shield", False)
+        shield_used = False
+
+        if not is_correct and shield_active:
+            shield_used = True
+            self.room_state["active_effects"].setdefault(self.player_id, {})["shield"] = False
+
+        # Streak logic
+        streaks = self.room_state.setdefault("player_streaks", {})
+        old_streak = streaks.get(self.player_id, 0)
+        streak_bonus = 0
+        streak_milestone = None
+        streak_powerup = None
+
+        if is_correct:
+            new_streak = old_streak + 1
+            streaks[self.player_id] = new_streak
+
+            if new_streak == 3:
+                streak_bonus = 150
+                streak_milestone = 3
+            elif new_streak == 5:
+                streak_milestone = 5
+                streak_powerup = random.choice(self.VALID_POWERUPS)
+                pups = self.room_state.setdefault("player_powerups", {})
+                player_pups = pups.setdefault(self.player_id, dict(self.POWERUP_DEFAULTS))
+                player_pups[streak_powerup] = player_pups.get(streak_powerup, 0) + 1
+            elif new_streak == 7:
+                streak_bonus = 500
+                streak_milestone = 7
+            elif new_streak > 7 and (new_streak - 7) % 3 == 0:
+                streak_bonus = 300
+        elif shield_used:
+            # Shield: wrong answer but streak is protected (don't increment, don't reset)
+            new_streak = old_streak
+        else:
+            streaks[self.player_id] = 0
+            new_streak = 0
+
+        final_score = score_to_add + streak_bonus
+
         saved, total_score = await self.save_player_answer(
             self.player_id,
             question_id,
             answer_id,
             is_correct,
-            score_to_add,
+            final_score,
         )
         if not saved:
             return
 
         correct_answer = await self.get_correct_answer(question_id)
+        player_powerups = self._get_player_powerups(self.player_id)
         await self.send_json(
             {
                 "type": "immediate_feedback",
                 "is_correct": is_correct,
                 "correct_answer_id": correct_answer.id if correct_answer else None,
-                "score_earned": score_to_add,
+                "score_earned": final_score,
                 "selected_answer_id": answer_id,
                 "total_score": total_score,
+                "streak": new_streak,
+                "streak_bonus": streak_bonus,
+                "streak_milestone": streak_milestone,
+                "streak_powerup": streak_powerup,
+                "shield_used": shield_used,
+                "powerups": player_powerups,
             }
         )
 
@@ -399,6 +545,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         self.room_state["phase"] = "reveal"
         self.room_state["last_results"] = results_payload
 
+        player_messages = []
         for player_id, channel_name in list(self.room_state["player_channels"].items()):
             if teacher_player_id and player_id == teacher_player_id:
                 continue
@@ -415,16 +562,19 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "selected_answer_id": None,
                 },
             )
-
-            await self.channel_layer.send(
-                channel_name,
-                {
-                    "type": "send_feedback_to_client",
-                    "correct_answer_id": feedback_data["correct_answer_id"],
-                    "player_result": player_result,
-                    "player_results": feedback_data["player_results"],
-                },
+            player_messages.append(
+                (
+                    channel_name,
+                    {
+                        "type": "send_feedback_to_client",
+                        "correct_answer_id": feedback_data["correct_answer_id"],
+                        "player_result": player_result,
+                        "player_results": feedback_data["player_results"],
+                    },
+                )
             )
+
+        await self._parallel_channel_send(player_messages)
 
         teacher_channel = self.room_state.get("teacher_channel")
         if teacher_channel:
@@ -497,6 +647,65 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "player": kicked_player,
             },
         )
+
+    def _get_player_powerups(self, player_id):
+        """Return a copy of the player's current power-up counts (safe to send over WS)."""
+        powerups = self.room_state.get("player_powerups", {})
+        return dict(powerups.get(player_id, self.POWERUP_DEFAULTS))
+
+    async def init_game_powerups(self):
+        """Give each non-host player their starting set of power-ups."""
+        player_ids = await self.get_player_ids_in_game()
+        powerups = self.room_state["player_powerups"]
+        streaks = self.room_state["player_streaks"]
+        effects = self.room_state["active_effects"]
+        for pid in player_ids:
+            powerups[pid] = dict(self.POWERUP_DEFAULTS)
+            streaks.setdefault(pid, 0)
+            effects.setdefault(pid, {})
+
+    async def use_powerup(self, data):
+        """Handle a player activating a power-up."""
+        if not self.player_id or await self.is_user_host():
+            return
+
+        if self.room_state.get("phase") != "question":
+            await self.send_json({"type": "powerup_failed", "reason": "wrong_phase"})
+            return
+
+        powerup_type = data.get("powerup_type")
+        if powerup_type not in self.VALID_POWERUPS:
+            return
+
+        powerups = self.room_state.setdefault("player_powerups", {})
+        if self.player_id not in powerups:
+            powerups[self.player_id] = dict(self.POWERUP_DEFAULTS)
+
+        player_pups = powerups[self.player_id]
+        remaining = player_pups.get(powerup_type, 0)
+
+        if remaining <= 0:
+            await self.send_json({"type": "powerup_failed", "reason": "no_uses", "powerup": powerup_type})
+            return
+
+        player_pups[powerup_type] = remaining - 1
+
+        if powerup_type == "shield":
+            self.room_state.setdefault("active_effects", {}).setdefault(self.player_id, {})["shield"] = True
+            await self.send_json({
+                "type": "powerup_activated",
+                "powerup": powerup_type,
+                "powerups": dict(player_pups),
+            })
+
+        elif powerup_type == "steal":
+            stolen = await self.do_steal(self.player_id)
+            await self.send_json({
+                "type": "powerup_activated",
+                "powerup": "steal",
+                "stolen": stolen,
+                "powerups": dict(player_pups),
+            })
 
     async def send_current_question_to_self(self):
         payload = await self.get_current_question_for_resend()
@@ -634,6 +843,11 @@ class GameConsumer(AsyncWebsocketConsumer):
         if self.channel_name == event.get("sender_channel_name"):
             return
         await self.send_json({"type": "player_joined", "player": event["player"]})
+
+    async def broadcast_lobby_state_event(self, event):
+        if self.channel_name == event.get("origin_channel"):
+            return
+        await self.send_json({"type": "lobby_state", "players": event["players"]})
 
     async def player_left(self, event):
         if self.channel_name == event.get("sender_channel_name"):
@@ -975,6 +1189,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             .order_by("-score", "joined_at")
         )
 
+        streaks = GameConsumer.room_states.get(game.code, {}).get("player_streaks", {})
+
         player_results = []
         for player in players:
             player_answer = answers_by_player.get(player.id)
@@ -987,6 +1203,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                     "score_earned": player_answer.score_earned if player_answer else 0,
                     "answered": bool(player_answer),
                     "selected_answer_id": player_answer.answer_id if player_answer else None,
+                    "streak": streaks.get(player.id, 0),
                 }
             )
 
@@ -1018,6 +1235,43 @@ class GameConsumer(AsyncWebsocketConsumer):
             }
             for player in players
         ]
+
+    @database_sync_to_async
+    def get_player_ids_in_game(self):
+        game = Game.objects.select_related("host").filter(code=self.room_code).first()
+        if not game:
+            return []
+        return list(
+            GamePlayer.objects.filter(game=game)
+            .exclude(user_id=game.host_id)
+            .values_list("id", flat=True)
+        )
+
+    @database_sync_to_async
+    def do_steal(self, stealer_id):
+        with transaction.atomic():
+            game = Game.objects.select_related("host").filter(code=self.room_code).first()
+            if not game:
+                return 0
+            top_player = (
+                GamePlayer.objects.filter(game=game)
+                .exclude(id=stealer_id)
+                .exclude(user_id=game.host_id)
+                .select_for_update()
+                .order_by("-score")
+                .first()
+            )
+            stealer = GamePlayer.objects.select_for_update().filter(id=stealer_id).first()
+            if not top_player or not stealer or top_player.score <= 0:
+                return 0
+            steal_amount = min(150, max(0, top_player.score // 10))
+            if steal_amount <= 0:
+                return 0
+            top_player.score = max(0, top_player.score - steal_amount)
+            stealer.score += steal_amount
+            top_player.save(update_fields=["score"])
+            stealer.save(update_fields=["score"])
+            return steal_amount
 
     @database_sync_to_async
     def calculate_score(self, answer_id, time_taken, time_limit):

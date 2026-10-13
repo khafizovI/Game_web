@@ -59,7 +59,16 @@ def generate_quiz_from_topic(topic: str, num_questions: int, num_options: int) -
 
         final_questions = []
         for q_text in question_texts:
-            options_generation_prompt = f"""
+            if num_options == 2:
+                options_generation_prompt = f"""
+            For the quiz question: '{q_text}'
+            Generate exactly 2 answer options in a true/false style (e.g. "Ha" and "Yo'q", or "True" and "False" — match the question language).
+            Provide the output ONLY in JSON format with two keys:
+            1. "options": a list of exactly 2 string options.
+            2. "answer": the string of the correct answer, which must be one of the options.
+            """
+            else:
+                options_generation_prompt = f"""
             For the quiz question: '{q_text}'
             Generate exactly {num_options} multiple-choice options.
             Provide the output ONLY in JSON format with two keys:

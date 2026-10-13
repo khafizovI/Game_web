@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "Edit Question" %} - {{ quiz.title }}{% endblock %}
 
@@ -42,17 +42,21 @@
                         <!-- Answers Section -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4 class="mb-0"><i class="fas fa-tasks me-2"></i>{% trans "Answers" %}</h4>
-                            <button type="button" id="add-answer" class="btn btn-outline-primary btn-sm">
+                            <button type="button" id="add-answer" class="btn btn-outline-primary btn-sm"
+                                    data-answer-label="{% trans 'Answer' %}"
+                                    data-remove-title="{% trans 'Remove answer' %}"
+                                    data-include-answer-id="true">
                                 <i class="fas fa-plus me-1"></i>{% trans "Add Answer" %}
                             </button>
                         </div>
+
                         <p class="text-muted small">{% trans "Edit the answers below. Check the box for each correct answer." %}</p>
                         
                         <div id="answers-container">
                             {% for answer in answers %}
                             <div class="input-group mb-3 answer-row">
                                 <div class="input-group-text">
-                                    <input class="form-check-input mt-0" type="checkbox" name="is_correct" {% if answer.is_correct %}checked{% endif %}>
+                                    <input class="form-check-input mt-0" type="checkbox" name="is_correct" value="{{ forloop.counter0 }}" {% if answer.is_correct %}checked{% endif %}>
                                     <input type="hidden" name="answer_id" value="{{ answer.id }}">
                                 </div>
                                 <input type="text" class="form-control" name="answer_text" value="{{ answer.text }}" required>
@@ -64,7 +68,7 @@
                         </div>
                         
                         <div id="answer-error" class="alert alert-danger d-none" role="alert">
-                           <i class="fas fa-exclamation-triangle me-2"></i> {% trans "Please select at least one correct answer." %}
+                           <i class="fas fa-exclamation-triangle me-2"></i> {% trans "Provide at least 2 answers and select one correct answer." %}
                         </div>
                         
                         <!-- Action Buttons -->
@@ -85,68 +89,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('answers-container');
-    const addButton = document.getElementById('add-answer');
-    const form = document.getElementById('questionForm');
-    const errorDiv = document.getElementById('answer-error');
-
-    const updateAnswerValues = () => {
-        const answerRows = container.querySelectorAll('.answer-row');
-        answerRows.forEach((row, index) => {
-            row.querySelector('input[type="checkbox"]').value = index;
-        });
-    };
-
-    const addRemoveListener = (button) => {
-        button.addEventListener('click', function() {
-            if (container.querySelectorAll('.answer-row').length > 2) {
-                this.closest('.answer-row').remove();
-                updateAddButtonState();
-            }
-        });
-    };
-
-    const updateAddButtonState = () => {
-        const count = container.querySelectorAll('.answer-row').length;
-        addButton.disabled = (count >= 4);
-    };
-
-    addButton.addEventListener('click', function() {
-        if (container.querySelectorAll('.answer-row').length >= 4) return;
-
-        const newRow = document.createElement('div');
-        newRow.className = 'input-group mb-3 answer-row';
-        newRow.innerHTML = `
-            <div class="input-group-text">
-                <input class="form-check-input mt-0" type="checkbox" name="is_correct">
-                <input type="hidden" name="answer_id" value="">
-            </div>
-            <input type="text" class="form-control" name="answer_text" placeholder="{% trans 'New Answer' %}" required>
-            <button class="btn btn-outline-danger remove-answer" type="button" title="{% trans 'Remove answer' %}"><i class="fas fa-trash-alt"></i></button>
-        `;
-        container.appendChild(newRow);
-        addRemoveListener(newRow.querySelector('.remove-answer'));
-        updateAddButtonState();
-        updateAnswerValues();
-    });
-
-    form.addEventListener('submit', function(e) {
-        updateAnswerValues(); // Ensure values are set before submission
-        const checked = container.querySelectorAll('input[name="is_correct"]:checked').length;
-        if (checked === 0) {
-            e.preventDefault();
-            errorDiv.classList.remove('d-none');
-        } else {
-            errorDiv.classList.add('d-none');
-        }
-    });
-
-    // Initial setup
-    container.querySelectorAll('.remove-answer').forEach(addRemoveListener);
-    updateAddButtonState();
-    updateAnswerValues();
-});
-</script>
+{% include 'quiz/partials/question_form_script.html' %}
 {% endblock %}

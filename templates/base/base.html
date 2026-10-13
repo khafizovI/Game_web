@@ -58,6 +58,9 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'quiz:create' %}">{% trans "Create Quiz" %}</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:teacher_subscription' %}">{% trans "Plans" %}</a>
+                        </li>
                         {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'game:join' %}">{% trans "Join Game" %}</a>
@@ -187,11 +190,11 @@
         tabindex="0"
     >
         <div class="site-pet-dialog" id="site-pet-dialog"></div>
-        <div class="site-pet-sprite{% if user.profile.selected_pet.pet.name == 'Cat' or user.profile.selected_pet.pet.name == 'Robot' %} sprite-image{% endif %}">
+        <div class="site-pet-sprite sprite-image">
             {% if user.profile.selected_pet.pet.name == 'Cat' %}
-                <img id="site-pet-frame" src="{% static 'pets/cat/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}">
+                <img id="site-pet-frame" src="{% static 'pets/cat/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}" data-fallback="😸">
             {% elif user.profile.selected_pet.pet.name == 'Robot' %}
-                <img id="site-pet-frame" src="{% static 'pets/cat/robot/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}">
+                <img id="site-pet-frame" src="{% static 'pets/cat/robot/default.png' %}" alt="{{ user.profile.selected_pet.pet.name }}" data-fallback="🤖">
             {% else %}
                 <span id="site-pet-frame">{{ user.profile.selected_pet.pet.image }}</span>
             {% endif %}
@@ -224,7 +227,7 @@
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script data-no-translate>
         window.appI18n = {{ app_i18n_json|safe }};
         window.t = function (key, fallback) {
             const strings = (window.appI18n && window.appI18n.strings) || {};

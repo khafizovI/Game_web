@@ -1,0 +1,138 @@
+{% extends 'base/base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "Teacher Plans" %} - QuizBattle{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teacher_subscription.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="plans-page">
+    <div class="plans-bg-shapes" aria-hidden="true">
+        <span class="shape shape-1"></span>
+        <span class="shape shape-2"></span>
+        <span class="shape shape-3"></span>
+        <span class="shape shape-4"></span>
+    </div>
+
+    <div class="plans-hero text-center">
+        <div class="plans-hero-glow" aria-hidden="true"></div>
+        <div class="plans-hero-icon">
+            <i class="fas fa-crown"></i>
+        </div>
+        <h1 class="plans-hero-title">{% trans "Teacher Plans" %}</h1>
+        <p class="plans-hero-subtitle">{% trans "Choose a plan for AI quiz generation." %}</p>
+        <div class="hero-tags">
+            <span class="hero-tag tag-green"><i class="fas fa-robot"></i> AI</span>
+            <span class="hero-tag tag-blue"><i class="fas fa-bolt"></i> Pro</span>
+            <span class="hero-tag tag-purple"><i class="fas fa-gem"></i> Premium</span>
+            <span class="hero-tag tag-gold"><i class="fas fa-crown"></i> VIP</span>
+        </div>
+    </div>
+
+    <div class="container pb-5 plans-body">
+        <div class="current-plan-banner">
+            <div class="current-plan-left">
+                <span class="current-plan-label">{% trans "Current plan" %}</span>
+                <span class="current-plan-name tier-{{ current_tier }}">{{ ai_quota.tier_label }}</span>
+                {% if ai_quota.expires_at and current_tier != 'free' %}
+                    <span class="current-plan-expiry">{% trans "until" %} {{ ai_quota.expires_at|date:"d.m.Y" }}</span>
+                {% endif %}
+            </div>
+            <div class="current-plan-right">
+                {% if ai_quota.is_unlimited %}
+                    <span class="quota-pill quota-pill-success">
+                        <i class="fas fa-infinity me-1"></i>{% trans "Unlimited AI today" %}
+                    </span>
+                {% else %}
+                    <span class="quota-pill {% if ai_quota.allowed %}quota-pill-primary{% else %}quota-pill-danger{% endif %}">
+                        <i class="fas fa-robot me-1"></i>{% trans "AI today" %}: {{ ai_quota.used_today }}/{{ ai_quota.limit_label }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row g-4 justify-content-center align-items-stretch plans-grid">
+            {% for plan in plans %}
+            <div class="col-sm-6 col-xl-3">
+                <div class="plan-card plan-{{ plan.key }}{% if plan.is_current %} is-current{% endif %}{% if plan.key == 'premium' %} is-featured{% endif %}">
+                    <div class="plan-card-glow" aria-hidden="true"></div>
+
+                    {% if plan.is_current %}
+                        <div class="plan-badge">{% trans "Current" %}</div>
+                    {% elif plan.key == 'premium' %}
+                        <div class="plan-badge plan-badge-popular">{% trans "Popular" %}</div>
+                    {% endif %}
+
+                    <div class="plan-icon-wrap">
+                        {% if plan.key == 'free' %}
+                            <i class="fas fa-seedling"></i>
+                        {% elif plan.key == 'pro' %}
+                            <i class="fas fa-bolt"></i>
+                        {% elif plan.key == 'premium' %}
+                            <i class="fas fa-gem"></i>
+                        {% else %}
+                            <i class="fas fa-crown"></i>
+                        {% endif %}
+                    </div>
+
+                    <h3 class="plan-name">{{ plan.label }}</h3>
+
+                    <div class="plan-price-block">
+                        {% if plan.is_free %}
+                            <div class="plan-price">{% trans "Free" %}</div>
+                            <div class="plan-period plan-period-unlimited">
+                                <i class="fas fa-infinity me-1"></i>{% trans "Unlimited" %}
+                            </div>
+                        {% else %}
+                            <div class="plan-price">{{ plan.price_display }} <span>so'm</span></div>
+                            <div class="plan-period">/ {% trans "30 days" %}</div>
+                        {% endif %}
+                    </div>
+
+                    <ul class="plan-features">
+                        <li>
+                            <span class="feature-check"><i class="fas fa-check"></i></span>
+                            {% if plan.daily_limit_label == '∞' %}
+                                {% trans "Unlimited AI generations per day" %}
+                            {% else %}
+                                <strong>{{ plan.daily_limit_label }}</strong> {% trans "AI generations per day" %}
+                            {% endif %}
+                        </li>
+                        <li>
+                            <span class="feature-check"><i class="fas fa-check"></i></span>
+                            {% trans "Manual quiz creation" %}
+                        </li>
+                        <li>
+                            <span class="feature-check"><i class="fas fa-check"></i></span>
+                            {% trans "Host live games" %}
+                        </li>
+                    </ul>
+
+                    <div class="plan-action">
+                        {% if plan.is_current %}
+                            <button class="btn plan-btn plan-btn-muted w-100" disabled>{% trans "Active plan" %}</button>
+                        {% elif plan.is_free %}
+                            <button class="btn plan-btn plan-btn-free w-100" disabled>{% trans "Default plan" %}</button>
+                        {% else %}
+                            <form method="POST" action="{% url 'accounts:upgrade_subscription' plan.key %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn plan-btn plan-btn-{{ plan.key }} w-100">
+                                    <i class="fas fa-arrow-up me-2"></i>{% trans "Upgrade" %}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="plans-footer-note">
+            <div class="plans-footer-icon"><i class="fas fa-sparkles"></i></div>
+            <p>{% trans "Online payment integration is coming soon. Contact the administrator to activate Pro, Premium, or VIP." %}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

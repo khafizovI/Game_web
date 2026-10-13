@@ -732,6 +732,160 @@
         color: #fff;
     }
 
+    /* ── Power-up bar ─────────────────────────────────────────────── */
+    .powerup-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.6rem 1rem 0.2rem;
+    }
+
+    .powerup-btn {
+        position: relative;
+        width: 58px;
+        height: 58px;
+        border: 2px solid rgba(255,255,255,0.35);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.14);
+        color: #fff;
+        font-size: 1.3rem;
+        font-weight: 900;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        line-height: 1;
+        user-select: none;
+    }
+
+    .powerup-btn:hover:not(:disabled) {
+        transform: translateY(-3px) scale(1.06);
+        background: rgba(255,255,255,0.26);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.24);
+    }
+
+    .powerup-btn:active:not(:disabled) {
+        transform: translateY(0) scale(0.97);
+    }
+
+    .powerup-btn:disabled {
+        opacity: 0.32;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .powerup-btn.active-effect {
+        border-color: #ffd700;
+        background: rgba(255,215,0,0.22);
+        box-shadow: 0 0 0 3px rgba(255,215,0,0.35), 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    .pu-label {
+        font-size: 0.52rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        opacity: 0.88;
+        line-height: 1;
+    }
+
+    .pu-count {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 4px;
+        background: #ff4d6d;
+        border-radius: 999px;
+        font-size: 0.62rem;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid rgba(255,255,255,0.7);
+    }
+
+    /* ── Streak indicator ─────────────────────────────────────────── */
+    .streak-badge {
+        display: none;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+        color: #1a1a2e;
+        font-weight: 900;
+        font-size: 0.93rem;
+        box-shadow: 0 6px 16px rgba(247,151,30,0.4);
+        white-space: nowrap;
+    }
+
+    .streak-badge.visible {
+        display: flex;
+    }
+
+    /* ── Streak milestone toast ───────────────────────────────────── */
+    .streak-toast {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.7);
+        z-index: 2100;
+        background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+        color: #1a1a2e;
+        border-radius: 24px;
+        padding: 1.4rem 2.2rem;
+        text-align: center;
+        box-shadow: 0 24px 54px rgba(0,0,0,0.32);
+        font-weight: 900;
+        font-size: 1.5rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .streak-toast.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    .streak-toast .toast-emoji {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: 0.4rem;
+    }
+
+    /* ── Power-up activated toast ──────────────────────────────────── */
+    .pu-toast {
+        position: fixed;
+        bottom: 5rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        z-index: 1800;
+        padding: 0.75rem 1.5rem;
+        border-radius: 999px;
+        background: rgba(44,62,80,0.92);
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 800;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        white-space: nowrap;
+    }
+
+    .pu-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
     .teacher-game-footer {
         position: fixed;
         left: 50%;
@@ -876,6 +1030,9 @@
         </div>
         <div class="game-hud-row">
             <div id="question-counter" class="hud-pill"></div>
+            {% if not player.is_host %}
+            <div id="streak-badge" class="streak-badge">🔥 <span id="streak-value">0</span>x</div>
+            {% endif %}
             <div class="hud-pill player-hud">
                 <span class="player-hud-name">
                     {% if player.is_host %}{% trans "Teacher" %}{% else %}{{ player.name }}{% endif %}
@@ -896,8 +1053,28 @@
             <div class="answer-card yellow" data-index="2"><span class="text"></span></div>
             <div class="answer-card green" data-index="3"><span class="text"></span></div>
         </div>
+        {% if not player.is_host %}
+        <div id="powerup-bar" class="powerup-bar">
+            <button class="powerup-btn" id="pu-shield" data-pu="shield" title="Shield">
+                <span>🛡</span>
+                <span class="pu-label">Shield</span>
+                <span class="pu-count" id="pu-shield-count">1</span>
+            </button>
+            <button class="powerup-btn" id="pu-steal" data-pu="steal" title="Steal from Top">
+                <span>💰</span>
+                <span class="pu-label">Steal</span>
+                <span class="pu-count" id="pu-steal-count">1</span>
+            </button>
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<!-- Streak milestone toast -->
+<div id="streak-toast" class="streak-toast"></div>
+
+<!-- Generic power-up toast -->
+<div id="pu-toast" class="pu-toast"></div>
 
 <div id="feedback-screen" class="screen">
     <div id="feedback-content">
@@ -930,6 +1107,11 @@
             >
                 {% trans "Play Again" %}
             </a>
+            {% if player.is_host %}
+            <a id="report-btn" href="{% url 'game:report' game.code %}" class="end-action-btn secondary">
+                📊 {% trans "View Report" %}
+            </a>
+            {% endif %}
             <a href="{% url 'home' %}" class="end-action-btn secondary">{% trans "Home" %}</a>
         </div>
     </div>
@@ -972,6 +1154,13 @@
                 <p class="settings-hint">{% trans "Turns the teacher screen background music loop on or off." %}</p>
             </div>
             <div class="settings-section">
+                <label class="settings-item" for="show-pin-toggle">
+                    <span>{% trans "Show Game PIN" %}</span>
+                    <input id="show-pin-toggle" class="settings-switch" type="checkbox">
+                </label>
+                <p class="settings-hint">{% trans "When this is on, the game PIN is visible on the teacher screen." %}</p>
+            </div>
+            <div class="settings-section">
                 <button id="settings-next-question-btn" class="settings-action" type="button">{% trans "Next Question Now" %}</button>
                 <p class="settings-hint">{% trans "Use this after the leaderboard shows if you want to move forward manually." %}</p>
             </div>
@@ -994,7 +1183,7 @@
 {% block footer %}{% endblock %}
 
 {% block extra_js %}
-<script>
+<script data-no-translate>
 document.addEventListener('DOMContentLoaded', function() {
     const translate = window.t || ((key) => key);
     const isHost = {{ player.is_host|yesno:"true,false" }};
@@ -1002,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const joinUrl = "{% url 'game:join' %}";
     const playAgainUrl = isHost ? browseUrl : joinUrl;
     const AUTO_NEXT_STORAGE_KEY = 'gameweb:teacher:auto-next';
+    const SHOW_PIN_STORAGE_KEY = 'gameweb:teacher:show-pin';
     const MUSIC_TIME_STORAGE_KEY = 'gameweb:music:time';
     const MUSIC_ACTIVE_STORAGE_KEY = 'gameweb:music:active';
 
@@ -1054,9 +1244,16 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPhase: 'idle',
         redirectingAfterExit: false,
         autoNextEnabled: false,
+        showGamePinEnabled: true,
         musicEnabled: true,
         lastResultsState: null,
         leaderboardPlayers: [],
+        // Power-up state
+        playerPowerups: { shield: 1, steal: 1 },
+        activeEffects: {},
+        currentStreak: 0,
+        _reconnectAttempts: 0,
+        _reconnectTimer: null,
 
         elements: {
             answerGrid: document.getElementById('answers-container'),
@@ -1085,12 +1282,23 @@ document.addEventListener('DOMContentLoaded', function() {
             settingsClose: document.getElementById('teacher-settings-close'),
             autoNextToggle: document.getElementById('auto-next-toggle'),
             musicToggle: document.getElementById('music-toggle'),
+            showPinToggle: document.getElementById('show-pin-toggle'),
             settingsNextQuestionBtn: document.getElementById('settings-next-question-btn'),
             settingsExitBtn: document.getElementById('settings-exit-btn'),
             exitConfirmModal: document.getElementById('exit-confirm-modal'),
             cancelExitBtn: document.getElementById('cancel-exit-btn'),
             confirmExitBtn: document.getElementById('confirm-exit-btn'),
-            teacherGameFooter: document.getElementById('teacher-game-footer')
+            teacherGameFooter: document.getElementById('teacher-game-footer'),
+            // Power-up & streak elements
+            powerupBar: document.getElementById('powerup-bar'),
+            puShield: document.getElementById('pu-shield'),
+            puSteal: document.getElementById('pu-steal'),
+            puShieldCount: document.getElementById('pu-shield-count'),
+            puStealCount: document.getElementById('pu-steal-count'),
+            streakBadge: document.getElementById('streak-badge'),
+            streakValue: document.getElementById('streak-value'),
+            streakToast: document.getElementById('streak-toast'),
+            puToast: document.getElementById('pu-toast'),
         },
 
         init() {
@@ -1105,6 +1313,15 @@ document.addEventListener('DOMContentLoaded', function() {
         bindEvents() {
             if (this.elements.answerGrid) {
                 this.elements.answerGrid.addEventListener('click', this.handleAnswerClick.bind(this));
+            }
+
+            // Power-up buttons (player only)
+            if (!this.isHost && this.elements.powerupBar) {
+                this.elements.powerupBar.addEventListener('click', (event) => {
+                    const btn = event.target.closest('.powerup-btn');
+                    if (!btn || btn.disabled) return;
+                    this.usePowerup(btn.dataset.pu);
+                });
             }
 
             if (this.elements.nextQuestionBtn) {
@@ -1144,6 +1361,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.stopMusic();
                     }
                 });
+                this.elements.showPinToggle.addEventListener('change', (event) => {
+                    this.showGamePinEnabled = event.target.checked;
+                    safeLocalSet(SHOW_PIN_STORAGE_KEY, String(this.showGamePinEnabled));
+                    this.updateGamePinVisibility();
+                });
                 this.elements.settingsNextQuestionBtn.addEventListener('click', this.nextQuestion.bind(this));
                 this.elements.settingsExitBtn.addEventListener('click', this.openExitConfirm.bind(this));
                 this.elements.cancelExitBtn.addEventListener('click', this.closeExitConfirm.bind(this));
@@ -1166,6 +1388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             this.autoNextEnabled = safeLocalGet(AUTO_NEXT_STORAGE_KEY) === 'true';
+            this.showGamePinEnabled = safeLocalGet(SHOW_PIN_STORAGE_KEY, 'true') !== 'false';
             this.musicEnabled = true;
         },
 
@@ -1176,7 +1399,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             this.elements.autoNextToggle.checked = this.autoNextEnabled;
             this.elements.musicToggle.checked = this.musicEnabled;
+            this.elements.showPinToggle.checked = this.showGamePinEnabled;
 
+            this.updateGamePinVisibility();
             this.updateTeacherControlState();
         },
 
@@ -1223,17 +1448,34 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         setupSocket() {
+            if (this.socket) {
+                this.socket.onopen = null;
+                this.socket.onmessage = null;
+                this.socket.onclose = null;
+                try {
+                    if (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) {
+                        this.socket.close();
+                    }
+                } catch (error) {
+                    console.warn('Game socket cleanup failed', error);
+                }
+            }
+
             const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             const playerQuery = window.location.search || '';
             this.socket = new WebSocket(protocol + window.location.host + '/ws/game/' + this.code + '/' + playerQuery);
 
             this.socket.onopen = () => {
+                this._reconnectAttempts = 0;
                 this.sendMessage('player_ready');
             };
 
             this.socket.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 switch (data.type) {
+                    case 'game_started':
+                        this.sendMessage('player_ready');
+                        break;
                     case 'show_question':
                         this.handleShowQuestion(data);
                         break;
@@ -1261,6 +1503,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     case 'kicked_from_game':
                         this.handleKickedFromGame(data);
                         break;
+                    case 'powerup_activated':
+                        this.handlePowerupActivated(data);
+                        break;
+                    case 'powerup_failed':
+                        this.handlePowerupFailed(data);
+                        break;
                     default:
                         break;
                 }
@@ -1269,10 +1517,31 @@ document.addEventListener('DOMContentLoaded', function() {
             this.socket.onclose = () => {
                 this.clearTimer();
                 this.clearAutoNext();
+                if (!this.redirectingAfterExit && this.currentPhase !== 'completed') {
+                    this.scheduleSocketReconnect();
+                }
                 if (!this.redirectingAfterExit) {
                     this.stopMusic();
                 }
             };
+        },
+
+        scheduleSocketReconnect() {
+            if (this._reconnectTimer || this.redirectingAfterExit) {
+                return;
+            }
+
+            const attempt = this._reconnectAttempts || 0;
+            if (attempt >= 12) {
+                return;
+            }
+
+            const delay = Math.min(800 + attempt * 700, 8000);
+            this._reconnectAttempts = attempt + 1;
+            this._reconnectTimer = window.setTimeout(() => {
+                this._reconnectTimer = null;
+                this.setupSocket();
+            }, delay);
         },
 
         sendMessage(type, payload = {}) {
@@ -1287,6 +1556,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (header) {
                 header.style.display = 'none';
             }
+        },
+
+        updateGamePinVisibility() {
+            if (!this.elements.teacherGameFooter) {
+                return;
+            }
+
+            this.elements.teacherGameFooter.style.display = this.showGamePinEnabled ? 'block' : 'none';
         },
 
         switchScreen(screenId) {
@@ -1404,6 +1681,11 @@ document.addEventListener('DOMContentLoaded', function() {
             this.clearAutoNext();
             this.hideHeader();
             this.switchScreen('play-screen');
+            // Show/refresh power-up bar for players
+            if (!this.isHost && this.elements.powerupBar) {
+                this.elements.powerupBar.style.display = 'flex';
+                this.updatePowerupUI(this.playerPowerups);
+            }
             this.elements.questionText.textContent = data.question_text || translate('Loading question...');
             this.elements.questionCounter.textContent = translate('Question {current} of {total}')
                 .replace('{current}', data.current_question)
@@ -1418,13 +1700,31 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.isHost && this.elements.playerScoreValue) {
                 this.elements.playerScoreValue.textContent = '0';
             }
-            if (this.elements.teacherGameFooter) {
-                this.elements.teacherGameFooter.style.display = 'block';
-            }
+            this.updateGamePinVisibility();
             this.renderAnswers(data.answers || []);
             this.startTimer(data.time_limit || 20);
             this.startMusic();
+            this.handlePetQuestionHint(data.answers || []);
             this.updateTeacherControlState();
+        },
+
+        handlePetQuestionHint(answers) {
+            if (this.isHost || !window.quizBattlePet || !answers.length) {
+                return;
+            }
+
+            if (Math.random() < 0.58) {
+                window.setTimeout(() => {
+                    window.quizBattlePet.predictAnswerColor(answers.length, { duration: 3000 });
+                }, 900);
+                return;
+            }
+
+            if (Math.random() < 0.35) {
+                window.setTimeout(() => {
+                    window.quizBattlePet.motivate();
+                }, 900);
+            }
         },
 
         handleTeacherAnswerReveal(data) {
@@ -1465,6 +1765,119 @@ document.addEventListener('DOMContentLoaded', function() {
             this.sendMessage('submit_answer', { answer_id: this.selectedAnswerId });
         },
 
+        // ── Power-up methods ────────────────────────────────────────────
+
+        usePowerup(puType) {
+            if (this.answerSubmitted) {
+                this.showPuToast(translate('Already answered'));
+                return;
+            }
+            this.sendMessage('use_powerup', { powerup_type: puType });
+        },
+
+        updatePowerupUI(powerups) {
+            if (!powerups || this.isHost) return;
+            this.playerPowerups = { ...powerups };
+
+            const map = {
+                shield: { btn: this.elements.puShield, count: this.elements.puShieldCount },
+                steal:  { btn: this.elements.puSteal, count: this.elements.puStealCount },
+            };
+
+            Object.entries(map).forEach(([key, { btn, count }]) => {
+                if (!btn || !count) return;
+                const remaining = powerups[key] || 0;
+                count.textContent = String(remaining);
+                btn.disabled = remaining <= 0;
+            });
+        },
+
+        markActiveEffect(puType, active) {
+            if (puType === 'shield' && this.elements.puShield) {
+                this.elements.puShield.classList.toggle('active-effect', active);
+            }
+        },
+
+        handlePowerupActivated(data) {
+            const { powerup, powerups, stolen } = data;
+            this.updatePowerupUI(powerups);
+
+            if (powerup === 'shield') {
+                this.markActiveEffect('shield', true);
+                this.showPuToast('🛡 ' + translate('Shield active!'));
+            } else if (powerup === 'steal') {
+                const amount = stolen || 0;
+                this.showPuToast('💰 ' + translate('Stole {n} pts!').replace('{n}', amount));
+            }
+        },
+
+        handlePowerupFailed(data) {
+            if (data.reason === 'no_uses') {
+                this.showPuToast(translate('No uses left'));
+            } else if (data.reason === 'wrong_phase') {
+                this.showPuToast(translate('Can only use during a question'));
+            }
+        },
+
+        showPuToast(message) {
+            const el = this.elements.puToast;
+            if (!el) return;
+            el.textContent = message;
+            el.classList.add('show');
+            clearTimeout(this._puToastTimer);
+            this._puToastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+        },
+
+        // ── Streak methods ──────────────────────────────────────────────
+
+        updateStreakDisplay(streak) {
+            this.currentStreak = streak || 0;
+            const badge = this.elements.streakBadge;
+            const val = this.elements.streakValue;
+            if (!badge || !val) return;
+            val.textContent = String(this.currentStreak);
+            badge.classList.toggle('visible', this.currentStreak >= 2);
+        },
+
+        showStreakMilestone(milestone, bonusScore, grantedPowerup) {
+            const toast = this.elements.streakToast;
+            if (!toast) return;
+
+            let emoji = '🔥';
+            let title = '';
+            let subtitle = '';
+
+            if (milestone === 3) {
+                emoji = '🔥';
+                title = translate('{n} Streak!').replace('{n}', 3);
+                subtitle = '+' + bonusScore + ' ' + translate('bonus pts');
+            } else if (milestone === 5) {
+                emoji = '⚡';
+                title = translate('{n} Streak!').replace('{n}', 5);
+                subtitle = translate('Free power-up: ') + this._puName(grantedPowerup);
+            } else if (milestone === 7) {
+                emoji = '🌟';
+                title = translate('{n} Streak!').replace('{n}', 7);
+                subtitle = '+' + bonusScore + ' ' + translate('combo bonus!');
+            } else {
+                emoji = '🔥';
+                title = translate('{n} Streak!').replace('{n}', milestone);
+                subtitle = '+' + bonusScore + ' ' + translate('bonus pts');
+            }
+
+            toast.innerHTML = `<span class="toast-emoji">${emoji}</span><div>${title}</div><div style="font-size:1rem;font-weight:700;margin-top:4px;">${subtitle}</div>`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2800);
+        },
+
+        _puName(type) {
+            const names = {
+                shield: '🛡',
+                steal: '💰',
+            };
+            return names[type] || type;
+        },
+
         handleImmediateFeedback(data) {
             if (this.isHost) {
                 return;
@@ -1479,6 +1892,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             selectedCard.classList.remove('submitted');
             selectedCard.classList.add(data.is_correct ? 'correct' : 'incorrect');
+
+            // Update streak & power-up UI from immediate feedback
+            if (data.streak !== undefined) this.updateStreakDisplay(data.streak);
+            if (data.powerups) this.updatePowerupUI(data.powerups);
+            if (data.shield_used) this.markActiveEffect('shield', false);
+            // Show streak milestone toast
+            if (data.streak_milestone) {
+                window.setTimeout(() => {
+                    this.showStreakMilestone(data.streak_milestone, data.streak_bonus, data.streak_powerup);
+                }, 400);
+            }
+            if (!data.is_correct && !data.shield_used) {
+                // Streak broken
+                this.updateStreakDisplay(0);
+            }
         },
 
         highlightAnswers(correctAnswerId, selectedAnswerId) {
@@ -1593,7 +2021,29 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.elements.playerScoreValue) {
                 this.elements.playerScoreValue.textContent = String(result.score || 0);
             }
+            // Update streak from server feedback
+            if (result.streak !== undefined) this.updateStreakDisplay(result.streak);
+            // Hide power-up bar on feedback screen
+            if (this.elements.powerupBar) this.elements.powerupBar.style.display = 'none';
             this.switchScreen('feedback-screen');
+            this.handlePetFeedback(result);
+        },
+
+        handlePetFeedback(result) {
+            if (this.isHost || !window.quizBattlePet) {
+                return;
+            }
+
+            if (result.answered && result.is_correct && Math.random() < 0.7) {
+                window.setTimeout(() => window.quizBattlePet.speakRandom('correct'), 650);
+                return;
+            }
+
+            if (Math.random() < 0.62) {
+                window.setTimeout(() => {
+                    window.quizBattlePet.speakRandom(result.answered ? 'motivation' : 'incorrect');
+                }, 650);
+            }
         },
 
         handleTeacherLeaderboard(data) {
@@ -1618,9 +2068,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.nextQuestionBtn.disabled = false;
             this.elements.nextQuestionBtn.textContent =
                 data.current_question < data.total_questions ? translate('Next Question') : translate('Finish Game');
-            if (this.elements.teacherGameFooter) {
-                this.elements.teacherGameFooter.style.display = 'block';
-            }
+            this.updateGamePinVisibility();
 
             if (this.autoNextEnabled) {
                 this.scheduleAutoNext();

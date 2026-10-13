@@ -17,6 +17,7 @@ from .models import (
     Achievement,
     UserAchievement,
     PasswordResetCode,
+    TeacherAIUsage,
 )
 
 # Register your models here.
@@ -28,6 +29,8 @@ class ProfileInline(admin.StackedInline):
     fields = (
         'bio',
         'role',
+        'subscription_tier',
+        'subscription_expires_at',
         'games_hosted',
         'games_played',
         'total_points',
@@ -189,3 +192,11 @@ class PasswordResetCodeAdmin(admin.ModelAdmin):
     list_filter = ('is_used', 'created_at')
     search_fields = ('user__username', 'user__email', 'code')
     readonly_fields = ('created_at',)
+
+
+@admin.register(TeacherAIUsage)
+class TeacherAIUsageAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date', 'count')
+    list_filter = ('date',)
+    search_fields = ('user__username',)
+    ordering = ('-date',)

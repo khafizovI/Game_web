@@ -18,6 +18,13 @@ class Profile(models.Model):
         ('student', 'Student'),
         ('teacher', 'Teacher'),
     )
+
+    SUBSCRIPTION_TIER_CHOICES = (
+        ('free', 'Free'),
+        ('pro', 'Pro'),
+        ('premium', 'Premium'),
+        ('vip', 'VIP'),
+    )
     
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     bio = models.TextField(max_length=500, blank=True)
@@ -28,6 +35,12 @@ class Profile(models.Model):
     experience_points = models.IntegerField(default=0)  # XP for leveling up
     level = models.IntegerField(default=1)  # Current level
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+    subscription_tier = models.CharField(
+        max_length=10,
+        choices=SUBSCRIPTION_TIER_CHOICES,
+        default='free',
+    )
+    subscription_expires_at = models.DateTimeField(null=True, blank=True)
     avatar_data = models.BinaryField(blank=True, null=True)
     avatar_content_type = models.CharField(max_length=100, blank=True)
     avatar_filename = models.CharField(max_length=255, blank=True)
@@ -368,6 +381,19 @@ class UserDailyTask(models.Model):
     class Meta:
         unique_together = ('user', 'task', 'assigned_date')
         ordering = ['-assigned_date', 'is_completed']
+
+
+class TeacherAIUsage(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_usages')
+    date = models.DateField(default=timezone.localdate)
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('user', 'date')
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.date}: {self.count}"
 
 
 @receiver(post_save, sender=User)

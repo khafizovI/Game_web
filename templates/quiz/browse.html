@@ -71,11 +71,23 @@
     
     .quiz-meta {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
         margin-bottom: 1rem;
         font-size: 0.85rem;
         color: #888;
+    }
+
+    .plays-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        font-size: 0.82rem;
+        font-weight: 700;
     }
     
     .quiz-stats {
@@ -143,15 +155,6 @@
         margin-bottom: 1rem;
     }
     
-    .creator-badge {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 15px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    
     @media (max-width: 768px) {
         .quiz-actions {
             flex-direction: column;
@@ -188,9 +191,9 @@
             <span class="input-group-text bg-light border-0">
                 <i class="fas fa-search text-muted"></i>
             </span>
-            <input type="text" name="search" class="form-control search-input border-start-0" 
-                   placeholder="{% trans 'Search quizzes by title, description, or creator...' %}"
-                   value="{{ search_query }}">
+            <input type="search" id="quiz-search" name="search" class="form-control search-input border-start-0" 
+                   placeholder="{% trans 'Search quizzes by title or description...' %}"
+                   autocomplete="off">
         </div>
     </div>
 
@@ -199,17 +202,13 @@
         <div class="row g-4" id="quiz-grid">
             {% for quiz in quizzes %}
                 <div class="col-lg-4 col-md-6 quiz-item" 
-                     data-creator="{{ quiz.created_by.username|lower }}"
                      data-title="{{ quiz.title|lower }}"
-                     data-description="{{ quiz.description|lower }}"
-                     data-created="{{ quiz.created_at|date:'Y-m-d' }}">
+                     data-description="{{ quiz.description|lower }}">
                     <div class="quiz-card">
                         <div class="quiz-meta">
-                            <span class="creator-badge">
-                                <i class="fas fa-user me-1"></i>{{ quiz.created_by.username }}
-                            </span>
-                            <span class="text-muted">
-                                <i class="fas fa-calendar me-1"></i>{{ quiz.created_at|date:"M d, Y" }}
+                            <span class="plays-badge">
+                                <i class="fas fa-gamepad"></i>
+                                {{ quiz.games_played }} {% trans "times played" %}
                             </span>
                         </div>
                         
@@ -249,10 +248,7 @@
         <div class="empty-state d-none" id="no-results">
             <i class="fas fa-search"></i>
             <h4 class="fw-bold">{% trans "No quizzes found" %}</h4>
-            <p class="text-muted">{% trans "Try adjusting your search criteria or browse all quizzes." %}</p>
-            <button class="btn btn-primary" onclick="clearSearch()">
-                <i class="fas fa-refresh me-2"></i>{% trans "Clear Search" %}
-            </button>
+            <p class="text-muted mb-0">{% trans "Try adjusting your search criteria or browse all quizzes." %}</p>
         </div>
     {% else %}
         <div class="empty-state">
@@ -268,74 +264,46 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script data-no-translate>
 document.addEventListener('DOMContentLoaded', function() {
-    // Search functionality
-    const searchForm = document.querySelector('form');
+    const searchInput = document.getElementById('quiz-search');
     const quizItems = document.querySelectorAll('.quiz-item');
     const noResultsDiv = document.getElementById('no-results');
-    
-    if (searchForm) {
-        const searchInput = searchForm.querySelector('input[name="search"]');
-        
-        // Real-time search
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                performSearch(this.value.toLowerCase().trim());
-            }, 300);
-        });
-    }
-    
+    const quizGrid = document.getElementById('quiz-grid');
+
     function performSearch(searchTerm) {
         let visibleCount = 0;
-        
-        quizItems.forEach(item => {
-            const title = (item.querySelector('.quiz-title')?.textContent || '').toLowerCase();
-            const description = item.dataset.description;
-            const creator = item.dataset.creator;
-            
-            const matches = !searchTerm || 
-                           title.includes(searchTerm) || 
-                           description.includes(searchTerm) || 
-                           creator.includes(searchTerm);
-            
-            if (matches) {
-                item.style.display = '';
-                visibleCount++;
-            } else {
-                item.style.display = 'none';
-            }
+
+        quizItems.forEach(function(item) {
+            const title = item.dataset.title || '';
+            const description = item.dataset.description || '';
+
+            const matches = !searchTerm ||
+                title.includes(searchTerm) ||
+                description.includes(searchTerm);
+
+            item.style.display = matches ? '' : 'none';
+            if (matches) visibleCount++;
         });
-        
-        // Show/hide no results message
-        if (noResultsDiv) {
+
+        if (noResultsDiv && quizGrid) {
             noResultsDiv.classList.toggle('d-none', visibleCount > 0);
+            quizGrid.classList.toggle('d-none', visibleCount === 0);
         }
     }
-    
-    // Initialize search if there's a query
-    const initialSearch = '{{ search_query|lower }}';
-    if (initialSearch) {
-        performSearch(initialSearch);
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            performSearch(this.value.toLowerCase().trim());
+        });
     }
 });
 
-function clearSearch() {
-    const searchInput = document.querySelector('input[name="search"]');
-    if (searchInput) {
-        searchInput.value = '';
-        searchInput.dispatchEvent(new Event('input'));
-    }
-}
-
-// Add smooth animations
-document.querySelectorAll('.quiz-card').forEach(card => {
+document.querySelectorAll('.quiz-card').forEach(function(card) {
     card.addEventListener('mouseenter', function() {
         this.style.transform = 'translateY(-8px)';
     });
-    
+
     card.addEventListener('mouseleave', function() {
         this.style.transform = 'translateY(0)';
     });

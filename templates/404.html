@@ -12,11 +12,132 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    <style>
+        .offline-banner {
+            display: none;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 1.25rem;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.18), rgba(255, 107, 107, 0.14));
+            border: 1px solid rgba(255, 193, 7, 0.35);
+            color: #7c2d12;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .offline-banner.visible {
+            display: flex;
+        }
+
+        .dino-game-wrap {
+            display: none;
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        .dino-game-wrap.visible {
+            display: block;
+        }
+
+        .dino-game-card {
+            background: linear-gradient(160deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+            border-radius: 24px;
+            padding: 1.25rem 1.25rem 1rem;
+            box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }
+
+        .dino-game-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.85rem;
+            color: #fff;
+        }
+
+        .dino-game-head h2 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+        .dino-game-head p {
+            margin: 0.2rem 0 0;
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        .dino-score {
+            min-width: 72px;
+            text-align: right;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #ffd166;
+        }
+
+        .dino-canvas-box {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 38%, #f8f9fa 38%, #e9ecef 100%);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        #dino-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .dino-hint {
+            margin-top: 0.75rem;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .dino-hint kbd {
+            display: inline-block;
+            padding: 0.15rem 0.45rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            font-size: 0.78rem;
+        }
+
+        .error-visual.online-only.hidden {
+            display: none;
+        }
+
+        @media (max-width: 991px) {
+            .error-panel {
+                grid-template-columns: 1fr !important;
+            }
+
+            .dino-game-wrap.visible {
+                margin-top: 1.5rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <section class="error-shell">
         <div class="error-panel">
             <div class="error-copy">
+                <div id="offline-banner" class="offline-banner">
+                    <i class="fas fa-wifi-slash"></i>
+                    <span>{% trans "You are offline. Play the mini game while you wait!" %}</span>
+                </div>
                 <div class="error-badge">
                     <i class="fas fa-compass"></i>
                     {% trans "Page not found" %}
@@ -35,7 +156,7 @@
                     </a>
                 </div>
             </div>
-            <div class="error-visual">
+            <div class="error-visual online-only" id="error-visual-online">
                 <div class="error-orbit"></div>
                 <div class="error-monitor">
                     <div class="error-screen">
@@ -54,7 +175,253 @@
                     <div class="error-stand"></div>
                 </div>
             </div>
+            <div class="dino-game-wrap" id="dino-game-wrap">
+                <div class="dino-game-card">
+                    <div class="dino-game-head">
+                        <div>
+                            <h2>{% trans "QuizBattle Runner" %}</h2>
+                            <p>{% trans "Offline mode" %}</p>
+                        </div>
+                        <div class="dino-score" id="dino-score">0</div>
+                    </div>
+                    <div class="dino-canvas-box" id="dino-canvas-box">
+                        <canvas id="dino-canvas" width="480" height="180" aria-label="{% trans 'Offline runner game' %}"></canvas>
+                    </div>
+                    <p class="dino-hint">
+                        <kbd>Space</kbd> / <kbd>↑</kbd> {% trans "or tap to jump" %}
+                    </p>
+                </div>
+            </div>
         </div>
     </section>
+
+    <script data-no-translate>
+    (function () {
+        const canvas = document.getElementById('dino-canvas');
+        const scoreEl = document.getElementById('dino-score');
+        const gameWrap = document.getElementById('dino-game-wrap');
+        const offlineBanner = document.getElementById('offline-banner');
+        const onlineVisual = document.getElementById('error-visual-online');
+        const canvasBox = document.getElementById('dino-canvas-box');
+
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const GROUND_Y = 138;
+        const GRAVITY = 0.62;
+        const JUMP_V = -11.5;
+
+        let running = false;
+        let started = false;
+        let gameOver = false;
+        let frame = 0;
+        let score = 0;
+        let speed = 5;
+        let animId = null;
+
+        const dino = { x: 42, y: GROUND_Y, vy: 0, w: 34, h: 38, grounded: true, leg: 0 };
+        const obstacles = [];
+
+        function setOfflineMode(isOffline) {
+            gameWrap.classList.toggle('visible', isOffline);
+            offlineBanner.classList.toggle('visible', isOffline);
+            if (onlineVisual) {
+                onlineVisual.classList.toggle('hidden', isOffline);
+            }
+            if (isOffline && !running) {
+                startLoop();
+            }
+        }
+
+        function resetGame() {
+            gameOver = false;
+            started = false;
+            frame = 0;
+            score = 0;
+            speed = 5;
+            dino.y = GROUND_Y;
+            dino.vy = 0;
+            dino.grounded = true;
+            obstacles.length = 0;
+            scoreEl.textContent = '0';
+        }
+
+        function jump() {
+            if (gameOver) {
+                resetGame();
+                return;
+            }
+            if (!started) started = true;
+            if (dino.grounded) {
+                dino.vy = JUMP_V;
+                dino.grounded = false;
+            }
+        }
+
+        function spawnObstacle() {
+            const tall = Math.random() > 0.72;
+            obstacles.push({
+                x: W + 20,
+                w: tall ? 18 : 14,
+                h: tall ? 44 : 28,
+                color: tall ? '#198754' : '#d90429',
+            });
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(0, 0, W, GROUND_Y - 18);
+            ctx.fillStyle = '#764ba2';
+            ctx.fillRect(0, GROUND_Y - 18, W, 18);
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+            ctx.strokeStyle = '#dee2e6';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y + 0.5);
+            ctx.lineTo(W, GROUND_Y + 0.5);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            for (let i = 0; i < 4; i++) {
+                const cx = ((frame * 0.4 + i * 120) % (W + 80)) - 40;
+                ctx.beginPath();
+                ctx.arc(cx, 36 + i * 8, 14 + i * 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawDino() {
+            dino.leg = started ? Math.floor(frame / 6) % 2 : 0;
+            ctx.fillStyle = '#ffd166';
+            ctx.fillRect(dino.x, dino.y - dino.h + 8, dino.w, dino.h - 8);
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(dino.x + 22, dino.y - dino.h + 14, 6, 6);
+            ctx.fillStyle = '#f4a261';
+            ctx.fillRect(dino.x + 28, dino.y - dino.h + 22, 10, 8);
+            ctx.fillStyle = '#ffd166';
+            if (dino.grounded) {
+                ctx.fillRect(dino.x + 6, dino.y - 4, 10, 4);
+                ctx.fillRect(dino.x + 20, dino.y - 4 + dino.leg, 10, 4);
+            } else {
+                ctx.fillRect(dino.x + 8, dino.y - 2, 10, 4);
+                ctx.fillRect(dino.x + 22, dino.y - 6, 10, 4);
+            }
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(function (obs) {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, GROUND_Y - obs.h, obs.w, obs.h);
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.fillRect(obs.x + 3, GROUND_Y - obs.h + 4, obs.w - 6, 4);
+            });
+        }
+
+        function drawOverlay(text, sub) {
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#fff';
+            ctx.font = '700 22px Space Grotesk, Manrope, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, W / 2, H / 2 - 8);
+            if (sub) {
+                ctx.font = '600 14px Manrope, sans-serif';
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                ctx.fillText(sub, W / 2, H / 2 + 18);
+            }
+            ctx.textAlign = 'start';
+        }
+
+        function rectsOverlap(a, b) {
+            return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+        }
+
+        function tick() {
+            frame += 1;
+            drawBackground();
+
+            if (started && !gameOver) {
+                dino.vy += GRAVITY;
+                dino.y += dino.vy;
+                if (dino.y >= GROUND_Y) {
+                    dino.y = GROUND_Y;
+                    dino.vy = 0;
+                    dino.grounded = true;
+                }
+
+                if (frame % Math.max(48 - Math.floor(score / 40), 28) === 0) {
+                    spawnObstacle();
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    obstacles[i].x -= speed;
+                    if (obstacles[i].x + obstacles[i].w < 0) {
+                        obstacles.splice(i, 1);
+                    }
+                }
+
+                score += 1;
+                if (score % 120 === 0) speed += 0.35;
+                scoreEl.textContent = String(Math.floor(score / 6));
+
+                const dinoBox = {
+                    x: dino.x + 4,
+                    y: dino.y - dino.h + 10,
+                    w: dino.w - 8,
+                    h: dino.h - 10,
+                };
+                obstacles.forEach(function (obs) {
+                    const obsBox = { x: obs.x + 2, y: GROUND_Y - obs.h, w: obs.w - 4, h: obs.h };
+                    if (rectsOverlap(dinoBox, obsBox)) {
+                        gameOver = true;
+                    }
+                });
+            }
+
+            drawObstacles();
+            drawDino();
+
+            if (!started) {
+                drawOverlay('QuizBattle Runner', 'Press Space or tap to start');
+            } else if (gameOver) {
+                drawOverlay('Game Over', 'Tap to try again');
+            }
+
+            animId = requestAnimationFrame(tick);
+        }
+
+        function startLoop() {
+            if (running) return;
+            running = true;
+            resetGame();
+            tick();
+        }
+
+        function updateOnlineState() {
+            setOfflineMode(!navigator.onLine);
+        }
+
+        window.addEventListener('online', updateOnlineState);
+        window.addEventListener('offline', updateOnlineState);
+        window.addEventListener('keydown', function (event) {
+            if (event.code === 'Space' || event.code === 'ArrowUp') {
+                event.preventDefault();
+                if (!navigator.onLine || gameWrap.classList.contains('visible')) {
+                    jump();
+                }
+            }
+        });
+        canvasBox.addEventListener('pointerdown', function () {
+            if (!navigator.onLine || gameWrap.classList.contains('visible')) {
+                jump();
+            }
+        });
+
+        updateOnlineState();
+    })();
+    </script>
 </body>
 </html>

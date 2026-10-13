@@ -72,3 +72,36 @@ body {
 #loading-indicator p {
     color: #6c757d;
 }
+
+.two-option-toggle {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.two-option-toggle .form-check-input {
+    width: 2.75rem;
+    height: 1.4rem;
+    cursor: pointer;
+}
+
+.two-option-toggle .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.two-option-toggle .form-check-label {
+    cursor: pointer;
+    padding-left: 0.25rem;
+}
+
+.ai-quota-box {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}

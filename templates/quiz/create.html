@@ -54,7 +54,32 @@
                     <!-- AI Generation Form -->
                     <div class="tab-pane fade p-4" id="ai-panel" role="tabpanel" aria-labelledby="ai-tab">
                         <h3 class="mb-3 text-center">{% trans "Generate Quiz with AI" %}</h3>
-                        <p class="text-muted text-center mb-4">{% trans "Just provide a topic, and our AI will create a quiz for you." %}</p>
+                        <p class="text-muted text-center mb-3">{% trans "Just provide a topic, and our AI will create a quiz for you." %}</p>
+
+                        <div class="ai-quota-box mb-4">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div>
+                                    <span class="text-muted">{% trans "Plan" %}:</span>
+                                    <strong>{{ ai_quota.tier_label }}</strong>
+                                </div>
+                                <div>
+                                    {% if ai_quota.is_unlimited %}
+                                        <span class="badge bg-success">{% trans "Unlimited AI today" %}</span>
+                                    {% else %}
+                                        <span class="badge {% if ai_quota.allowed %}bg-primary{% else %}bg-danger{% endif %}">
+                                            {% trans "AI today" %}: {{ ai_quota.used_today }}/{{ ai_quota.limit_label }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if not ai_quota.allowed %}
+                            <p class="text-danger small mb-0 mt-2">
+                                {% trans "Daily AI limit reached." %}
+                                <a href="{% url 'accounts:teacher_subscription' %}">{% trans "Upgrade your plan" %}</a>
+                            </p>
+                            {% endif %}
+                        </div>
+
                         <form method="POST" action="{% url 'quiz:create' %}" id="ai-generation-form">
                             {% csrf_token %}
                             <input type="hidden" name="creation_method" value="ai">
@@ -66,22 +91,15 @@
                                 <input type="text" class="form-control" id="topic" name="topic" required placeholder="e.g. Photosynthesis">
                                 <label for="topic">{% trans "Topic" %}</label>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="number" class="form-control" id="num_questions" name="num_questions" value="5" min="1" max="15">
-                                        <label for="num_questions">{% trans "Number of Questions" %}</label>
-                                    </div>
+                            <div class="mb-3">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" id="num_questions" name="num_questions" value="5" min="4" max="15" required>
+                                    <label for="num_questions">{% trans "Number of Questions" %}</label>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="number" class="form-control" id="num_options" name="num_options" value="4" min="2" max="4">
-                                        <label for="num_options">{% trans "Options per Question" %}</label>
-                                    </div>
-                                </div>
+                                <small class="text-muted">{% trans "Minimum 4 questions" %}</small>
                             </div>
                             <div class="d-grid gap-2 mt-3">
-                                <button type="submit" name="generate_with_ai" class="btn btn-primary btn-lg">
+                                <button type="submit" name="generate_with_ai" class="btn btn-primary btn-lg" id="ai-generate-btn" {% if not ai_quota.allowed %}disabled{% endif %}>
                                     <i class="fas fa-cogs me-2"></i>{% trans "Generate Quiz" %}
                                 </button>
                             </div>
@@ -101,7 +119,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script data-no-translate>
     document.addEventListener('DOMContentLoaded', function () {
         const aiForm = document.getElementById('ai-generation-form');
         const manualForm = document.getElementById('manual-creation-form');
@@ -114,11 +132,17 @@
                 loadingIndicator.style.display = 'block';
 
                 const formData = new FormData(aiForm);
+                const numQuestions = parseInt(formData.get('num_questions'), 10);
+                if (Number.isNaN(numQuestions) || numQuestions < 4) {
+                    loadingIndicator.style.display = 'none';
+                    aiForm.querySelector('#num_questions').reportValidity();
+                    return;
+                }
+
                 const data = {
                     title: formData.get('title'),
                     topic: formData.get('topic'),
-                    num_questions: formData.get('num_questions'),
-                    num_options: formData.get('num_options')
+                    num_questions: numQuestions,
                 };
 
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -166,6 +190,15 @@
                     sourceInput.name = 'source';
                     sourceInput.value = 'ai';
                     manualForm.appendChild(sourceInput);
+
+                    if (generatedData.generation_token) {
+                        const tokenInput = document.createElement('input');
+                        tokenInput.type = 'hidden';
+                        tokenInput.name = 'ai_generation_token';
+                        tokenInput.value = generatedData.generation_token;
+                        manualForm.appendChild(tokenInput);
+                    }
+
                     manualForm.submit();
                 })
                 .catch(error => {

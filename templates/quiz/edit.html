@@ -32,6 +32,14 @@
                             </button>
                         </div>
                     </form>
+
+                    <form method="POST" action="{% url 'quiz:delete' quiz.id %}" class="d-grid mt-3 js-delete-quiz-form"
+                          data-confirm="{{ delete_confirm_message|escapejs }}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-2"></i>{% trans "Delete Quiz" %}
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -81,16 +89,47 @@
                     </a>
                 </div>
             {% endif %}
+
+            {% if questions.count > 0 and questions.count < min_questions %}
+                <div class="alert alert-warning mt-4" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "Add more questions before hosting." %}
+                    <strong>{{ questions.count }}/{{ min_questions }}</strong>
+                </div>
+            {% endif %}
+
+            {% if host_status.reason == 'invalid_questions' %}
+                <div class="alert alert-warning mt-4" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "Some questions are incomplete. Each question needs at least 2 answers and one correct answer." %}
+                </div>
+            {% endif %}
             
             <div class="mt-4 d-grid gap-2 d-md-flex">
+                {% if can_host %}
                  <a href="{% url 'game:host' quiz.id %}" class="btn btn-success btn-lg">
                     <i class="fas fa-play me-2"></i>{% trans "Host Game" %}
                 </a>
-                <a href="{% url 'quiz:browse' %}" class="btn btn-outline-secondary">
-                    {% trans "Back to Browse" %}
-                </a>
+                {% else %}
+                <button type="button" class="btn btn-success btn-lg" disabled title="{% trans 'Complete all questions before hosting' %}">
+                    <i class="fas fa-play me-2"></i>{% trans "Host Game" %}
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script data-no-translate>
+document.querySelectorAll('.js-delete-quiz-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+        const message = form.dataset.confirm || 'Are you sure you want to delete this quiz?';
+        if (!confirm(message)) {
+            event.preventDefault();
+        }
+    });
+});
+</script>
 {% endblock %}

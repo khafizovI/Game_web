@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext as _
 from quiz.models import Quiz, Question, Answer
+from quiz.constants import MIN_QUIZ_QUESTIONS
+from quiz.validators import get_quiz_host_status
 from .models import Game, GamePlayer, PlayerAnswer
 from accounts.views import award_game_points, check_achievements
 from quizgame.translation_utils import translate_text_for_request
@@ -100,10 +102,26 @@ def host_game(request, quiz_id):
         return redirect('accounts:dashboard')
         
     quiz = get_object_or_404(Quiz, id=quiz_id)
-    
-    # Check if quiz has questions
-    if quiz.questions.count() == 0:
-        messages.error(request, "You can't host a game with a quiz that has no questions.")
+    host_status = get_quiz_host_status(quiz)
+
+    if not host_status['can_host']:
+        if host_status['reason'] == 'min_questions':
+            messages.error(
+                request,
+                translate_text_for_request(
+                    request,
+                    "You need at least {count} questions to host this quiz.",
+                    count=MIN_QUIZ_QUESTIONS,
+                ),
+            )
+        else:
+            messages.error(
+                request,
+                translate_text_for_request(
+                    request,
+                    "Every question must have at least 2 answers and one correct answer.",
+                ),
+            )
         return redirect('quiz:edit', quiz_id=quiz.id)
     
     # Generate a unique 6-character game code
@@ -294,3 +312,78 @@ def lobby_state(request, game_code):
 def game_results(request, game_code):
     """Legacy results URL now points to the in-game final leaderboard."""
     return redirect('game:play', game_code=game_code)
+
+
+@login_required
+def game_report(request, game_code):
+    """Post-game report for the teacher/host only."""
+    from django.db.models import Count, Q
+
+    game = get_object_or_404(Game, code=game_code)
+
+    if game.host_id != request.user.id:
+        messages.error(request, translate_text_for_request(request, 'Only the game host can view this report.'))
+        return redirect('quiz:browse')
+
+    total_questions = game.quiz.questions.count()
+
+    # Per-student stats
+    players = (
+        GamePlayer.objects.filter(game=game)
+        .exclude(user_id=game.host_id)
+        .select_related('user')
+        .annotate(
+            correct_count=Count('answers', filter=Q(answers__is_correct=True)),
+            total_answered=Count('answers'),
+        )
+        .order_by('-score')
+    )
+
+    player_stats = []
+    for player in players:
+        total_ans = player.total_answered or 0
+        correct = player.correct_count or 0
+        accuracy = round(correct / max(total_ans, 1) * 100)
+        player_stats.append({
+            'name': player.name,
+            'score': player.score,
+            'correct': correct,
+            'total_answered': total_ans,
+            'accuracy': accuracy,
+        })
+
+    # Per-question stats
+    from quiz.models import Question
+    questions = Question.objects.filter(quiz=game.quiz).order_by('order')
+    question_stats = []
+    for question in questions:
+        total_ans = PlayerAnswer.objects.filter(player__game=game, question=question).count()
+        correct = PlayerAnswer.objects.filter(player__game=game, question=question, is_correct=True).count()
+        wrong = total_ans - correct
+        accuracy = round(correct / max(total_ans, 1) * 100)
+        question_stats.append({
+            'text': question.text,
+            'total': total_ans,
+            'correct': correct,
+            'wrong': wrong,
+            'accuracy': accuracy,
+        })
+
+    # Overall class accuracy
+    total_all = PlayerAnswer.objects.filter(player__game=game).count()
+    total_correct = PlayerAnswer.objects.filter(player__game=game, is_correct=True).count()
+    class_accuracy = round(total_correct / max(total_all, 1) * 100)
+
+    # Weak questions (accuracy below 50%)
+    weak_questions = [q for q in question_stats if q['accuracy'] < 50]
+
+    context = {
+        'game': game,
+        'player_stats': player_stats,
+        'question_stats': question_stats,
+        'class_accuracy': class_accuracy,
+        'weak_questions': weak_questions,
+        'total_questions': total_questions,
+        'total_players': len(player_stats),
+    }
+    return render(request, 'game/report.html', context)

@@ -61,8 +61,8 @@
                             <p>{{ owned.item.get_item_type_display }} · {{ owned.unlocked_at|date:"Y-m-d" }}</p>
                         </div>
                         <div class="inventory-actions">
-                            <button class="preview-btn" data-preview-name="{{ owned.item.name }}" data-preview-type="{{ owned.item.get_item_type_display }}" data-preview-rarity="{{ owned.item.get_rarity_display }}">
-                                <i class="fas fa-eye"></i>{% trans "Preview" %}
+                            <button class="preview-btn sell-item-btn" data-url="{% url 'accounts:sell_inventory_item' owned.id %}" data-sell-name="{{ owned.item.name }}">
+                                <i class="fas fa-coins"></i>{% trans "Sell" %}
                             </button>
                             {% if item_type == 'avatar' and profile.selected_avatar_id == owned.item.id or item_type == 'border' and profile.selected_border_id == owned.item.id or item_type == 'banner' and profile.selected_banner_id == owned.item.id or item_type == 'title' and profile.selected_title_id == owned.item.id %}
                                 <button class="unequip-btn" data-url="{% url 'accounts:unequip_inventory_type' item_type %}">
@@ -91,7 +91,13 @@
                     {% for owned in owned_pets %}
                     <article class="inventory-card pet-card rarity-rail-{{ owned.pet.rarity }}{% if profile.selected_pet_id == owned.id %} equipped{% endif %}">
                         <div class="inventory-preview pet-inventory-preview">
-                            <img src="{{ owned.pet.image }}" alt="{{ owned.pet.name }}">
+                            {% if owned.pet.name == 'Cat' %}
+                                <img src="{% static 'pets/cat/default.png' %}" alt="{{ owned.pet.name }}" onerror="this.replaceWith(document.createTextNode(this.dataset.fallback || ''))" data-fallback="😸">
+                            {% elif owned.pet.name == 'Robot' %}
+                                <img src="{% static 'pets/cat/robot/default.png' %}" alt="{{ owned.pet.name }}" onerror="this.replaceWith(document.createTextNode(this.dataset.fallback || ''))" data-fallback="🤖">
+                            {% else %}
+                                <span>{{ owned.pet.image }}</span>
+                            {% endif %}
                         </div>
                         <div class="inventory-copy">
                             <span class="rarity-pill rarity-{{ owned.pet.rarity }}">{{ owned.pet.get_rarity_display }}</span>
@@ -99,8 +105,8 @@
                             <p>{% trans "Unlocked" %}: {{ owned.unlocked_at|date:"Y-m-d" }}</p>
                         </div>
                         <div class="inventory-actions">
-                            <button class="preview-btn" data-preview-name="{{ owned.pet.name }}" data-preview-type="{% trans 'Pet' %}" data-preview-rarity="{{ owned.pet.get_rarity_display }}">
-                                <i class="fas fa-eye"></i>{% trans "Preview" %}
+                            <button class="preview-btn sell-item-btn" data-url="{% url 'accounts:sell_pet' owned.id %}" data-sell-name="{{ owned.pet.name }}">
+                                <i class="fas fa-coins"></i>{% trans "Sell" %}
                             </button>
                             {% if profile.selected_pet_id == owned.id %}
                                 <button class="unequip-btn" data-url="{% url 'accounts:unequip_inventory_type' 'pet' %}">

@@ -1,0 +1,451 @@
+{% extends 'base/base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Game Report" %} – {{ game.quiz.title }}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --rpt-primary: #667eea;
+        --rpt-secondary: #764ba2;
+        --rpt-card: #fff;
+        --rpt-muted: #6b7280;
+        --rpt-border: #e5e7eb;
+        --rpt-green: #10b981;
+        --rpt-red: #ef4444;
+        --rpt-yellow: #f59e0b;
+    }
+
+    .report-page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+    }
+
+    .report-hero {
+        background: linear-gradient(135deg, var(--rpt-primary) 0%, var(--rpt-secondary) 100%);
+        color: #fff;
+        border-radius: 24px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 16px 40px rgba(102,126,234,0.28);
+    }
+
+    .report-hero h1 {
+        margin: 0 0 0.35rem;
+        font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+        font-weight: 900;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .report-hero p {
+        margin: 0;
+        opacity: 0.88;
+        font-size: 0.97rem;
+    }
+
+    .report-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+        background: var(--rpt-card);
+        border: 1px solid var(--rpt-border);
+        border-radius: 18px;
+        padding: 1.3rem 1rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    .kpi-value {
+        font-size: 2.2rem;
+        font-weight: 900;
+        font-family: 'Space Grotesk', sans-serif;
+        color: var(--rpt-primary);
+        line-height: 1;
+        margin-bottom: 0.35rem;
+    }
+
+    .kpi-label {
+        font-size: 0.82rem;
+        color: var(--rpt-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .report-section {
+        background: var(--rpt-card);
+        border: 1px solid var(--rpt-border);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #1a1a2e;
+        margin: 0 0 1.2rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--rpt-border);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Student table */
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.93rem;
+    }
+
+    .report-table th {
+        text-align: left;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--rpt-muted);
+        border-bottom: 2px solid var(--rpt-border);
+        white-space: nowrap;
+    }
+
+    .report-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--rpt-border);
+        color: #1a1a2e;
+        font-weight: 600;
+    }
+
+    .report-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .report-table tbody tr:hover td {
+        background: #f8f9ff;
+    }
+
+    .rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 900;
+        background: var(--rpt-border);
+        color: #374151;
+    }
+
+    .rank-badge.gold { background: #ffd700; color: #92400e; }
+    .rank-badge.silver { background: #d1d5db; color: #374151; }
+    .rank-badge.bronze { background: #d97706; color: #fff; }
+
+    /* Accuracy bar */
+    .acc-bar-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .acc-bar {
+        flex: 1;
+        height: 8px;
+        background: var(--rpt-border);
+        border-radius: 999px;
+        overflow: hidden;
+        min-width: 60px;
+    }
+
+    .acc-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--rpt-green), #34d399);
+    }
+
+    .acc-bar-fill.medium {
+        background: linear-gradient(90deg, var(--rpt-yellow), #fbbf24);
+    }
+
+    .acc-bar-fill.low {
+        background: linear-gradient(90deg, var(--rpt-red), #f87171);
+    }
+
+    .acc-pct {
+        font-size: 0.85rem;
+        font-weight: 800;
+        min-width: 36px;
+        text-align: right;
+    }
+
+    /* Question analysis */
+    .q-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.9rem 0;
+        border-bottom: 1px solid var(--rpt-border);
+    }
+
+    .q-row:last-child {
+        border-bottom: none;
+    }
+
+    .q-num {
+        min-width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.82rem;
+        font-weight: 900;
+        color: #374151;
+        flex-shrink: 0;
+    }
+
+    .q-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .q-text {
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 0.5rem;
+        line-height: 1.35;
+        word-break: break-word;
+    }
+
+    .q-stats {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .q-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .q-stat-pill.correct {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .q-stat-pill.wrong {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    .q-stat-pill.accuracy {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+
+    /* Weak topic tag */
+    .weak-tag {
+        display: inline-block;
+        padding: 0.35rem 0.8rem;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin: 0.2rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: var(--rpt-muted);
+        font-size: 0.95rem;
+        padding: 1.5rem 0;
+    }
+
+    .report-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 2rem;
+    }
+
+    .rpt-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.75rem 1.4rem;
+        border-radius: 14px;
+        font-weight: 800;
+        font-size: 0.93rem;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .rpt-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+    .rpt-btn.primary {
+        background: linear-gradient(135deg, var(--rpt-primary) 0%, var(--rpt-secondary) 100%);
+        color: #fff;
+    }
+
+    .rpt-btn.secondary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    @media (max-width: 640px) {
+        .report-table th:nth-child(4),
+        .report-table td:nth-child(4) {
+            display: none;
+        }
+
+        .q-stats {
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+    }
+</style>
+
+<div class="report-page">
+    <!-- Hero -->
+    <div class="report-hero">
+        <h1>📊 {% trans "Game Report" %}</h1>
+        <p>{{ game.quiz.title }} &nbsp;·&nbsp; {% trans "Code:" %} <strong>{{ game.code }}</strong></p>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="report-kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ total_players }}</div>
+            <div class="kpi-label">{% trans "Players" %}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">{{ total_questions }}</div>
+            <div class="kpi-label">{% trans "Questions" %}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">{{ class_accuracy }}%</div>
+            <div class="kpi-label">{% trans "Class Accuracy" %}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-value">{{ weak_questions|length }}</div>
+            <div class="kpi-label">{% trans "Weak Questions" %}</div>
+        </div>
+    </div>
+
+    <!-- Student Scores -->
+    <div class="report-section">
+        <h2 class="section-title">🏆 {% trans "Student Scores" %}</h2>
+        {% if player_stats %}
+        <div style="overflow-x:auto;">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans "Student" %}</th>
+                        <th>{% trans "Score" %}</th>
+                        <th>{% trans "Correct" %}</th>
+                        <th>{% trans "Accuracy" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in player_stats %}
+                    <tr>
+                        <td>
+                            {% if forloop.counter == 1 %}
+                                <span class="rank-badge gold">1</span>
+                            {% elif forloop.counter == 2 %}
+                                <span class="rank-badge silver">2</span>
+                            {% elif forloop.counter == 3 %}
+                                <span class="rank-badge bronze">3</span>
+                            {% else %}
+                                <span class="rank-badge">{{ forloop.counter }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.name }}</td>
+                        <td><strong>{{ p.score }}</strong></td>
+                        <td>{{ p.correct }} / {{ total_questions }}</td>
+                        <td>
+                            <div class="acc-bar-wrapper">
+                                <div class="acc-bar">
+                                    <div class="acc-bar-fill {% if p.accuracy >= 70 %}{% elif p.accuracy >= 40 %}medium{% else %}low{% endif %}"
+                                         style="width:{{ p.accuracy }}%"></div>
+                                </div>
+                                <span class="acc-pct">{{ p.accuracy }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">{% trans "No student data available." %}</p>
+        {% endif %}
+    </div>
+
+    <!-- Question Analysis -->
+    <div class="report-section">
+        <h2 class="section-title">📝 {% trans "Question Analysis" %}</h2>
+        {% if question_stats %}
+        {% for q in question_stats %}
+        <div class="q-row">
+            <div class="q-num">{{ forloop.counter }}</div>
+            <div class="q-body">
+                <div class="q-text">{{ q.text }}</div>
+                <div class="q-stats">
+                    <span class="q-stat-pill correct">✓ {{ q.correct }} {% trans "correct" %}</span>
+                    <span class="q-stat-pill wrong">✗ {{ q.wrong }} {% trans "wrong" %}</span>
+                    <span class="q-stat-pill accuracy">{{ q.accuracy }}% {% trans "accuracy" %}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="empty-state">{% trans "No question data available." %}</p>
+        {% endif %}
+    </div>
+
+    <!-- Weak Questions -->
+    <div class="report-section">
+        <h2 class="section-title">⚠️ {% trans "Weak Questions" %} <small style="font-size:0.78rem;color:#6b7280;font-weight:600;">({% trans "accuracy < 50%" %})</small></h2>
+        {% if weak_questions %}
+        <div>
+            {% for q in weak_questions %}
+            <span class="weak-tag">
+                {{ q.text|truncatechars:60 }} – {{ q.accuracy }}%
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state" style="padding:0.5rem 0;">🎉 {% trans "No weak questions. Great class performance!" %}</p>
+        {% endif %}
+    </div>
+
+    <!-- Actions -->
+    <div class="report-actions">
+        <a href="{% url 'quiz:browse' %}" class="rpt-btn primary">{% trans "Browse Quizzes" %}</a>
+        <a href="{% url 'home' %}" class="rpt-btn secondary">{% trans "Home" %}</a>
+    </div>
+</div>
+{% endblock %}

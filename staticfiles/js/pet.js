@@ -10,15 +10,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const staticBase = (pet.dataset.petStaticBase || '/static/pets').replace(/\/$/, '');
     const storageKey = `quizbattle.pet.position.${petName}`;
     const lines = {
-        Cat: ['Meow! 😸', "Let's win this quiz!"],
-        Dog: ['Woof! 🐶', "You're doing great!"],
-        Cow: ['Moo! 🐮'],
-        Fox: ['Hello friend! 🦊'],
+        Cat: ['Meow! 😸', "Let's win this quiz!", 'Trust your instincts!'],
+        Dog: ['Woof! 🐶', "You're doing great!", 'I believe in you!'],
+        Cow: ['Moo! 🐮', 'Slow and steady wins!'],
+        Fox: ['Hello friend! 🦊', 'Think smart, move fast!'],
         Panda: ['Stay focused! 🐼', 'You can do it!'],
-        Owl: ['Time to learn! 📚'],
-        Penguin: ['Keep going! 🐧'],
-        Robot: ['System ready. 🤖'],
+        Owl: ['Time to learn! 📚', 'Read carefully!'],
+        Penguin: ['Keep going! 🐧', 'Stay cool!'],
+        Robot: ['System ready. 🤖', 'Calculating confidence...', 'Focus mode activated.'],
     };
+    const gameLines = {
+        lobby: [
+            'Get ready to the battle!',
+            'Battle is coming. Stay sharp!',
+            'Warm up your brain!',
+        ],
+        motivation: [
+            'Keep going, you can win!',
+            'Stay focused!',
+            'Nice try, next one is yours!',
+            'You are getting stronger!',
+            'Trust yourself!',
+        ],
+        correct: [
+            'Great answer!',
+            'Nice job!',
+            'You are on fire!',
+        ],
+        incorrect: [
+            'No worries, keep going!',
+            'Next question, new chance!',
+            'Do not give up!',
+        ],
+    };
+    const answerColors = ['red', 'blue', 'yellow', 'green'];
 
     let dragging = false;
     let moved = false;
@@ -49,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     restorePosition();
+    setupImageFallback();
     setupSpritePet();
 
     pet.addEventListener('pointerdown', (event) => {
@@ -73,6 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
         pet.style.bottom = 'auto';
     });
 
+    window.quizBattlePet = {
+        speak,
+        speakRandom,
+        predictAnswerColor,
+        motivate: () => speakRandom('motivation'),
+    };
+
     pet.addEventListener('pointerup', (event) => {
         dragging = false;
         pet.classList.remove('dragging');
@@ -90,15 +123,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function speak() {
+    function speak(message, options = {}) {
         const petLines = lines[petName] || ['Ready!'];
-        dialog.textContent = petLines[Math.floor(Math.random() * petLines.length)];
+        dialog.textContent = message || petLines[Math.floor(Math.random() * petLines.length)];
         dialog.classList.add('visible');
-        playSpriteAnimation('jump', 80);
+        playSpriteAnimation(options.animation || 'jump', options.frameMs || 80);
         clearTimeout(hideTimer);
         hideTimer = setTimeout(() => {
             dialog.classList.remove('visible');
-        }, 2600);
+        }, options.duration || 2600);
+    }
+
+    function speakRandom(groupName, options = {}) {
+        const petLines = gameLines[groupName] || lines[petName] || ['Ready!'];
+        speak(petLines[Math.floor(Math.random() * petLines.length)], options);
+    }
+
+    function predictAnswerColor(availableCount = answerColors.length, options = {}) {
+        const colors = answerColors.slice(0, Math.max(1, Math.min(availableCount, answerColors.length)));
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        speak(`Answer may be ${color}.`, options);
+    }
+
+    function setupImageFallback() {
+        if (!frame || frame.tagName !== 'IMG') {
+            return;
+        }
+
+        frame.addEventListener('error', () => {
+            const fallback = frame.dataset.fallback || pet.dataset.petImage || '🤖';
+            const fallbackNode = document.createElement('span');
+            fallbackNode.id = frame.id;
+            fallbackNode.textContent = fallback;
+            frame.replaceWith(fallbackNode);
+        }, { once: true });
     }
 
     function setupSpritePet() {

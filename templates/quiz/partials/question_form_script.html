@@ -1,0 +1,151 @@
+<script data-no-translate>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('answers-container');
+    const addButton = document.getElementById('add-answer');
+    const form = document.getElementById('questionForm');
+    const errorDiv = document.getElementById('answer-error');
+
+    if (!container || !addButton || !form) {
+        return;
+    }
+
+    const answerLabel = addButton.dataset.answerLabel || 'Answer';
+    const removeTitle = addButton.dataset.removeTitle || 'Remove answer';
+    const includeAnswerId = addButton.dataset.includeAnswerId === 'true';
+
+    const MIN_ANSWERS = 2;
+    const MAX_ANSWERS = 4;
+
+    const getRowCount = () => container.querySelectorAll('.answer-row').length;
+
+    const addRemoveListener = (button) => {
+        button.addEventListener('click', function () {
+            if (getRowCount() <= MIN_ANSWERS) {
+                return;
+            }
+            this.closest('.answer-row').remove();
+            updateRemoveButtons();
+            updateAddButtonState();
+            updateAnswerValues();
+        });
+    };
+
+    const updateAnswerValues = () => {
+        container.querySelectorAll('.answer-row').forEach((row, index) => {
+            const checkbox = row.querySelector('input[type="checkbox"][name="is_correct"]');
+            const textInput = row.querySelector('input[type="text"][name="answer_text"]');
+            if (checkbox) {
+                checkbox.value = String(index);
+            }
+            if (textInput) {
+                textInput.placeholder = answerLabel + ' #' + (index + 1);
+            }
+        });
+    };
+
+    const updateRemoveButtons = () => {
+        container.querySelectorAll('.answer-row').forEach((row, index) => {
+            let removeButton = row.querySelector('.remove-answer');
+            if (!removeButton && index >= MIN_ANSWERS) {
+                removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'btn btn-outline-danger remove-answer';
+                removeButton.title = removeTitle;
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                row.appendChild(removeButton);
+                addRemoveListener(removeButton);
+            }
+            if (removeButton) {
+                removeButton.classList.toggle('d-none', index < MIN_ANSWERS);
+            }
+        });
+    };
+
+    const updateAddButtonState = () => {
+        addButton.disabled = getRowCount() >= MAX_ANSWERS;
+    };
+
+    const createAnswerRow = () => {
+        const newRow = document.createElement('div');
+        newRow.className = 'input-group mb-3 answer-row';
+
+        const groupText = document.createElement('div');
+        groupText.className = 'input-group-text';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input mt-0';
+        checkbox.name = 'is_correct';
+        checkbox.value = '';
+        groupText.appendChild(checkbox);
+
+        if (includeAnswerId) {
+            const hiddenId = document.createElement('input');
+            hiddenId.type = 'hidden';
+            hiddenId.name = 'answer_id';
+            hiddenId.value = '';
+            groupText.appendChild(hiddenId);
+        }
+
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.className = 'form-control';
+        textInput.name = 'answer_text';
+        textInput.required = true;
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-outline-danger remove-answer';
+        removeButton.title = removeTitle;
+        removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+
+        newRow.appendChild(groupText);
+        newRow.appendChild(textInput);
+        newRow.appendChild(removeButton);
+
+        return newRow;
+    };
+
+    addButton.addEventListener('click', function () {
+        if (getRowCount() >= MAX_ANSWERS) {
+            return;
+        }
+
+        const newRow = createAnswerRow();
+        container.appendChild(newRow);
+        addRemoveListener(newRow.querySelector('.remove-answer'));
+        updateRemoveButtons();
+        updateAddButtonState();
+        updateAnswerValues();
+    });
+
+    form.addEventListener('submit', function (event) {
+        updateAnswerValues();
+
+        const filledAnswers = Array.from(
+            container.querySelectorAll('input[name="answer_text"]')
+        ).filter(function (input) {
+            return input.value.trim();
+        });
+
+        const checkedCorrect = container.querySelectorAll('input[name="is_correct"]:checked').length;
+
+        if (filledAnswers.length < MIN_ANSWERS || filledAnswers.length > MAX_ANSWERS || checkedCorrect === 0) {
+            event.preventDefault();
+            if (errorDiv) {
+                errorDiv.classList.remove('d-none');
+            }
+            return;
+        }
+
+        if (errorDiv) {
+            errorDiv.classList.add('d-none');
+        }
+    });
+
+    container.querySelectorAll('.remove-answer').forEach(addRemoveListener);
+    updateRemoveButtons();
+    updateAddButtonState();
+    updateAnswerValues();
+});
+</script>

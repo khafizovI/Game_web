@@ -181,7 +181,13 @@
                         {% for owned in recent_pets %}
                         <div class="mini-item rarity-rail-{{ owned.pet.rarity }}">
                             <div class="mini-preview pet-mini">
-                                <img src="{{ owned.pet.image }}" alt="{{ owned.pet.name }}">
+                                {% if owned.pet.name == 'Cat' %}
+                                    <img src="{% static 'pets/cat/default.png' %}" alt="{{ owned.pet.name }}" onerror="this.replaceWith(document.createTextNode(this.dataset.fallback || ''))" data-fallback="😸">
+                                {% elif owned.pet.name == 'Robot' %}
+                                    <img src="{% static 'pets/cat/robot/default.png' %}" alt="{{ owned.pet.name }}" onerror="this.replaceWith(document.createTextNode(this.dataset.fallback || ''))" data-fallback="🤖">
+                                {% else %}
+                                    <span>{{ owned.pet.image }}</span>
+                                {% endif %}
                             </div>
                             <div>
                                 <strong>{{ owned.pet.name }}</strong>

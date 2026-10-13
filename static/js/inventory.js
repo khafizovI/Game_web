@@ -10,14 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.querySelectorAll('.equip-item-btn, .unequip-btn').forEach((button) => {
+    document.querySelectorAll('.equip-item-btn, .unequip-btn, .sell-item-btn').forEach((button) => {
         button.addEventListener('click', () => postAction(button.dataset.url, button));
-    });
-
-    document.querySelectorAll('.preview-btn').forEach((button) => {
-        button.addEventListener('click', () => {
-            showNotification(`${button.dataset.previewName} · ${button.dataset.previewType} · ${button.dataset.previewRarity}`, 'success');
-        });
     });
 
     function postAction(url, button) {

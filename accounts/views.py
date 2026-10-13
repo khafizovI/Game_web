@@ -38,6 +38,13 @@ from django.db import transaction
 from django.utils import timezone
 from django.template.loader import render_to_string
 from datetime import timedelta
+from accounts.subscription_constants import SUBSCRIPTION_TIERS, PAID_TIERS, SUBSCRIPTION_DURATION_DAYS
+from accounts.subscription_utils import (
+    activate_subscription,
+    format_uzs_price,
+    get_ai_quota_status,
+    get_effective_tier,
+)
 from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 import random
@@ -45,6 +52,12 @@ from django.views.decorators.http import require_http_methods
 from django.utils.translation import gettext as _
 import json
 import logging
+import hmac
+import re
+import secrets
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from quizgame.translation_utils import translate_text, translate_text_for_request
 
 
@@ -137,6 +150,8 @@ PET_BOX = {
     'price': 300,
     'icon': 'fa-paw',
 }
+
+SELL_DISCOUNT = 100
 
 AVATAR_BOXES = {
     'girls': {
@@ -236,6 +251,41 @@ def ensure_shop_catalog():
             name=name,
             defaults={'image': image, 'rarity': rarity, 'weight': weight, 'is_active': True},
         )
+
+
+def get_inventory_item_base_price(item):
+    if item.item_type == 'avatar':
+        if item.name.startswith('Girls Avatar'):
+            return AVATAR_BOXES['girls']['price']
+        if item.name.startswith('Boys Avatar'):
+            return AVATAR_BOXES['boys']['price']
+
+    return COSMETIC_BOXES.get(item.rarity, {}).get('price', 0)
+
+
+def get_sell_price(base_price):
+    return max(base_price - SELL_DISCOUNT, 0)
+
+
+def clear_selected_inventory_item(profile, item):
+    field_by_type = {
+        'avatar': 'selected_avatar',
+        'border': 'selected_border',
+        'banner': 'selected_banner',
+        'title': 'selected_title',
+    }
+    field = field_by_type.get(item.item_type)
+    update_fields = []
+
+    if field and getattr(profile, f'{field}_id') == item.id:
+        setattr(profile, field, None)
+        update_fields.append(field)
+
+        if item.item_type == 'border':
+            profile.selected_frame = None
+            update_fields.append('selected_frame')
+
+    return update_fields
 
 
 def choose_weighted_key(weights):
@@ -373,6 +423,14 @@ def send_password_reset_email(user, code, language_code='en'):
         raise
 
 
+def mask_email(email):
+    """Show only the first two local-part characters on verification screens."""
+    local_part, separator, domain = (email or '').partition('@')
+    if not separator:
+        return email
+    return f'{local_part[:2]}****@{domain}'
+
+
 def verify_email(request):
     user_id = request.session.get('pending_user_id')
     if not user_id:
@@ -399,7 +457,10 @@ def verify_email(request):
                         'We could not send the verification email right now. Please try again later.'
                     ),
                 )
-            return render(request, 'accounts/verify_email.html', {'user': user})
+            return render(request, 'accounts/verify_email.html', {
+                'user': user,
+                'masked_email': mask_email(user.email),
+            })
         
         form = EmailVerificationForm(user=user, data=request.POST)
         if form.is_valid():
@@ -443,7 +504,115 @@ def verify_email(request):
     else:
         form = EmailVerificationForm(user=user)
     
-    return render(request, 'accounts/verify_email.html', {'form': form, 'user': user})
+    return render(request, 'accounts/verify_email.html', {
+        'form': form,
+        'user': user,
+        'masked_email': mask_email(user.email),
+    })
+
+
+def _google_request(url, data=None, headers=None):
+    request = Request(
+        url,
+        data=urlencode(data).encode() if data is not None else None,
+        headers=headers or {},
+        method='POST' if data is not None else 'GET',
+    )
+    with urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode('utf-8'))
+
+
+def google_login(request):
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        messages.error(request, _('Google login is not configured yet.'))
+        return redirect('accounts:login')
+
+    state = secrets.token_urlsafe(32)
+    request.session['google_oauth_state'] = state
+    params = {
+        'client_id': settings.GOOGLE_CLIENT_ID,
+        'redirect_uri': settings.GOOGLE_REDIRECT_URI,
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'access_type': 'online',
+        'state': state,
+        'prompt': 'select_account',
+    }
+    return redirect('https://accounts.google.com/o/oauth2/v2/auth?' + urlencode(params))
+
+
+def _google_username(email):
+    base = re.sub(r'[^a-zA-Z0-9_]', '_', email.split('@', 1)[0]).strip('_') or 'google_user'
+    base = base[:140]
+    username = base
+    suffix = 1
+    while User.objects.filter(username=username).exists():
+        suffix_text = f'_{suffix}'
+        username = f'{base[:150 - len(suffix_text)]}{suffix_text}'
+        suffix += 1
+    return username
+
+
+def google_callback(request):
+    state = request.GET.get('state', '')
+    expected_state = request.session.pop('google_oauth_state', '')
+    if not expected_state or not hmac.compare_digest(state, expected_state):
+        messages.error(request, _('Google login session expired. Please try again.'))
+        return redirect('accounts:login')
+
+    if request.GET.get('error'):
+        messages.error(request, _('Google login was cancelled.'))
+        return redirect('accounts:login')
+
+    code = request.GET.get('code')
+    if not code:
+        messages.error(request, _('Google did not return an authorization code.'))
+        return redirect('accounts:login')
+
+    try:
+        token_data = _google_request(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'code': code,
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'redirect_uri': settings.GOOGLE_REDIRECT_URI,
+                'grant_type': 'authorization_code',
+            },
+        )
+        profile_data = _google_request(
+            'https://openidconnect.googleapis.com/v1/userinfo',
+            headers={'Authorization': f"Bearer {token_data['access_token']}"},
+        )
+    except (KeyError, HTTPError, URLError, TimeoutError, json.JSONDecodeError):
+        logging.getLogger(__name__).exception('Google OAuth request failed')
+        messages.error(request, _('Could not sign in with Google. Please try again.'))
+        return redirect('accounts:login')
+
+    email = (profile_data.get('email') or '').strip().lower()
+    if not email or not profile_data.get('email_verified'):
+        messages.error(request, _('Google did not provide a verified email address.'))
+        return redirect('accounts:login')
+
+    user = User.objects.filter(email__iexact=email).order_by('id').first()
+    if user is None:
+        user = User.objects.create(
+            username=_google_username(email),
+            email=email,
+            first_name=profile_data.get('given_name', '')[:150],
+            last_name=profile_data.get('family_name', '')[:150],
+            is_active=True,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=['password'])
+
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if not profile.email_verified:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+
+    login(request, user)
+    return redirect('home')
 
 
 def forgot_password(request):
@@ -580,6 +749,7 @@ def login_view(request):
                         verification = EmailVerification.generate_code(user)
                         send_verification_email(user, verification.code, request.LANGUAGE_CODE)
                         request.session['pending_user_id'] = user.id
+                        request.session['pending_verification_email'] = user.email
                         messages.warning(
                             request,
                             translate_text_for_request(
@@ -728,8 +898,73 @@ def profile(request):
         'completed_games_count': completed_games_count,
         'students_taught': students_taught,
         'latest_activity': latest_activity,
+        'ai_quota': get_ai_quota_status(user),
     }
     return render(request, 'accounts/dashboard.html', context)
+
+
+@login_required
+def teacher_subscription(request):
+    """Teacher subscription plans and AI usage limits."""
+    profile = request.user.profile
+    if not profile.is_teacher():
+        return redirect('accounts:student_dashboard')
+
+    current_tier = get_effective_tier(profile)
+    ai_quota = get_ai_quota_status(request.user)
+
+    plans = []
+    for tier_key, tier_data in sorted(SUBSCRIPTION_TIERS.items(), key=lambda item: item[1]['order']):
+        daily_limit = tier_data['daily_ai_limit']
+        plans.append({
+            'key': tier_key,
+            'label': tier_data['label'],
+            'price_uzs': tier_data['price_uzs'],
+            'price_display': format_uzs_price(tier_data['price_uzs']),
+            'daily_limit': daily_limit,
+            'daily_limit_label': '∞' if daily_limit is None else str(daily_limit),
+            'is_current': tier_key == current_tier,
+            'is_free': tier_key == 'free',
+        })
+
+    context = {
+        'profile': profile,
+        'ai_quota': ai_quota,
+        'plans': plans,
+        'current_tier': current_tier,
+        'subscription_duration_days': SUBSCRIPTION_DURATION_DAYS,
+    }
+    return render(request, 'accounts/teacher_subscription.html', context)
+
+
+@login_required
+def upgrade_subscription(request, tier):
+    """Request subscription upgrade (payment integration placeholder)."""
+    profile = request.user.profile
+    if not profile.is_teacher():
+        return redirect('accounts:student_dashboard')
+
+    if tier not in PAID_TIERS:
+        messages.error(request, "Invalid subscription plan selected.")
+        return redirect('accounts:teacher_subscription')
+
+    if get_effective_tier(profile) == tier:
+        messages.info(request, "You are already on this plan.")
+        return redirect('accounts:teacher_subscription')
+
+    if request.user.is_superuser:
+        activate_subscription(profile, tier)
+        messages.success(
+            request,
+            f"Subscription activated: {SUBSCRIPTION_TIERS[tier]['label']} (admin test mode).",
+        )
+        return redirect('accounts:teacher_subscription')
+
+    messages.info(
+        request,
+        "Online payment will be available soon. Please contact the administrator to activate your plan.",
+    )
+    return redirect('accounts:teacher_subscription')
 
 
 def hosted_history(request):
@@ -1136,6 +1371,37 @@ def equip_inventory_item(request, user_item_id):
 
 @login_required
 @require_http_methods(["POST"])
+def sell_inventory_item(request, user_item_id):
+    if not request.user.profile.is_student():
+        return JsonResponse({'success': False, 'message': 'Access denied'}, status=403)
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=request.user)
+        user_item = get_object_or_404(
+            UserInventoryItem.objects.select_for_update().select_related('item'),
+            id=user_item_id,
+            user=request.user,
+        )
+        sell_price = get_sell_price(get_inventory_item_base_price(user_item.item))
+
+        update_fields = clear_selected_inventory_item(profile, user_item.item)
+        profile.coins += sell_price
+        update_fields.append('coins')
+        profile.save(update_fields=list(dict.fromkeys(update_fields)))
+
+        item_name = user_item.item.name
+        user_item.delete()
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Sold {item_name} for {sell_price} coins',
+        'new_coin_balance': profile.coins,
+        'sell_price': sell_price,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
 def unequip_inventory_type(request, item_type):
     field_by_type = {
         'avatar': 'selected_avatar',
@@ -1164,6 +1430,40 @@ def equip_pet(request, user_pet_id):
     profile.selected_pet = user_pet
     profile.save(update_fields=['selected_pet'])
     return JsonResponse({'success': True, 'message': f'Equipped {user_pet.pet.name}', 'pet_name': user_pet.pet.name})
+
+
+@login_required
+@require_http_methods(["POST"])
+def sell_pet(request, user_pet_id):
+    if not request.user.profile.is_student():
+        return JsonResponse({'success': False, 'message': 'Access denied'}, status=403)
+
+    with transaction.atomic():
+        profile = Profile.objects.select_for_update().get(user=request.user)
+        user_pet = get_object_or_404(
+            UserPet.objects.select_for_update().select_related('pet'),
+            id=user_pet_id,
+            user=request.user,
+        )
+        sell_price = get_sell_price(PET_BOX['price'])
+        update_fields = ['coins']
+
+        if profile.selected_pet_id == user_pet.id:
+            profile.selected_pet = None
+            update_fields.append('selected_pet')
+
+        profile.coins += sell_price
+        profile.save(update_fields=update_fields)
+
+        pet_name = user_pet.pet.name
+        user_pet.delete()
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Sold {pet_name} for {sell_price} coins',
+        'new_coin_balance': profile.coins,
+        'sell_price': sell_price,
+    })
 
 
 def purchase_item(request, item_id):
